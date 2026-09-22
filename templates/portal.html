@@ -19,6 +19,14 @@
 
     <!-- Mobile Stylesheet -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/mobile.css') }}">
+
+    <!-- Dark Mode Immediate Init -->
+    <script>
+        (function() {
+            const saved = localStorage.getItem('app-theme') || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            document.documentElement.setAttribute('data-theme', saved);
+        })();
+    </script>
 </head>
 <body class="mobile-portal-body">
     <div class="mobile-app-container">
@@ -30,6 +38,10 @@
                     <span>{{ global_school_name_kh }}</span>
                 </div>
                 <div class="mobile-header-actions">
+                    <!-- Theme Toggle -->
+                    <button type="button" onclick="toggleTheme()" class="mobile-icon-btn" title="ប្តូរពណ៌ (Light/Dark Mode)" style="background:none; border:none; cursor:pointer; color:#fff; font-size:16px;">
+                        <i class="fa-solid fa-moon" id="portalThemeIcon"></i>
+                    </button>
                     {% if current_user and current_user.role == 'admin' %}
                     <a href="{{ url_for('index') }}" class="mobile-icon-btn" title="ប្តូរទៅ Desktop Mode">
                         <i class="fa-solid fa-desktop"></i>
@@ -696,6 +708,28 @@
                 submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> ផ្ញើពាក្យសុំច្បាប់';
             }
         }
+
+        // Theme Switcher for Portal
+        function initTheme() {
+            const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+            const icon = document.getElementById('portalThemeIcon');
+            if (icon) {
+                icon.className = currentTheme === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+            }
+        }
+
+        function toggleTheme() {
+            const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+            const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', nextTheme);
+            localStorage.setItem('app-theme', nextTheme);
+            const icon = document.getElementById('portalThemeIcon');
+            if (icon) {
+                icon.className = nextTheme === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', initTheme);
     </script>
 </body>
 </html>

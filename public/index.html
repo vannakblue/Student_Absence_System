@@ -23,6 +23,14 @@
     <link rel="stylesheet" href="static/css/style.css">
     <link rel="stylesheet" href="static/css/mobile.css">
 
+    <!-- Dark Mode Immediate Init (prevents flash) -->
+    <script>
+        (function() {
+            const saved = localStorage.getItem('app-theme') || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            document.documentElement.setAttribute('data-theme', saved);
+        })();
+    </script>
+
     <!-- SheetJS for Browser Excel Export (.xlsx) -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 
@@ -153,6 +161,11 @@
                         <i class="fa-regular fa-calendar"></i>
                         <span id="headerLiveDate">ថ្ងៃ...</span>
                     </div>
+
+                    <!-- Theme Toggle Button (Light/Dark Mode) -->
+                    <button type="button" id="themeToggleBtn" class="theme-toggle-btn" onclick="toggleTheme()" title="ប្តូរពណ៌ (Light/Dark Mode)" aria-label="Toggle Theme">
+                        <i class="fa-solid fa-moon" id="themeToggleIcon"></i>
+                    </button>
 
                     <div class="user-menu-dropdown" style="position:relative;">
                         <button class="user-profile-btn" id="userMenuBtn" onclick="toggleUserDropdown()" style="display:flex; align-items:center; gap:8px; background:#f1f5f9; border:1px solid #e2e8f0; padding:4px 12px; border-radius:20px; cursor:pointer; font-family:inherit;">
@@ -849,6 +862,10 @@
                         <span>វិទ្យាល័យ ហ៊ុន សែន កំពង់កន្តែរ</span>
                     </div>
                     <div class="mobile-header-actions">
+                        <!-- Theme Toggle -->
+                        <button type="button" onclick="toggleTheme()" class="mobile-icon-btn" title="ប្តូរពណ៌ (Light/Dark Mode)" style="background:none; border:none; cursor:pointer; color:#fff; font-size:16px;">
+                            <i class="fa-solid fa-moon" id="mobThemeIcon"></i>
+                        </button>
                         <button type="button" onclick="switchToDesktopLayout()" class="mobile-icon-btn" title="ប្តូរទៅ Desktop Mode" style="background:none; border:none; cursor:pointer;">
                             <i class="fa-solid fa-desktop"></i>
                         </button>
@@ -951,6 +968,7 @@
 
         // 2. Lifecycle
         window.addEventListener('DOMContentLoaded', async () => {
+            initTheme();
             startLiveClock();
             initDatePickers();
             await loadFirebaseData();
@@ -1860,6 +1878,29 @@
                 t.style.transition = 'opacity 0.3s';
                 setTimeout(() => t.remove(), 300);
             }, 3500);
+        }
+
+        // Theme Switcher (Light / Dark Mode)
+        function initTheme() {
+            const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+            const icon = document.getElementById('themeToggleIcon');
+            const mobIcon = document.getElementById('mobThemeIcon');
+            const iconCls = currentTheme === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+            if (icon) icon.className = iconCls;
+            if (mobIcon) mobIcon.className = iconCls;
+        }
+
+        function toggleTheme() {
+            const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+            const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', nextTheme);
+            localStorage.setItem('app-theme', nextTheme);
+            const icon = document.getElementById('themeToggleIcon');
+            const mobIcon = document.getElementById('mobThemeIcon');
+            const iconCls = nextTheme === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+            if (icon) icon.className = iconCls;
+            if (mobIcon) mobIcon.className = iconCls;
+            showToast(nextTheme === 'dark' ? "🌙 បានបើក Dark Mode" : "☀️ បានបើក Light Mode", "info");
         }
     </script>
 </body>

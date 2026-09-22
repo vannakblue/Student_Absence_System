@@ -15,6 +15,14 @@
     
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+    <!-- Dark Mode Immediate Init (prevents flash) -->
+    <script>
+        (function() {
+            const saved = localStorage.getItem('app-theme') || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            document.documentElement.setAttribute('data-theme', saved);
+        })();
+    </script>
 </head>
 <body>
     <div class="app-layout">
@@ -136,6 +144,11 @@
                         <i class="fa-regular fa-calendar"></i>
                         <span id="headerLiveDate">...</span>
                     </div>
+
+                    <!-- Theme Toggle Button (Light/Dark Mode) -->
+                    <button type="button" id="themeToggleBtn" class="theme-toggle-btn" onclick="toggleTheme()" title="ប្តូរពណ៌ (Light/Dark Mode)" aria-label="Toggle Theme">
+                        <i class="fa-solid fa-moon" id="themeToggleIcon"></i>
+                    </button>
 
                     {% if current_user %}
                         <div class="user-menu-dropdown" style="position:relative;">
@@ -326,6 +339,28 @@
                 btn.innerHTML = '<i class="fa-solid fa-check"></i> <span>រក្សាទុក</span>';
             }
         }
+
+        // Theme Switcher (Dark / Light Mode)
+        function initTheme() {
+            const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+            const icon = document.getElementById('themeToggleIcon');
+            if (icon) {
+                icon.className = currentTheme === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+            }
+        }
+
+        function toggleTheme() {
+            const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+            const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', nextTheme);
+            localStorage.setItem('app-theme', nextTheme);
+            const icon = document.getElementById('themeToggleIcon');
+            if (icon) {
+                icon.className = nextTheme === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', initTheme);
     </script>
     {% block extra_scripts %}{% endblock %}
 </body>
