@@ -113,13 +113,16 @@
                 <div class="grid-2-col">
                     <div class="form-group">
                         <label class="form-label">កាលបរិច្ឆេទចាប់ផ្ដើម *</label>
-                        <input type="date" id="leaveStartDate" class="form-control" required>
+                        <input type="date" id="leaveStartDate" class="form-control" onchange="checkAdminLeaveEligibility()" required>
                     </div>
                     <div class="form-group">
                         <label class="form-label">កាលបរិច្ឆេទបញ្ចប់ *</label>
-                        <input type="date" id="leaveEndDate" class="form-control" required>
+                        <input type="date" id="leaveEndDate" class="form-control" onchange="checkAdminLeaveEligibility()" required>
                     </div>
                 </div>
+
+                <!-- Teacher Timetable Check Notice -->
+                <div id="adminLeaveFeedback" style="display:none; margin-bottom:14px; padding:10px 14px; border-radius:10px; font-size:0.85rem; line-height:1.4;"></div>
 
                 <div class="form-group">
                     <label class="form-label">មូលហេតុសុំច្បាប់ *</label>
@@ -144,10 +147,17 @@
 <script>
     function openLeaveModal() {
         const today = new Date().toISOString().split('T')[0];
-        document.getElementById('leaveStartDate').value = today;
-        document.getElementById('leaveEndDate').value = today;
+        const startInput = document.getElementById('leaveStartDate');
+        const endInput = document.getElementById('leaveEndDate');
+
+        startInput.min = today;
+        endInput.min = today;
+        startInput.value = today;
+        endInput.value = today;
         document.getElementById('leaveReason').value = '';
         document.getElementById('leaveModal').classList.add('show');
+
+        checkAdminLeaveEligibility();
     }
 
     function closeLeaveModal() {
@@ -158,9 +168,71 @@
         if (type === 'TEACHER') {
             document.getElementById('teacherSelectGroup').style.display = '';
             document.getElementById('studentSelectGroup').style.display = 'none';
+            checkAdminLeaveEligibility();
         } else {
             document.getElementById('teacherSelectGroup').style.display = 'none';
             document.getElementById('studentSelectGroup').style.display = '';
+            document.getElementById('adminLeaveFeedback').style.display = 'none';
+        }
+    }
+
+    document.getElementById('leaveTeacherId')?.addEventListener('change', checkAdminLeaveEligibility);
+
+    async function checkAdminLeaveEligibility() {
+        const ptype = document.getElementById('leavePersonType').value;
+        const feedback = document.getElementById('adminLeaveFeedback');
+        if (ptype !== 'TEACHER') {
+            feedback.style.display = 'none';
+            return;
+        }
+
+        const tid = document.getElementById('leaveTeacherId').value;
+        const start = document.getElementById('leaveStartDate').value;
+        let end = document.getElementById('leaveEndDate').value;
+
+        if (!tid || !start) return;
+        if (!end || end < start) {
+            end = start;
+            document.getElementById('leaveEndDate').value = start;
+        }
+
+        feedback.style.display = 'block';
+        feedback.style.background = '#f8fafc';
+        feedback.style.border = '1px solid #e2e8f0';
+        feedback.style.color = '#64748b';
+        feedback.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> កំពុងពិនិត្យកាលវិភាគបង្រៀន...';
+
+        try {
+            const res = await fetch(`/api/teacher/${tid}/leave-eligibility?start_date=${start}&end_date=${end}`);
+            const data = await res.json();
+
+            if (data.eligible) {
+                feedback.style.background = '#f0fdf4';
+                feedback.style.border = '1px solid #86efac';
+                feedback.style.color = '#15803d';
+
+                let slotsHtml = '';
+                if (data.affected_slots && data.affected_slots.length > 0) {
+                    const slotItems = data.affected_slots.map(s => `• ${s.date}: ថ្នាក់ <strong>${s.class_code}</strong> (ម៉ោងទី ${s.period_num} - ${s.subject_name})`).join('<br>');
+                    slotsHtml = `<div style="margin-top:4px; font-size:0.8rem; color:#166534;">${slotItems}</div>`;
+                }
+
+                feedback.innerHTML = `
+                    <div style="font-weight:700;"><i class="fa-solid fa-circle-check"></i> មានម៉ោងបង្រៀន (${data.total_slots} ម៉ោង)</div>
+                    ${slotsHtml}
+                    ${data.warning ? `<div style="margin-top:4px; color:#b45309; font-size:0.75rem;">${data.warning}</div>` : ''}
+                `;
+            } else {
+                feedback.style.background = '#fef2f2';
+                feedback.style.border = '1px solid #fca5a5';
+                feedback.style.color = '#b91c1c';
+                feedback.innerHTML = `
+                    <div style="font-weight:700;"><i class="fa-solid fa-triangle-exclamation"></i> មិនអាចសុំច្បាប់បានទេ</div>
+                    <div style="margin-top:2px;">${data.message}</div>
+                `;
+            }
+        } catch (e) {
+            feedback.style.display = 'none';
         }
     }
 
@@ -188,12 +260,15 @@
         .then(res => res.json())
         .then(data => {
             if (data.success) {
-                showToast(data.message, 'success');
+                alert('✅ ' + data.message + (data.warning ? '\n' + data.warning : ''));
                 closeLeaveModal();
-                setTimeout(() => window.location.reload(), 800);
+                setTimeout(() => window.location.reload(), 500);
             } else {
-                showToast(data.message, 'danger');
+                alert('❌ ' + data.message);
             }
+        })
+        .catch(err => {
+            alert('❌ មានបញ្ហាក្នុងការរក្សាទុកច្បាប់');
         });
     }
 </script>

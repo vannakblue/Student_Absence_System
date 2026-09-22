@@ -888,7 +888,7 @@ def api_leave_requests():
         person_type = data.get("person_type", "TEACHER")
         person_id = data.get("person_id")
         start_date = data.get("start_date")
-        end_date = data.get("end_date")
+        end_date = data.get("end_date") or start_date
         reason = data.get("reason", "").strip()
         approved_by = data.get("approved_by", "Headmaster")
         notes = data.get("notes", "")
@@ -896,12 +896,51 @@ def api_leave_requests():
         if not person_id or not start_date or not end_date or not reason:
             return jsonify({"success": False, "message": "សូមបំពេញព័ត៌មានច្បាប់ឱ្យបានពេញលេញ"}), 400
 
+        affected_slots = []
+        warning_msg = None
+        if person_type == "TEACHER":
+            # ផ្ទៀងផ្ទាត់ម៉ោងកំណត់ និងកាលវិភាគបង្រៀនរបស់គ្រូ
+            is_valid, msg, affected_slots = db.validate_teacher_leave_eligibility(
+                int(person_id), start_date, end_date
+            )
+            if not is_valid:
+                return jsonify({"success": False, "message": msg}), 400
+            warning_msg = msg
+
         new_id = db.add_leave_request(person_type, person_id, start_date, end_date, reason, approved_by, notes)
-        return jsonify({"success": True, "id": new_id, "message": "បានកត់ត្រាពាក្យសុំច្បាប់ជោគជ័យ!"})
+        return jsonify({
+            "success": True, 
+            "id": new_id, 
+            "message": "បានកត់ត្រាពាក្យសុំច្បាប់ជោគជ័យ!",
+            "warning": warning_msg,
+            "affected_slots": affected_slots
+        })
 
     person_type = request.args.get("person_type")
     rows = db.get_leave_requests(person_type)
     return jsonify({"success": True, "data": rows})
+
+
+@app.route("/api/teacher/<int:teacher_id>/leave-eligibility")
+def api_teacher_leave_eligibility(teacher_id):
+    """ពិនិត្យលទ្ធភាពសុំច្បាប់របស់គ្រូតាមកាលវិភាគបង្រៀន និងម៉ោងកំណត់"""
+    start_date = request.args.get("start_date") or request.args.get("date")
+    end_date = request.args.get("end_date") or start_date
+    if not start_date:
+        return jsonify({"success": False, "message": "សូមជ្រើសរើសកាលបរិច្ឆេទ"}), 400
+
+    is_valid, msg, affected_slots = db.validate_teacher_leave_eligibility(
+        teacher_id, start_date, end_date
+    )
+    cutoff = db.get_setting("teacher_leave_cutoff_time", "17:00") or "17:00"
+    return jsonify({
+        "success": True,
+        "eligible": is_valid,
+        "message": msg if not is_valid else (msg or "មានម៉ោងបង្រៀនត្រឹមត្រូវ"),
+        "cutoff_time": cutoff,
+        "affected_slots": affected_slots,
+        "total_slots": len(affected_slots)
+    })
 
 
 # -------------------------------------------------------------

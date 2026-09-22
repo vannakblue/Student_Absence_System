@@ -337,6 +337,54 @@
                 </form>
             </div>
         </div>
+
+        <!-- Card 4: Teacher Leave Request Policy & Cutoff Time -->
+        <div class="card" style="grid-column: 1 / -1; margin-top: 16px;">
+            <div class="card-header">
+                <div class="card-title">
+                    <i class="fa-solid fa-calendar-check text-warning"></i>
+                    <span>គោលការណ៍សុំច្បាប់របស់គ្រូបង្រៀន (Teacher Leave Request Policy)</span>
+                </div>
+                <span class="badge badge-primary" style="background:#fef3c7; color:#b45309;">Timetable & Time Rules</span>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info mb-3" style="background:#fffbeb; border-color:#fde68a; color:#92400e;">
+                    <i class="fa-solid fa-circle-info" style="font-size:1.3rem; color:#d97706;"></i>
+                    <div style="font-size:0.88rem; line-height:1.5;">
+                        <strong>គោលការណ៍កំណត់ដោយ Admin៖</strong><br>
+                        • <strong>សុំច្បាប់សម្រាប់ថ្ងៃនេះ (Today)៖</strong> គ្រូអាចសុំច្បាប់បានលុះត្រាតែមានម៉ោងបង្រៀនថ្ងៃនេះ និងធ្វើឡើងមុនម៉ោងកំណត់ខាងក្រោម (ឧទាហរណ៍៖ ម៉ោង ១៧:០០ / ៥:០០ រសៀល)។<br>
+                        • <strong>សុំច្បាប់សម្រាប់ថ្ងៃបន្ទាប់ (Future Days)៖</strong> គ្រូអាចសុំច្បាប់បានតែថ្ងៃដែលគាត់មានម៉ោងបង្រៀនក្នុងកាលវិភាគ (Timetable) ប៉ុណ្ណោះ។<br>
+                        • <strong>ថ្ងៃកន្លងផុត ឬគ្មានម៉ោងបង្រៀន៖</strong> ប្រព័ន្ធនឹងបដិសេធស្វ័យប្រវត្តិ។
+                    </div>
+                </div>
+
+                <form id="teacherLeavePolicyForm" onsubmit="handleSaveSettings(event)">
+                    <div class="grid-2-col">
+                        <div class="form-group mb-3">
+                            <label class="form-label font-weight-bold">ម៉ោងកំណត់ចុងក្រោយសម្រាប់សុំច្បាប់ថ្ងៃនេះ (Cutoff Time)</label>
+                            <input type="time" name="teacher_leave_cutoff_time" id="teacherLeaveCutoffTime" class="form-control" 
+                                   value="{{ settings.teacher_leave_cutoff_time or '17:00' }}" required>
+                            <small class="text-muted">ប្រសិនបើផុតម៉ោងនេះ គ្រូមិនអាចសុំច្បាប់សម្រាប់ថ្ងៃនេះបានទៀតទេ (លំនាំដើម៖ <code>17:00</code>)</small>
+                        </div>
+                        <div class="form-group mb-3">
+                            <label class="form-label font-weight-bold">ការត្រួតពិនិត្យកាលវិភាគបង្រៀន (Strict Timetable Check)</label>
+                            <div style="margin-top:8px;">
+                                <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-weight:600; font-size:0.9rem;">
+                                    <input type="checkbox" name="teacher_leave_require_schedule" value="1" {% if settings.teacher_leave_require_schedule != '0' %}checked{% endif %}>
+                                    <span>អនុញ្ញាតឱ្យសុំច្បាប់បានតែថ្ងៃដែលមានម៉ោងបង្រៀនក្នុងកាលវិភាគប៉ុណ្ណោះ</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-3">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fa-solid fa-floppy-disk"></i> រក្សាទុកគោលការណ៍សុំច្បាប់
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}

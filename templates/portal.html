@@ -413,27 +413,47 @@
 
     <!-- Leave Request Modal -->
     <div class="modal-backdrop" id="portalLeaveModal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); display:none; align-items:flex-end; z-index:1000;">
-        <div style="background:#fff; width:100%; max-width:480px; margin:0 auto; border-top-left-radius:24px; border-top-right-radius:24px; padding:20px; box-sizing:border-box;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+        <div style="background:#fff; width:100%; max-width:480px; margin:0 auto; border-top-left-radius:24px; border-top-right-radius:24px; padding:20px; box-sizing:border-box; max-height:90vh; overflow-y:auto;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
                 <h4 style="margin:0; font-size:1.1rem; font-weight:700;">ពាក្យសុំច្បាប់ឈប់សម្រាក</h4>
                 <button onclick="closePortalLeaveModal()" style="background:none; border:none; font-size:24px; color:#64748b; cursor:pointer;">&times;</button>
             </div>
+
+            <!-- Cutoff & Rules Banner -->
+            <div id="portalLeaveNotice" style="background:#eff6ff; border:1px solid #bfdbfe; color:#1e40af; padding:10px 12px; border-radius:12px; font-size:0.8rem; line-height:1.4; margin-bottom:14px; display:flex; align-items:flex-start; gap:8px;">
+                <i class="fa-solid fa-circle-info" style="margin-top:2px; color:#2563eb;"></i>
+                <div>
+                    <strong>គោលការណ៍សុំច្បាប់៖</strong> អាចសុំបានតែថ្ងៃដែលមានម៉ោងបង្រៀន។ សុំសម្រាប់ថ្ងៃនេះត្រូវធ្វើឡើងមុនម៉ោង <strong><span id="portalCutoffDisplay">17:00</span></strong> ឬសម្រាប់ថ្ងៃបន្ទាប់។
+                </div>
+            </div>
+
             <form onsubmit="submitPortalLeave(event)">
                 <input type="hidden" id="leaveTeacherId" value="{{ current_teacher.id }}">
                 <div style="margin-bottom:12px;">
-                    <label style="font-size:0.85rem; font-weight:600; display:block; margin-bottom:4px;">កាលបរិច្ឆេទ</label>
+                    <label style="font-size:0.85rem; font-weight:600; display:block; margin-bottom:4px;">កាលបរិច្ឆេទសុំច្បាប់</label>
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-                        <input type="date" id="pLeaveStart" class="form-control" style="width:100%; padding:8px; border-radius:8px; border:1px solid #cbd5e1;" required>
-                        <input type="date" id="pLeaveEnd" class="form-control" style="width:100%; padding:8px; border-radius:8px; border:1px solid #cbd5e1;" required>
+                        <div>
+                            <span style="font-size:0.75rem; color:#64748b;">ចាប់ពីថ្ងៃ</span>
+                            <input type="date" id="pLeaveStart" class="form-control" style="width:100%; padding:8px; border-radius:8px; border:1px solid #cbd5e1; box-sizing:border-box;" onchange="handlePortalDateChange()" required>
+                        </div>
+                        <div>
+                            <span style="font-size:0.75rem; color:#64748b;">ដល់ថ្ងៃ</span>
+                            <input type="date" id="pLeaveEnd" class="form-control" style="width:100%; padding:8px; border-radius:8px; border:1px solid #cbd5e1; box-sizing:border-box;" onchange="handlePortalDateChange()" required>
+                        </div>
                     </div>
                 </div>
+
+                <!-- Live Eligibility Feedback Container -->
+                <div id="portalLeaveEligibilityFeedback" style="margin-bottom:12px; display:none; padding:10px 12px; border-radius:12px; font-size:0.82rem; line-height:1.4;"></div>
+
                 <div style="margin-bottom:14px;">
-                    <label style="font-size:0.85rem; font-weight:600; display:block; margin-bottom:4px;">មូលហេតុសុំច្បាប់</label>
-                    <textarea id="pLeaveReason" rows="3" placeholder="បញ្ជាក់មូលហេតុ (ឧ. ឈឺ មានធុរៈ...)" 
+                    <label style="font-size:0.85rem; font-weight:600; display:block; margin-bottom:4px;">មូលហេតុសុំច្បាប់ *</label>
+                    <textarea id="pLeaveReason" rows="3" placeholder="បញ្ជាក់មូលហេតុ (ឧ. ឈឺ មានធុរៈគ្រួសារ...)" 
                               style="width:100%; padding:10px; border-radius:10px; border:1px solid #cbd5e1; font-family:inherit; box-sizing:border-box;" required></textarea>
                 </div>
-                <button type="submit" style="width:100%; background:#2563eb; color:#fff; border:none; border-radius:12px; padding:12px; font-weight:700; font-family:inherit; font-size:1rem; cursor:pointer;">
-                    ផ្ញើពាក្យសុំច្បាប់
+
+                <button type="submit" id="portalSubmitLeaveBtn" style="width:100%; background:#2563eb; color:#fff; border:none; border-radius:12px; padding:12px; font-weight:700; font-family:inherit; font-size:1rem; cursor:pointer; transition:background 0.2s;">
+                    <i class="fa-solid fa-paper-plane"></i> ផ្ញើពាក្យសុំច្បាប់
                 </button>
             </form>
         </div>
@@ -552,43 +572,129 @@
 
         function openPortalLeaveModal() {
             const today = new Date().toISOString().split('T')[0];
-            document.getElementById('pLeaveStart').value = today;
-            document.getElementById('pLeaveEnd').value = today;
+            const startInput = document.getElementById('pLeaveStart');
+            const endInput = document.getElementById('pLeaveEnd');
+
+            startInput.min = today;
+            endInput.min = today;
+            startInput.value = today;
+            endInput.value = today;
             document.getElementById('pLeaveReason').value = '';
             document.getElementById('portalLeaveModal').style.display = 'flex';
+
+            // Check eligibility immediately
+            handlePortalDateChange();
         }
+
         function closePortalLeaveModal() {
             document.getElementById('portalLeaveModal').style.display = 'none';
         }
 
-        function submitPortalLeave(e) {
+        async function handlePortalDateChange() {
+            const tid = parseInt(document.getElementById('leaveTeacherId').value);
+            const start = document.getElementById('pLeaveStart').value;
+            let end = document.getElementById('pLeaveEnd').value;
+            const feedback = document.getElementById('portalLeaveEligibilityFeedback');
+            const submitBtn = document.getElementById('portalSubmitLeaveBtn');
+
+            if (!start) return;
+            if (!end || end < start) {
+                end = start;
+                document.getElementById('pLeaveEnd').value = start;
+            }
+
+            feedback.style.display = 'block';
+            feedback.style.background = '#f8fafc';
+            feedback.style.border = '1px solid #e2e8f0';
+            feedback.style.color = '#64748b';
+            feedback.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> កំពុងពិនិត្យកាលវិភាគបង្រៀន...';
+
+            try {
+                const res = await fetch(`/api/teacher/${tid}/leave-eligibility?start_date=${start}&end_date=${end}`);
+                const data = await res.json();
+
+                if (data.cutoff_time) {
+                    document.getElementById('portalCutoffDisplay').innerText = data.cutoff_time;
+                }
+
+                if (data.eligible) {
+                    feedback.style.background = '#f0fdf4';
+                    feedback.style.border = '1px solid #86efac';
+                    feedback.style.color = '#15803d';
+
+                    let slotsHtml = '';
+                    if (data.affected_slots && data.affected_slots.length > 0) {
+                        const slotItems = data.affected_slots.map(s => `• ${s.date}: ថ្នាក់ <strong>${s.class_code}</strong> (ម៉ោងទី ${s.period_num} - ${s.subject_name})`).join('<br>');
+                        slotsHtml = `<div style="margin-top:4px; font-size:0.78rem; color:#166534;">${slotItems}</div>`;
+                    }
+
+                    feedback.innerHTML = `
+                        <div style="font-weight:700;"><i class="fa-solid fa-circle-check"></i> មានម៉ោងបង្រៀន (${data.total_slots} ម៉ោង)</div>
+                        ${slotsHtml}
+                        ${data.warning ? `<div style="margin-top:4px; color:#b45309; font-size:0.75rem;">${data.warning}</div>` : ''}
+                    `;
+                    submitBtn.disabled = false;
+                    submitBtn.style.background = '#2563eb';
+                    submitBtn.style.opacity = '1';
+                    submitBtn.style.cursor = 'pointer';
+                } else {
+                    feedback.style.background = '#fef2f2';
+                    feedback.style.border = '1px solid #fca5a5';
+                    feedback.style.color = '#b91c1c';
+                    feedback.innerHTML = `
+                        <div style="font-weight:700;"><i class="fa-solid fa-triangle-exclamation"></i> មិនអាចសុំច្បាប់បានទេ</div>
+                        <div style="margin-top:2px;">${data.message}</div>
+                    `;
+                    submitBtn.disabled = true;
+                    submitBtn.style.background = '#94a3b8';
+                    submitBtn.style.opacity = '0.6';
+                    submitBtn.style.cursor = 'not-allowed';
+                }
+            } catch (err) {
+                feedback.style.background = '#fffbeb';
+                feedback.style.border = '1px solid #fcd34d';
+                feedback.style.color = '#b45309';
+                feedback.innerHTML = 'មិនអាចផ្ទៀងផ្ទាត់កាលវិភាគបានទេ សូមព្យាយាមម្តងទៀត';
+            }
+        }
+
+        async function submitPortalLeave(e) {
             e.preventDefault();
             const tid = parseInt(document.getElementById('leaveTeacherId').value);
             const start = document.getElementById('pLeaveStart').value;
             const end = document.getElementById('pLeaveEnd').value;
             const reason = document.getElementById('pLeaveReason').value.trim();
+            const submitBtn = document.getElementById('portalSubmitLeaveBtn');
 
-            fetch('/api/leave-requests', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    person_type: 'TEACHER',
-                    person_id: tid,
-                    start_date: start,
-                    end_date: end,
-                    reason: reason,
-                    approved_by: 'នាយកសាលា'
-                })
-            })
-            .then(res => res.json())
-            .then(data => {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> កំពុងផ្ញើពាក្យសុំ...';
+
+            try {
+                const res = await fetch('/api/leave-requests', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        person_type: 'TEACHER',
+                        person_id: tid,
+                        start_date: start,
+                        end_date: end,
+                        reason: reason,
+                        approved_by: 'នាយកសាលា'
+                    })
+                });
+                const data = await res.json();
                 if (data.success) {
-                    alert('បានផ្ញើពាក្យសុំច្បាប់ដោយជោគជ័យ!');
+                    alert('✅ ' + data.message + (data.warning ? '\n' + data.warning : ''));
                     closePortalLeaveModal();
                 } else {
-                    alert(data.message);
+                    alert('❌ ' + data.message);
                 }
-            });
+            } catch (err) {
+                alert('❌ មានបញ្ហាក្នុងការផ្ញើពាក្យសុំច្បាប់');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> ផ្ញើពាក្យសុំច្បាប់';
+            }
         }
     </script>
 </body>

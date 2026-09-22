@@ -2,44 +2,28 @@
 <html lang="km">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ប្រព័ន្ធគ្រប់គ្រងអវត្តមានសិស្ស-គ្រូ KKHS</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ប្រព័ន្ធគ្រប់គ្រងអវត្តមានសិស្ស-គ្រូ | វិទ្យាល័យ ហ៊ុន សែន កំពង់កន្តែរ</title>
     
-    <!-- PWA Settings -->
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#1e40af">
+    <!-- PWA & Mobile Metas -->
+    <link rel="manifest" href="static/manifest.json">
+    <meta name="theme-color" content="#2563eb">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="វត្តមាន KKHS">
-    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2997/2997295.png">
     
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: { 50: '#eff6ff', 100: '#dbeafe', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8', 800: '#1e40af', 900: '#1e3a8a' },
-                        kkhs: { dark: '#0f172a', card: '#1e293b', border: '#334155' }
-                    },
-                    fontFamily: {
-                        sans: ['Kantumruy Pro', 'Inter', 'Battambang', 'sans-serif'],
-                    }
-                }
-            }
-        }
-    </script>
-
-    <!-- Google Fonts -->
+    <!-- Google Fonts: Kantumruy Pro & Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Battambang:wght@400;700&family=Inter:wght@400;500;600;700&family=Kantumruy+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Kantumruy+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
     
     <!-- FontAwesome 6 Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     
-    <!-- SheetJS for 1-Click Excel Export on Browser -->
+    <!-- Original System Stylesheets -->
+    <link rel="stylesheet" href="static/css/style.css">
+    <link rel="stylesheet" href="static/css/mobile.css">
+
+    <!-- SheetJS for Browser Excel Export (.xlsx) -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 
     <!-- Firebase App & Realtime Database (compat v9.23.0) -->
@@ -47,445 +31,903 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
     <style>
-        body {
-            font-family: 'Kantumruy Pro', 'Inter', sans-serif;
-            -webkit-tap-highlight-color: transparent;
-        }
-        .status-pill {
-            transition: all 0.15s ease-in-out;
-        }
-        .status-pill:active {
-            transform: scale(0.92);
-        }
-        /* Custom scrollbar */
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: #f1f5f9; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-        
-        /* Mobile safe-area padding */
-        .safe-bottom {
-            padding-bottom: env(safe-area-inset-bottom, 16px);
+        /* Additional styling to mirror local Jinja2 template features seamlessly */
+        .view-pane { display: none; }
+        .view-pane.active { display: block; }
+        .tab-btn.active { color: var(--primary) !important; border-bottom: 2px solid var(--primary); }
+        .status-btn.active { background: currentColor; color: #fff !important; }
+        .status-btn.active span { color: #fff !important; }
+        .cursor-pointer { cursor: pointer; }
+        .no-print { }
+        @media print {
+            .no-print, .sidebar, .top-navbar, .header-actions, .filter-bar { display: none !important; }
+            .main-wrapper { margin: 0 !important; padding: 0 !important; width: 100% !important; }
         }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col antialiased selection:bg-blue-500 selection:text-white">
+<body>
 
     <!-- Loading Screen Overlay -->
-    <div id="loadingOverlay" class="fixed inset-0 bg-slate-900/90 z-50 flex flex-col items-center justify-center text-white backdrop-blur-sm transition-opacity duration-300">
-        <div class="relative w-20 h-20 mb-4">
-            <div class="absolute inset-0 rounded-full border-4 border-blue-500/20 animate-ping"></div>
-            <div class="w-20 h-20 rounded-full border-4 border-t-blue-500 border-r-transparent border-b-blue-400 border-l-transparent animate-spin"></div>
-            <i class="fa-solid fa-graduation-cap absolute inset-0 flex items-center justify-center text-2xl text-blue-400"></i>
-        </div>
-        <h2 class="text-xl font-bold tracking-wide">វិទ្យាល័យ ហ៊ុន សែន កំពង់កន្តែរ</h2>
-        <p class="text-slate-400 text-sm mt-1" id="loadingText">កំពុងទាញយកទិន្នន័យពី Cloud Database...</p>
+    <div id="loadingOverlay" style="position:fixed; inset:0; background:rgba(15,23,42,0.88); z-index:9999; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#fff; backdrop-filter:blur(4px); transition:opacity 0.3s ease;">
+        <div style="width:56px; height:56px; border:4px solid rgba(255,255,255,0.2); border-top-color:#3b82f6; border-radius:50%; animation:spin 0.8s linear infinite; margin-bottom:16px;"></div>
+        <h3 style="font-size:1.15rem; font-weight:700; margin-bottom:4px;">វិទ្យាល័យ ហ៊ុន សែន កំពង់កន្តែរ</h3>
+        <p style="font-size:0.85rem; color:#94a3b8;" id="loadingText">កំពុងទាញយកទិន្នន័យពី Cloud Database...</p>
     </div>
 
-    <!-- PWA Install Banner -->
-    <div id="pwaBanner" class="hidden bg-gradient-to-r from-blue-700 to-indigo-800 text-white px-4 py-2.5 flex items-center justify-between shadow-md text-sm sticky top-0 z-40">
-        <div class="flex items-center gap-2.5">
-            <i class="fa-solid fa-mobile-screen-button text-amber-300 text-lg"></i>
-            <span>ដំឡើងកម្មវិធីលើទូរស័ព្ទដៃ ដើម្បីងាយស្រួលស្រង់វត្តមាន!</span>
-        </div>
-        <button id="btnInstallPwa" class="bg-white text-blue-800 px-3 py-1 rounded-full font-semibold text-xs shadow hover:bg-blue-50 active:scale-95 transition">
-            ដំឡើង (Install)
-        </button>
-    </div>
-
-    <!-- ========================================== -->
-    <!-- VIEW 1: LOGIN VIEW                         -->
-    <!-- ========================================== -->
-    <div id="viewLogin" class="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900">
-        <div class="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-100">
-            <!-- Header -->
-            <div class="bg-gradient-to-r from-blue-600 to-indigo-700 p-8 text-center text-white relative">
-                <div class="w-20 h-20 mx-auto bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-md mb-3 shadow-inner border border-white/20">
-                    <i class="fa-solid fa-school text-3xl text-amber-300"></i>
+    <!-- ============================================================== -->
+    <!-- DESKTOP APP LAYOUT (100% IDENTICAL TO LOCAL base.html)         -->
+    <!-- ============================================================== -->
+    <div class="app-layout" id="desktopAppLayout">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar" id="sidebar">
+            <div class="brand">
+                <div class="brand-icon">
+                    <i class="fa-solid fa-graduation-cap"></i>
                 </div>
-                <h1 class="text-2xl font-bold">វត្តមានសិស្ស-គ្រូ KKHS</h1>
-                <p class="text-blue-100 text-sm mt-1 font-light">វិទ្យាល័យ ហ៊ុន សែន កំពង់កន្តែរ (២០២៦-២០២៧)</p>
-            </div>
-
-            <!-- Form -->
-            <div class="p-6 sm:p-8">
-                <form id="formLogin" class="space-y-4" onsubmit="handleLogin(event)">
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">លេខកូដក្រសួង ឬ លេខទូរស័ព្ទ (Username)</label>
-                        <div class="relative">
-                            <i class="fa-solid fa-user absolute left-3.5 top-3.5 text-slate-400"></i>
-                            <input type="text" id="loginUsername" required placeholder="ឧ. 2890800096 ឬ admin" 
-                                   class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none text-slate-800 text-sm font-medium">
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">ពាក្យសម្ងាត់ (Password)</label>
-                        <div class="relative">
-                            <i class="fa-solid fa-lock absolute left-3.5 top-3.5 text-slate-400"></i>
-                            <input type="password" id="loginPassword" required placeholder="ពាក្យសម្ងាត់លំនាំដើម 123456" 
-                                   class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none text-slate-800 text-sm font-medium">
-                        </div>
-                    </div>
-
-                    <div class="pt-2">
-                        <button type="submit" class="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-blue-500/25 transition active:scale-[0.98] flex items-center justify-center gap-2">
-                            <span>ចូលប្រព័ន្ធ (Login)</span>
-                            <i class="fa-solid fa-arrow-right"></i>
-                        </button>
-                    </div>
-                </form>
-
-                <!-- Fast Demo Account Selector -->
-                <div class="mt-6 pt-6 border-t border-slate-100">
-                    <label class="block text-xs font-semibold text-slate-500 mb-2 text-center">
-                        <i class="fa-solid fa-bolt text-amber-500 mr-1"></i> សាកល្បងចូលគណនីរហ័ស (Quick Demo Login)
-                    </label>
-                    <div class="grid grid-cols-2 gap-2 text-xs">
-                        <button onclick="quickLogin('admin', 'admin123')" class="p-2.5 border border-slate-200 rounded-xl hover:bg-blue-50 hover:border-blue-300 font-medium text-slate-700 flex items-center justify-center gap-1.5 transition">
-                            <i class="fa-solid fa-user-shield text-blue-600"></i> Admin សាលា
-                        </button>
-                        <button onclick="quickLogin('2890800096', '123456')" class="p-2.5 border border-slate-200 rounded-xl hover:bg-emerald-50 hover:border-emerald-300 font-medium text-slate-700 flex items-center justify-center gap-1.5 transition">
-                            <i class="fa-solid fa-chalkboard-user text-emerald-600"></i> គ្រូ កាន ដាវី
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ========================================== -->
-    <!-- VIEW 2: MAIN APP SHELL (TEACHER & ADMIN)   -->
-    <!-- ========================================== -->
-    <div id="viewApp" class="hidden flex-1 flex flex-col">
-        <!-- Top App Bar -->
-        <header class="bg-gradient-to-r from-blue-800 to-indigo-900 text-white shadow-lg sticky top-0 z-30">
-            <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center border border-white/20 shadow-inner">
-                        <i class="fa-solid fa-graduation-cap text-amber-300 text-lg"></i>
-                    </div>
-                    <div>
-                        <div class="flex items-center gap-2">
-                            <h2 class="font-bold text-base tracking-tight" id="userDisplayName">លោកគ្រូ...</h2>
-                            <span id="userRoleBadge" class="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/30 text-blue-200 border border-blue-400/30 font-semibold uppercase">TEACHER</span>
-                        </div>
-                        <p class="text-blue-200 text-xs flex items-center gap-2">
-                            <span id="userSubjectSpan">មុខវិជ្ជា...</span>
-                            <span>•</span>
-                            <span id="currentDateStr">--/--/----</span>
-                        </p>
-                    </div>
-                </div>
-
-                <div class="flex items-center gap-2">
-                    <button onclick="handleLogout()" class="p-2 px-3 rounded-lg bg-white/10 hover:bg-rose-500/80 active:scale-95 transition text-xs font-semibold flex items-center gap-1.5">
-                        <i class="fa-solid fa-arrow-right-from-bracket"></i>
-                        <span class="hidden sm:inline">ចាកចេញ</span>
-                    </button>
+                <div class="brand-text">
+                    <h2>ប្រព័ន្ធអវត្តមាន</h2>
+                    <span>Student & Teacher Absence</span>
                 </div>
             </div>
 
-            <!-- Navigation Tabs -->
-            <div class="max-w-6xl mx-auto px-4 flex border-t border-white/10 text-xs font-medium overflow-x-auto">
-                <!-- Teacher Tabs -->
-                <div id="teacherTabs" class="flex gap-1 py-1">
-                    <button onclick="switchTab('tabTeacherTake')" class="tab-btn active px-4 py-2 rounded-lg text-white font-semibold bg-white/20 flex items-center gap-2 transition" data-target="tabTeacherTake">
-                        <i class="fa-solid fa-clipboard-check"></i> ស្រង់វត្តមានសិស្ស
-                    </button>
-                    <button onclick="switchTab('tabTeacherSchedule')" class="tab-btn px-4 py-2 rounded-lg text-blue-200 hover:text-white hover:bg-white/10 flex items-center gap-2 transition" data-target="tabTeacherSchedule">
-                        <i class="fa-solid fa-calendar-days"></i> កាលវិភាគរបស់ខ្ញុំ
-                    </button>
-                    <button onclick="switchTab('tabTeacherLeave')" class="tab-btn px-4 py-2 rounded-lg text-blue-200 hover:text-white hover:bg-white/10 flex items-center gap-2 transition" data-target="tabTeacherLeave">
-                        <i class="fa-solid fa-file-signature"></i> សុំច្បាប់
-                    </button>
-                </div>
+            <nav class="nav-menu">
+                <!-- Administrator Navigation -->
+                <div id="navAdminSection">
+                    <div class="nav-section-title">មឺនុយចម្បង</div>
+                    <a href="javascript:void(0)" onclick="navigateTo('dashboard')" class="nav-link active" data-nav="dashboard">
+                        <i class="fa-solid fa-chart-pie"></i>
+                        <span>ផ្ទាំងព័ត៌មាន (Dashboard)</span>
+                    </a>
+                    <a href="javascript:void(0)" onclick="navigateTo('teacher-attendance')" class="nav-link" data-nav="teacher-attendance">
+                        <i class="fa-solid fa-clipboard-user"></i>
+                        <span>ស្រង់វត្តមានគ្រូ</span>
+                    </a>
+                    <a href="javascript:void(0)" onclick="navigateTo('student-attendance')" class="nav-link" data-nav="student-attendance">
+                        <i class="fa-solid fa-user-check"></i>
+                        <span>ស្រង់វត្តមានសិស្ស</span>
+                    </a>
+                    <a href="javascript:void(0)" onclick="navigateTo('timetable')" class="nav-link" data-nav="timetable">
+                        <i class="fa-solid fa-calendar-days"></i>
+                        <span>កាលវិភាគបង្រៀន</span>
+                    </a>
+                    <a href="javascript:void(0)" onclick="switchToMobilePortal()" class="nav-link" style="color: #a78bfa;">
+                        <i class="fa-solid fa-mobile-screen-button" style="color: #a78bfa;"></i>
+                        <span>Teacher Mobile App 📱</span>
+                    </a>
 
-                <!-- Admin Tabs -->
-                <div id="adminTabs" class="hidden flex gap-1 py-1">
-                    <button onclick="switchTab('tabAdminOverview')" class="tab-btn active px-4 py-2 rounded-lg text-white font-semibold bg-white/20 flex items-center gap-2 transition" data-target="tabAdminOverview">
-                        <i class="fa-solid fa-chart-pie"></i> ស្ថានភាពទូទៅ
-                    </button>
-                    <button onclick="switchTab('tabAdminClassMonitor')" class="tab-btn px-4 py-2 rounded-lg text-blue-200 hover:text-white hover:bg-white/10 flex items-center gap-2 transition" data-target="tabAdminClassMonitor">
-                        <i class="fa-solid fa-chalkboard"></i> វត្តមានតាមថ្នាក់ (៤០)
-                    </button>
-                    <button onclick="switchTab('tabAdminTeacherAttendance')" class="tab-btn px-4 py-2 rounded-lg text-blue-200 hover:text-white hover:bg-white/10 flex items-center gap-2 transition" data-target="tabAdminTeacherAttendance">
-                        <i class="fa-solid fa-user-tie"></i> វត្តមានគ្រូ
-                    </button>
-                    <button onclick="switchTab('tabAdminExport')" class="tab-btn px-4 py-2 rounded-lg text-blue-200 hover:text-white hover:bg-white/10 flex items-center gap-2 transition" data-target="tabAdminExport">
-                        <i class="fa-solid fa-file-excel"></i> របាយការណ៍ Excel
-                    </button>
+                    <div class="nav-section-title">គ្រប់គ្រងទិន្នន័យ</div>
+                    <a href="javascript:void(0)" onclick="navigateTo('teachers')" class="nav-link" data-nav="teachers">
+                        <i class="fa-solid fa-chalkboard-user"></i>
+                        <span>បញ្ជីគ្រូបង្រៀន</span>
+                    </a>
+                    <a href="javascript:void(0)" onclick="navigateTo('students')" class="nav-link" data-nav="students">
+                        <i class="fa-solid fa-users"></i>
+                        <span>បញ្ជីសិស្សតាមថ្នាក់</span>
+                    </a>
+                    <a href="javascript:void(0)" onclick="navigateTo('leave-requests')" class="nav-link" data-nav="leave-requests">
+                        <i class="fa-solid fa-calendar-minus"></i>
+                        <span>ពាក្យសុំច្បាប់ (Leave)</span>
+                    </a>
+
+                    <div class="nav-section-title">របាយការណ៍ & គ្រប់គ្រង</div>
+                    <a href="javascript:void(0)" onclick="navigateTo('reports')" class="nav-link" data-nav="reports">
+                        <i class="fa-solid fa-file-excel"></i>
+                        <span>របាយការណ៍ & Export</span>
+                    </a>
+                    <a href="javascript:void(0)" onclick="navigateTo('users')" class="nav-link" data-nav="users">
+                        <i class="fa-solid fa-users-gear"></i>
+                        <span>គ្រប់គ្រងគណនី (Users)</span>
+                    </a>
+                    <a href="javascript:void(0)" onclick="navigateTo('settings')" class="nav-link" data-nav="settings">
+                        <i class="fa-solid fa-sliders"></i>
+                        <span>Google Sheets & Settings</span>
+                    </a>
+                </div>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="db-status-pill">
+                    <span class="status-indicator online"></span>
+                    <span>Database: Cloud (Active)</span>
                 </div>
             </div>
-        </header>
+        </aside>
 
-        <!-- Main Content Body -->
-        <main class="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-6 space-y-6">
+        <!-- Main Content Area -->
+        <div class="main-wrapper">
+            <!-- Top Header Navbar -->
+            <header class="top-navbar">
+                <div class="navbar-left">
+                    <button id="sidebarToggle" class="btn-icon" title="Toggle Menu" onclick="toggleSidebar()">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
+                    <div class="school-badge-container">
+                        <i class="fa-solid fa-school text-primary"></i>
+                        <span class="school-title">វិទ្យាល័យ ហ៊ុន សែន កំពង់កន្តែរ</span>
+                        <span class="badge badge-soft">ឆ្នាំសិក្សា ២០២៦-២០២៧</span>
+                    </div>
+                </div>
 
-            <!-- ========================================== -->
-            <!-- TAB 1: TEACHER ATTENDANCE TAKING           -->
-            <!-- ========================================== -->
-            <div id="tabTeacherTake" class="tab-pane space-y-4">
-                
-                <!-- Hero: Active Period Banner -->
-                <div id="activePeriodCard" class="bg-gradient-to-r from-indigo-900 to-blue-900 text-white rounded-2xl p-5 shadow-lg relative overflow-hidden border border-blue-700/50">
-                    <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div>
-                            <div class="inline-flex items-center gap-2 bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 px-3 py-1 rounded-full text-xs font-semibold mb-2">
-                                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                                ម៉ោងបង្រៀនបច្ចុប្បន្ន (Live Active Period)
+                <div class="navbar-right">
+                    <div class="quick-date">
+                        <i class="fa-regular fa-calendar"></i>
+                        <span id="headerLiveDate">ថ្ងៃ...</span>
+                    </div>
+
+                    <div class="user-menu-dropdown" style="position:relative;">
+                        <button class="user-profile-btn" id="userMenuBtn" onclick="toggleUserDropdown()" style="display:flex; align-items:center; gap:8px; background:#f1f5f9; border:1px solid #e2e8f0; padding:4px 12px; border-radius:20px; cursor:pointer; font-family:inherit;">
+                            <div style="width:28px; height:28px; background:linear-gradient(135deg, #2563eb, #4f46e5); color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:0.8rem;">
+                                <i class="fa-solid fa-user"></i>
                             </div>
-                            <h3 class="text-xl sm:text-2xl font-bold" id="activePeriodTitle">ម៉ោងទី... - ថ្នាក់...</h3>
-                            <p class="text-blue-200 text-sm mt-0.5" id="activePeriodSubtitle">មុខវិជ្ជា... | ពេលវេលា...</p>
-                        </div>
-                        <button onclick="loadActivePeriodAttendance()" class="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/30 text-sm flex items-center justify-center gap-2 transition">
-                            <i class="fa-solid fa-clipboard-user text-base"></i>
-                            <span>ស្រង់វត្តមានម៉ោងនេះ</span>
+                            <div style="text-align:left; line-height:1.2;">
+                                <div id="userProfileName" style="font-size:0.82rem; font-weight:600; color:#0f172a; max-width:130px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                                    គណៈគ្រប់គ្រងសាលា
+                                </div>
+                                <div id="userProfileRole" style="font-size:0.7rem; color:#64748b;">
+                                    Administrator
+                                </div>
+                            </div>
+                            <i class="fa-solid fa-chevron-down" style="font-size:0.65rem; color:#94a3b8; margin-left:4px;"></i>
                         </button>
-                    </div>
-                </div>
 
-                <!-- Attendance Selector Card -->
-                <div class="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200/80">
-                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                        <div>
-                            <label class="block font-semibold text-slate-600 mb-1">កាលបរិច្ឆេទ</label>
-                            <input type="date" id="selectDate" onchange="onFilterChange()" class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 font-medium focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                        </div>
-                        <div>
-                            <label class="block font-semibold text-slate-600 mb-1">ថ្នាក់រៀន</label>
-                            <select id="selectClass" onchange="onClassChange()" class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 font-medium focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                                <!-- Populated dynamically -->
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block font-semibold text-slate-600 mb-1">ម៉ោងទី</label>
-                            <select id="selectPeriod" onchange="onPeriodChange()" class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 font-medium focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                                <option value="1">ម៉ោងទី ១ (ព្រឹក: 7:00 / រសៀល: 13:00)</option>
-                                <option value="2">ម៉ោងទី ២ (ព្រឹក: 7:45 / រសៀល: 13:45)</option>
-                                <option value="3">ម៉ោងទី ៣ (ព្រឹក: 8:45 / រសៀល: 14:45)</option>
-                                <option value="4">ម៉ោងទី ៤ (ព្រឹក: 9:30 / រសៀល: 15:30)</option>
-                                <option value="5">ម៉ោងទី ៥ (ព្រឹក: 10:15 / រសៀល: 16:15)</option>
-                            </select>
-                        </div>
-                        <div class="flex items-end">
-                            <button onclick="markAllPresent()" class="w-full py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 font-bold rounded-lg transition active:scale-95 flex items-center justify-center gap-1.5 shadow-sm">
-                                <i class="fa-solid fa-check-double text-blue-600"></i>
-                                <span>វត្តមានទាំងអស់</span>
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Realtime Attendance Counter Summary -->
-                    <div class="grid grid-cols-5 gap-2 mt-4 pt-3 border-t border-slate-100 text-center">
-                        <div class="bg-slate-50 rounded-xl p-2 border border-slate-100">
-                            <span class="block text-[10px] text-slate-500 font-medium">សិស្សសរុប</span>
-                            <span class="text-base font-bold text-slate-700" id="cntTotal">0</span>
-                        </div>
-                        <div class="bg-emerald-50 rounded-xl p-2 border border-emerald-100">
-                            <span class="block text-[10px] text-emerald-600 font-medium">វត្តមាន (វ)</span>
-                            <span class="text-base font-bold text-emerald-700" id="cntPresent">0</span>
-                        </div>
-                        <div class="bg-amber-50 rounded-xl p-2 border border-amber-100">
-                            <span class="block text-[10px] text-amber-600 font-medium">មានច្បាប់ (ច)</span>
-                            <span class="text-base font-bold text-amber-700" id="cntPermission">0</span>
-                        </div>
-                        <div class="bg-rose-50 rounded-xl p-2 border border-rose-100">
-                            <span class="block text-[10px] text-rose-600 font-medium">ឥតច្បាប់ (អ)</span>
-                            <span class="text-base font-bold text-rose-700" id="cntAbsent">0</span>
-                        </div>
-                        <div class="bg-blue-50 rounded-xl p-2 border border-blue-100">
-                            <span class="block text-[10px] text-blue-600 font-medium">មកយឺត (យ)</span>
-                            <span class="text-base font-bold text-blue-700" id="cntLate">0</span>
+                        <!-- Dropdown Menu -->
+                        <div id="userDropdownMenu" style="display:none; position:absolute; right:0; top:calc(100% + 6px); background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; box-shadow:0 10px 25px -5px rgba(0,0,0,0.12); width:210px; z-index:1000; padding:6px 0;">
+                            <div style="padding:10px 16px; border-bottom:1px solid #f1f5f9; font-size:0.8rem; color:#64748b;">
+                                Username: <strong id="dropdownUsername" style="color:#0f172a; font-family:monospace;">admin</strong>
+                            </div>
+                            <a href="javascript:void(0)" onclick="switchToMobilePortal()" style="display:flex; align-items:center; gap:10px; padding:9px 16px; font-size:0.82rem; color:#334155; text-decoration:none; transition:background 0.15s;">
+                                <i class="fa-solid fa-mobile-screen-button text-primary" style="width:16px;"></i> Teacher Mobile App
+                            </a>
+                            <div style="border-top:1px solid #f1f5f9; margin-top:4px; padding-top:4px;">
+                                <a href="javascript:void(0)" onclick="handleLogout()" style="display:flex; align-items:center; gap:10px; padding:9px 16px; font-size:0.82rem; color:#ef4444; text-decoration:none; transition:background 0.15s;">
+                                    <i class="fa-solid fa-right-from-bracket" style="width:16px;"></i> ចាកចេញ (Logout)
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </div>
+            </header>
 
-                <!-- Student Roster List -->
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
-                    <div class="p-4 bg-slate-50 border-b border-slate-200/80 flex items-center justify-between">
-                        <div class="flex items-center gap-2">
-                            <h4 class="font-bold text-sm text-slate-800" id="rosterHeading">បញ្ជីឈ្មោះសិស្ស</h4>
-                            <span id="rosterCountBadge" class="text-xs px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 font-semibold">0 នាក់</span>
-                        </div>
-                        <div class="relative w-40 sm:w-56">
-                            <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2.5 text-xs text-slate-400"></i>
-                            <input type="text" id="studentSearchInput" oninput="filterStudentRoster()" placeholder="ស្វែងរកឈ្មោះ..." class="w-full pl-7 pr-3 py-1 bg-white border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                        </div>
-                    </div>
+            <!-- Main Dynamic Container -->
+            <main class="content-container">
 
-                    <!-- Students Container -->
-                    <div id="studentsList" class="divide-y divide-slate-100">
-                        <!-- Populated by JS -->
-                    </div>
-                </div>
-
-                <!-- Sticky Bottom Action Bar -->
-                <div class="sticky bottom-4 z-20 pt-2 safe-bottom">
-                    <button onclick="saveCurrentAttendance()" class="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold rounded-2xl shadow-xl shadow-blue-500/30 transition active:scale-[0.99] flex items-center justify-center gap-2 text-base">
-                        <i class="fa-solid fa-cloud-arrow-up text-lg"></i>
-                        <span>រក្សាទុកវត្តមាន (Save to Cloud)</span>
-                    </button>
-                </div>
-            </div>
-
-            <!-- ========================================== -->
-            <!-- TAB 2: TEACHER SCHEDULE                     -->
-            <!-- ========================================== -->
-            <div id="tabTeacherSchedule" class="tab-pane hidden space-y-4">
-                <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
-                    <h3 class="text-base font-bold text-slate-800 mb-1 flex items-center gap-2">
-                        <i class="fa-solid fa-calendar-week text-blue-600"></i>
-                        កាលវិភាគបង្រៀនប្រចាំសប្តាហ៍
-                    </h3>
-                    <p class="text-xs text-slate-500 mb-4">ម៉ោងបង្រៀនផ្លូវការដែលបាន Sync ពីប្រព័ន្ធកាលវិភាគ KKHS</p>
-                    
-                    <div id="teacherScheduleGrid" class="space-y-3">
-                        <!-- Rendered dynamically by Day -->
-                    </div>
-                </div>
-            </div>
-
-            <!-- ========================================== -->
-            <!-- TAB 3: TEACHER LEAVE REQUEST               -->
-            <!-- ========================================== -->
-            <div id="tabTeacherLeave" class="tab-pane hidden space-y-4">
-                <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
-                    <h3 class="text-base font-bold text-slate-800 mb-1 flex items-center gap-2">
-                        <i class="fa-solid fa-file-pen text-amber-500"></i>
-                        ដាក់ពាក្យស្នើសុំច្បាប់ឈប់សម្រាក
-                    </h3>
-                    <p class="text-xs text-slate-500 mb-4">ពាក្យសុំច្បាប់នឹងត្រូវបញ្ជូនទៅកាន់គណៈគ្រប់គ្រងសាលាពិនិត្យ និងអនុម័ត</p>
-
-                    <form onsubmit="submitLeaveRequest(event)" class="space-y-3 text-xs max-w-lg">
-                        <div class="grid grid-cols-2 gap-3">
+                <!-- ============================================================== -->
+                <!-- 1. DASHBOARD VIEW (100% IDENTICAL TO dashboard.html)           -->
+                <!-- ============================================================== -->
+                <div id="view-dashboard" class="view-pane active">
+                    <div class="dashboard-page">
+                        <div class="page-header-row">
                             <div>
-                                <label class="block font-semibold text-slate-600 mb-1">ចាប់ពីថ្ងៃទី</label>
-                                <input type="date" id="leaveStartDate" required class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg">
+                                <h1 class="page-title">ផ្ទាំងព័ត៌មាន និងស្ថិតិអវត្តមាន</h1>
+                                <p class="page-subtitle">ទិដ្ឋភាពទូទៅនៃវត្តមានគ្រូបង្រៀន និងសិស្សានុសិស្សប្រចាំថ្ងៃ</p>
                             </div>
+                            <div class="header-actions">
+                                <div class="input-group">
+                                    <span class="input-icon"><i class="fa-solid fa-calendar-day"></i></span>
+                                    <input type="date" id="dashDatePicker" class="form-control" onchange="renderDashboard()">
+                                </div>
+                                <button type="button" onclick="switchToMobilePortal()" class="btn btn-outline" style="border-color:#8b5cf6; color:#7c3aed;">
+                                    <i class="fa-solid fa-mobile-screen-button"></i> ប្រើលើទូរស័ព្ទ (Mobile App)
+                                </button>
+                                <button type="button" onclick="navigateTo('teacher-attendance')" class="btn btn-primary">
+                                    <i class="fa-solid fa-clipboard-user"></i> ស្រង់វត្តមានគ្រូ
+                                </button>
+                                <button type="button" onclick="navigateTo('student-attendance')" class="btn btn-success">
+                                    <i class="fa-solid fa-user-check"></i> ស្រង់វត្តមានសិស្ស
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 4 Stats Cards Grid -->
+                        <div class="stats-grid">
+                            <!-- Card 1: Teachers Overview -->
+                            <div class="stat-card">
+                                <div class="stat-icon-wrapper primary">
+                                    <i class="fa-solid fa-chalkboard-user"></i>
+                                </div>
+                                <div class="stat-content">
+                                    <span class="stat-label">គ្រូបង្រៀនសរុប</span>
+                                    <h3 class="stat-value" id="dashTotalTeachers">119 <small>នាក់</small></h3>
+                                    <div class="stat-progress-label">
+                                        <span>វត្តមានថ្ងៃនេះ: <strong id="dashTeachersPresent">119</strong> នាក់</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Card 2: Students Overview -->
+                            <div class="stat-card">
+                                <div class="stat-icon-wrapper info">
+                                    <i class="fa-solid fa-user-graduate"></i>
+                                </div>
+                                <div class="stat-content">
+                                    <span class="stat-label">សិស្សានុសិស្សសរុប</span>
+                                    <h3 class="stat-value" id="dashTotalStudents">1,998 <small>នាក់</small></h3>
+                                    <div class="stat-progress-label">
+                                        <span>ថ្នាក់រៀនសរុប: <strong>40</strong> ថ្នាក់</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Card 3: Teachers Absent Today -->
+                            <div class="stat-card border-warning">
+                                <div class="stat-icon-wrapper warning">
+                                    <i class="fa-solid fa-person-circle-exclamation"></i>
+                                </div>
+                                <div class="stat-content">
+                                    <span class="stat-label">គ្រូអវត្តមានថ្ងៃនេះ</span>
+                                    <h3 class="stat-value text-warning" id="dashTeachersAbsentTotal">0 <small>នាក់</small></h3>
+                                    <div class="stat-breakdown">
+                                        <span class="badge badge-warning" id="dashTeacherPermission">ច្បាប់: 0</span>
+                                        <span class="badge badge-danger" id="dashTeacherAbsent">ឥតច្បាប់: 0</span>
+                                        <span class="badge badge-secondary" id="dashTeacherLate">យឺត: 0</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Card 4: Students Absent Today -->
+                            <div class="stat-card border-danger">
+                                <div class="stat-icon-wrapper danger">
+                                    <i class="fa-solid fa-user-xmark"></i>
+                                </div>
+                                <div class="stat-content">
+                                    <span class="stat-label">សិស្សអវត្តមានថ្ងៃនេះ</span>
+                                    <h3 class="stat-value text-danger" id="dashStudentsAbsentTotal">0 <small>នាក់</small></h3>
+                                    <div class="stat-breakdown">
+                                        <span class="badge badge-warning" id="dashStudentPermission">ច្បាប់: 0</span>
+                                        <span class="badge badge-danger" id="dashStudentAbsent">ឥតច្បាប់: 0</span>
+                                        <span class="badge badge-secondary" id="dashStudentLate">យឺត: 0</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Class Attendance Tracking Grid -->
+                        <div class="card mt-4">
+                            <div class="card-header d-flex justify-between align-center">
+                                <div class="card-title">
+                                    <i class="fa-solid fa-chalkboard text-primary"></i>
+                                    <span>ស្ថានភាពស្រង់វត្តមានតាមថ្នាក់រៀនទាំង ៤០ ថ្នាក់ (ប្រចាំថ្ងៃ)</span>
+                                </div>
+                                <span class="badge badge-primary" id="dashClassCompletedBadge">0 / 40 ថ្នាក់ស្រង់រួច</span>
+                            </div>
+                            <div class="card-body">
+                                <div id="dashClassMatrixGrid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap:10px;">
+                                    <!-- Populated dynamically -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ============================================================== -->
+                <!-- 2. STUDENT ATTENDANCE VIEW (student_attendance.html)           -->
+                <!-- ============================================================== -->
+                <div id="view-student-attendance" class="view-pane">
+                    <div class="attendance-page">
+                        <div class="page-header-row">
                             <div>
-                                <label class="block font-semibold text-slate-600 mb-1">ដល់ថ្ងៃទី</label>
-                                <input type="date" id="leaveEndDate" required class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg">
+                                <h1 class="page-title"><i class="fa-solid fa-user-check text-success"></i> ស្រង់វត្តមានសិស្សានុសិស្ស</h1>
+                                <p class="page-subtitle">កត់ត្រាវត្តមានសិស្សប្រចាំថ្ងៃតាមថ្នាក់ និងវេនសិក្សា</p>
+                            </div>
+                            <div class="header-actions">
+                                <button type="button" class="btn btn-outline" onclick="markAllStudentsPresent()">
+                                    <i class="fa-solid fa-check-double text-success"></i> វត្តមានទាំងអស់
+                                </button>
+                                <button type="button" class="btn btn-primary" onclick="saveStudentAttendanceCloud()">
+                                    <i class="fa-solid fa-floppy-disk"></i> រក្សាទុកទិន្នន័យ (Cloud Save)
+                                </button>
                             </div>
                         </div>
-                        <div>
-                            <label class="block font-semibold text-slate-600 mb-1">វេនឈប់សម្រាក</label>
-                            <select id="leaveSession" class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg">
-                                <option value="morning">ពេលព្រឹក</option>
-                                <option value="afternoon">ពេលរសៀល</option>
-                                <option value="full_day">ពេញមួយថ្ងៃ</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block font-semibold text-slate-600 mb-1">មូលហេតុនៃការសុំច្បាប់</label>
-                            <textarea id="leaveReason" rows="3" required placeholder="សូមបញ្ជាក់មូលហេតុ (ឧ. មានជំងឺ ធុរៈផ្ទាល់ខ្លួន...)" class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg"></textarea>
-                        </div>
-                        <button type="submit" class="py-2.5 px-6 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow transition">
-                            ផ្ញើពាក្យសុំច្បាប់
-                        </button>
-                    </form>
-                </div>
-            </div>
 
-            <!-- ========================================== -->
-            <!-- TAB 4: ADMIN OVERVIEW (DASHBOARD)          -->
-            <!-- ========================================== -->
-            <div id="tabAdminOverview" class="tab-pane hidden space-y-5">
-                <!-- Top Statistics Cards -->
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3">
-                        <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl">
-                            <i class="fa-solid fa-users"></i>
+                        <!-- Filter Bar -->
+                        <div class="filter-bar card">
+                            <div class="filter-form" style="display:flex; flex-wrap:wrap; gap:14px; align-items:flex-end;">
+                                <div class="filter-group">
+                                    <label><i class="fa-solid fa-chalkboard"></i> ជ្រើសរើសថ្នាក់រៀន</label>
+                                    <select id="attClassSelect" class="form-control font-weight-bold" onchange="loadClassAttendanceTable()">
+                                        <!-- Populated dynamically -->
+                                    </select>
+                                </div>
+                                <div class="filter-group">
+                                    <label><i class="fa-regular fa-calendar"></i> កាលបរិច្ឆេទ</label>
+                                    <input type="date" id="attDatePicker" class="form-control" onchange="loadClassAttendanceTable()">
+                                </div>
+                                <div class="filter-group">
+                                    <label><i class="fa-solid fa-clock"></i> ម៉ោងទី (Period)</label>
+                                    <select id="attPeriodSelect" class="form-control" onchange="loadClassAttendanceTable()">
+                                        <option value="1">ម៉ោងទី ១ (ព្រឹក: 7:00 / រសៀល: 13:00)</option>
+                                        <option value="2">ម៉ោងទី ២ (ព្រឹក: 7:45 / រសៀល: 13:45)</option>
+                                        <option value="3">ម៉ោងទី ៣ (ព្រឹក: 8:45 / រសៀល: 14:45)</option>
+                                        <option value="4">ម៉ោងទី ៤ (ព្រឹក: 9:30 / រសៀល: 15:30)</option>
+                                        <option value="5">ម៉ោងទី ៥ (ព្រឹក: 10:15 / រសៀល: 16:15)</option>
+                                    </select>
+                                </div>
+                                <div class="filter-stats-summary" style="margin-left:auto;">
+                                    <span class="badge badge-primary" id="attClassCountBadge">សរុបសិស្សក្នុងថ្នាក់: 0 នាក់</span>
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <span class="text-xs text-slate-500 font-medium">សិស្សសរុប</span>
-                            <h4 class="text-xl font-bold text-slate-800" id="admTotalStudents">1,998</h4>
-                        </div>
-                    </div>
 
-                    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3">
-                        <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl">
-                            <i class="fa-solid fa-user-check"></i>
+                        <!-- Students Table Card -->
+                        <div class="card mt-3">
+                            <div class="card-header d-flex justify-between align-center">
+                                <div class="card-title">
+                                    <i class="fa-solid fa-list-check text-primary"></i>
+                                    <span id="attTableTitle">បញ្ជីឈ្មោះសិស្ស</span>
+                                </div>
+                                <div class="attendance-live-summary">
+                                    <span class="badge badge-success" id="badgePresent">វត្តមាន: 0</span>
+                                    <span class="badge badge-warning" id="badgePermission">ច្បាប់: 0</span>
+                                    <span class="badge badge-danger" id="badgeAbsent">ឥតច្បាប់: 0</span>
+                                    <span class="badge badge-secondary" id="badgeLate">យឺត: 0</span>
+                                </div>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-hover attendance-table" id="studentAttTable">
+                                        <thead>
+                                            <tr>
+                                                <th style="width: 50px;">ល.រ</th>
+                                                <th style="width: 140px;">អត្តលេខសិស្ស</th>
+                                                <th style="width: 240px;">គោត្តនាម និង នាម</th>
+                                                <th style="width: 80px;">ភេទ</th>
+                                                <th style="width: 320px;">ស្ថានភាពវត្តមាន</th>
+                                                <th style="width: 240px;">មូលហេតុ (ពេលអវត្តមាន/ច្បាប់)</th>
+                                                <th style="width: 140px;">ទូរស័ព្ទអាណាព្យាបាល</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="studentAttTbody">
+                                            <!-- Dynamically populated -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <span class="text-xs text-slate-500 font-medium">វត្តមានថ្ងៃនេះ</span>
-                            <h4 class="text-xl font-bold text-emerald-600" id="admTotalPresent">0</h4>
-                        </div>
-                    </div>
-
-                    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3">
-                        <div class="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-xl">
-                            <i class="fa-solid fa-user-xmark"></i>
-                        </div>
-                        <div>
-                            <span class="text-xs text-slate-500 font-medium">ឥតច្បាប់</span>
-                            <h4 class="text-xl font-bold text-rose-600" id="admTotalAbsent">0</h4>
-                        </div>
-                    </div>
-
-                    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3">
-                        <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl">
-                            <i class="fa-solid fa-user-clock"></i>
-                        </div>
-                        <div>
-                            <span class="text-xs text-slate-500 font-medium">មានច្បាប់ / យឺត</span>
-                            <h4 class="text-xl font-bold text-amber-600" id="admTotalPermission">0</h4>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Class Submission Tracker -->
-                <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
-                    <div class="flex items-center justify-between mb-4">
-                        <div>
-                            <h3 class="font-bold text-slate-800 text-sm">ស្ថានភាពស្រង់វត្តមានតាមថ្នាក់ថ្ងៃនេះ (៤០ ថ្នាក់)</h3>
-                            <p class="text-xs text-slate-500">តាមដានថាតើថ្នាក់ណាបានស្រង់វត្តមានរួចរាល់</p>
-                        </div>
-                        <span class="text-xs font-bold px-3 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-100" id="admRecordedClassCount">0 / 40 ថ្នាក់ស្រង់រួច</span>
-                    </div>
-
-                    <div id="admClassGrid" class="grid grid-cols-4 sm:grid-cols-8 gap-2 text-center text-xs">
-                        <!-- Populated by JS -->
                     </div>
                 </div>
-            </div>
 
-            <!-- ========================================== -->
-            <!-- TAB 5: ADMIN EXPORT & REPORTS              -->
-            <!-- ========================================== -->
-            <div id="tabAdminExport" class="tab-pane hidden space-y-4">
-                <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm max-w-xl">
-                    <h3 class="font-bold text-slate-800 text-base mb-1 flex items-center gap-2">
-                        <i class="fa-solid fa-file-excel text-emerald-600"></i>
-                        ទាញយករបាយការណ៍ជា Excel (.xlsx)
-                    </h3>
-                    <p class="text-xs text-slate-500 mb-5">ទាញយករបាយការណ៍វត្តមានសិស្ស និងគ្រូប្រចាំថ្ងៃ តាមស្តង់ដារក្រសួងអប់រំ ដោយផ្ទាល់លើ Browser</p>
+                <!-- ============================================================== -->
+                <!-- 3. TEACHER ATTENDANCE VIEW (teacher_attendance.html)           -->
+                <!-- ============================================================== -->
+                <div id="view-teacher-attendance" class="view-pane">
+                    <div class="attendance-page">
+                        <div class="page-header-row">
+                            <div>
+                                <h1 class="page-title"><i class="fa-solid fa-clipboard-user text-primary"></i> ស្រង់វត្តមានគ្រូបង្រៀន</h1>
+                                <p class="page-subtitle">កត់ត្រាវត្តមានគ្រូបង្រៀនប្រចាំថ្ងៃតាមវេន និងម៉ោងបង្រៀន</p>
+                            </div>
+                            <div class="header-actions">
+                                <button type="button" class="btn btn-outline" onclick="markAllTeachersPresent()">
+                                    <i class="fa-solid fa-check-double text-success"></i> វត្តមានទាំងអស់
+                                </button>
+                                <button type="button" class="btn btn-primary" onclick="saveTeacherAttendanceCloud()">
+                                    <i class="fa-solid fa-floppy-disk"></i> រក្សាទុកទិន្នន័យ (Cloud Save)
+                                </button>
+                            </div>
+                        </div>
 
-                    <div class="space-y-3">
-                        <button onclick="exportTodayAttendanceExcel()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold rounded-xl shadow-lg shadow-emerald-600/20 text-xs flex items-center justify-center gap-2 transition">
-                            <i class="fa-solid fa-download text-sm"></i>
-                            <span>ទាញយក Excel វត្តមានថ្ងៃនេះ (Today Attendance)</span>
-                        </button>
-                        
-                        <a href="https://docs.google.com/spreadsheets/d/1RnTas3BW3UfhwqMPhR7rU7b1FPEw35Xt-CL0aTJ2XkE" target="_blank" class="w-full py-3 bg-blue-50 hover:bg-blue-100 active:scale-95 text-blue-700 border border-blue-200 font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition text-center">
-                            <i class="fa-solid fa-arrow-up-right-from-square"></i>
-                            <span>បើកមើលតារាង Google Sheets កណ្តាល (SchoolSM)</span>
-                        </a>
+                        <div class="filter-bar card">
+                            <div style="display:flex; flex-wrap:wrap; gap:14px; align-items:flex-end;">
+                                <div class="filter-group">
+                                    <label><i class="fa-regular fa-calendar"></i> កាលបរិច្ឆេទ</label>
+                                    <input type="date" id="teacherAttDate" class="form-control" onchange="loadTeacherAttendanceTable()">
+                                </div>
+                                <div class="filter-group">
+                                    <label><i class="fa-solid fa-sun"></i> វេនបង្រៀន</label>
+                                    <select id="teacherAttSession" class="form-control" onchange="loadTeacherAttendanceTable()">
+                                        <option value="morning">វេនពេលព្រឹក (Morning)</option>
+                                        <option value="afternoon">វេនពេលរសៀល (Afternoon)</option>
+                                    </select>
+                                </div>
+                                <div style="margin-left:auto;">
+                                    <input type="text" id="teacherAttSearch" class="form-control" placeholder="ស្វែងរកឈ្មោះគ្រូ..." oninput="filterTeacherAttTable()">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card mt-3">
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-hover attendance-table">
+                                        <thead>
+                                            <tr>
+                                                <th style="width: 50px;">ល.រ</th>
+                                                <th style="width: 120px;">កូដគ្រូ</th>
+                                                <th style="width: 200px;">គោត្តនាម-នាម</th>
+                                                <th style="width: 140px;">មុខវិជ្ជា</th>
+                                                <th style="width: 320px;">ស្ថានភាពវត្តមាន</th>
+                                                <th style="width: 200px;">គ្រូបង្រៀនជំនួស</th>
+                                                <th style="width: 200px;">មូលហេតុ</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="teacherAttTbody">
+                                            <!-- Dynamically populated -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-        </main>
+                <!-- ============================================================== -->
+                <!-- 4. TIMETABLE VIEW (timetable.html)                            -->
+                <!-- ============================================================== -->
+                <div id="view-timetable" class="view-pane">
+                    <div class="timetable-page">
+                        <div class="page-header-row no-print">
+                            <div>
+                                <h1 class="page-title"><i class="fa-solid fa-calendar-days text-primary"></i> កាលវិភាគបង្រៀន (Timetable)</h1>
+                                <p class="page-subtitle">វិទ្យាល័យ ហ៊ុន សែន កំពង់កន្តែរ | ឆ្នាំសិក្សា ២០២៦-២០២៧</p>
+                            </div>
+                            <div class="header-actions">
+                                <a href="https://kkhs.web.app" target="_blank" class="btn btn-outline" style="border-color:#2563eb; color:#1d4ed8; background:#eff6ff;">
+                                    <i class="fa-solid fa-arrow-up-right-from-square"></i> kkhs.web.app
+                                </a>
+                                <button type="button" class="btn btn-outline" onclick="exportTimetableExcel()">
+                                    <i class="fa-solid fa-download text-primary"></i> Export Excel
+                                </button>
+                                <button onclick="window.print()" class="btn btn-outline">
+                                    <i class="fa-solid fa-print text-primary"></i> បោះពុម្ព (Print)
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Filter Control Card -->
+                        <div class="card mb-3 p-3 no-print">
+                            <div class="d-flex justify-between align-center flex-wrap gap-3">
+                                <div class="d-flex align-center gap-2 flex-wrap">
+                                    <div class="btn-group" style="display:inline-flex; background:#e2e8f0; border-radius:8px; padding:3px;">
+                                        <button type="button" id="btnTtViewClass" onclick="setTimetableViewType('class')" class="btn btn-sm btn-primary" style="padding:6px 14px;">
+                                            <i class="fa-solid fa-chalkboard"></i> តាមថ្នាក់រៀន
+                                        </button>
+                                        <button type="button" id="btnTtViewTeacher" onclick="setTimetableViewType('teacher')" class="btn btn-sm btn-outline" style="padding:6px 14px;">
+                                            <i class="fa-solid fa-chalkboard-user"></i> តាមគ្រូបង្រៀន
+                                        </button>
+                                    </div>
+                                    <div id="ttClassSelectContainer">
+                                        <select id="ttClassSelect" class="form-control" onchange="renderTimetableGrid()">
+                                            <!-- Classes -->
+                                        </select>
+                                    </div>
+                                    <div id="ttTeacherSelectContainer" style="display:none;">
+                                        <select id="ttTeacherSelect" class="form-control" onchange="renderTimetableGrid()">
+                                            <!-- Teachers -->
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Weekly Timetable Matrix Card -->
+                        <div class="card">
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table timetable-table" style="text-align:center; border-collapse:collapse;">
+                                        <thead>
+                                            <tr style="background:#f1f5f9;">
+                                                <th style="width:110px;">ម៉ោងសិក្សា</th>
+                                                <th>ថ្ងៃចន្ទ</th>
+                                                <th>ថ្ងៃអង្គារ</th>
+                                                <th>ថ្ងៃពុធ</th>
+                                                <th>ថ្ងៃព្រហស្បតិ៍</th>
+                                                <th>ថ្ងៃសុក្រ</th>
+                                                <th>ថ្ងៃសៅរ៍</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="timetableGridTbody">
+                                            <!-- Periods 1 to 5 rows -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ============================================================== -->
+                <!-- 5. TEACHERS LIST VIEW (teachers.html)                         -->
+                <!-- ============================================================== -->
+                <div id="view-teachers" class="view-pane">
+                    <div class="teachers-page">
+                        <div class="page-header-row">
+                            <div>
+                                <h1 class="page-title"><i class="fa-solid fa-chalkboard-user text-primary"></i> បញ្ជីគ្រូបង្រៀន</h1>
+                                <p class="page-subtitle">គ្រប់គ្រងព័ត៌មានគ្រូបង្រៀន មុខវិជ្ជាឯកទេស និងបន្ទុកម៉ោង</p>
+                            </div>
+                        </div>
+
+                        <div class="card mb-3 p-3">
+                            <div class="d-flex justify-between align-center flex-wrap gap-2">
+                                <div class="search-box" style="position:relative; width:280px;">
+                                    <i class="fa-solid fa-magnifying-glass" style="position:absolute; left:12px; top:11px; color:#94a3b8;"></i>
+                                    <input type="text" id="teachersSearchInput" class="form-control" style="padding-left:34px;" placeholder="ស្វែងរកតាមឈ្មោះ កូដ ឬមុខវិជ្ជា..." oninput="filterTeachersList()">
+                                </div>
+                                <div class="text-muted small">
+                                    សរុបគ្រូបង្រៀន៖ <strong class="text-primary" id="teachersTotalCount">119</strong> នាក់
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-hover" id="teachersTable">
+                                        <thead>
+                                            <tr>
+                                                <th style="width:50px;">ល.រ</th>
+                                                <th style="width:110px;">កូដគ្រូ</th>
+                                                <th style="width:200px;">គោត្តនាម-នាម</th>
+                                                <th style="width:70px;">ភេទ</th>
+                                                <th style="width:160px;">មុខវិជ្ជាឯកទេស</th>
+                                                <th style="width:140px;">លេខទូរស័ព្ទ</th>
+                                                <th style="width:110px;">បន្ទុកម៉ោង</th>
+                                                <th style="width:90px;">ស្ថានភាព</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="teachersListTbody">
+                                            <!-- Dynamically populated -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ============================================================== -->
+                <!-- 6. STUDENTS LIST VIEW (students.html)                         -->
+                <!-- ============================================================== -->
+                <div id="view-students" class="view-pane">
+                    <div class="students-page">
+                        <div class="page-header-row">
+                            <div>
+                                <h1 class="page-title"><i class="fa-solid fa-users text-primary"></i> បញ្ជីសិស្សតាមថ្នាក់</h1>
+                                <p class="page-subtitle">គ្រប់គ្រង និងស្វែងរកទិន្នន័យសិស្សានុសិស្សទាំង ៤០ ថ្នាក់</p>
+                            </div>
+                        </div>
+
+                        <div class="card mb-3 p-3">
+                            <div class="d-flex justify-between align-center flex-wrap gap-2">
+                                <div style="display:flex; align-items:center; gap:10px;">
+                                    <label class="small font-weight-bold">ជ្រើសរើសថ្នាក់៖</label>
+                                    <select id="studentsClassSelect" class="form-control" onchange="renderStudentsListTable()">
+                                        <!-- Classes -->
+                                    </select>
+                                </div>
+                                <div class="search-box" style="position:relative; width:260px;">
+                                    <i class="fa-solid fa-magnifying-glass" style="position:absolute; left:12px; top:11px; color:#94a3b8;"></i>
+                                    <input type="text" id="studentsSearchInput" class="form-control" style="padding-left:34px;" placeholder="ស្វែងរកតាមឈ្មោះ ឬកូដ..." oninput="filterStudentsListTable()">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th style="width:50px;">ល.រ</th>
+                                                <th style="width:130px;">អត្តលេខ</th>
+                                                <th style="width:220px;">គោត្តនាម-នាម</th>
+                                                <th style="width:70px;">ភេទ</th>
+                                                <th style="width:120px;">ថ្ងៃខែឆ្នាំកំណើត</th>
+                                                <th style="width:150px;">ទូរស័ព្ទអាណាព្យាបាល</th>
+                                                <th style="width:90px;">ស្ថានភាព</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="studentsListTbody">
+                                            <!-- Dynamically populated -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ============================================================== -->
+                <!-- 7. LEAVE REQUESTS VIEW (leave_requests.html)                  -->
+                <!-- ============================================================== -->
+                <div id="view-leave-requests" class="view-pane">
+                    <div class="leave-page">
+                        <div class="page-header-row">
+                            <div>
+                                <h1 class="page-title"><i class="fa-solid fa-calendar-minus text-warning"></i> ពាក្យសុំច្បាប់ឈប់សម្រាក</h1>
+                                <p class="page-subtitle">គ្រប់គ្រងសំណើសុំច្បាប់របស់លោកគ្រូ-អ្នកគ្រូ និងសិស្ស</p>
+                            </div>
+                        </div>
+
+                        <div class="card mb-4 p-4" style="max-width:650px;">
+                            <h3 class="card-title mb-2"><i class="fa-solid fa-file-signature text-primary"></i> ដាក់ពាក្យស្នើសុំច្បាប់ថ្មី</h3>
+                            <!-- Cutoff Notice Banner -->
+                            <div id="clientLeaveCutoffBanner" style="background:#eff6ff; border:1px solid #bfdbfe; color:#1e40af; padding:10px 12px; border-radius:10px; font-size:0.82rem; margin-bottom:14px; line-height:1.4;">
+                                <strong><i class="fa-solid fa-clock text-primary"></i> គោលការណ៍សុំច្បាប់៖</strong> អាចសុំបានតែថ្ងៃដែលមានម៉ោងបង្រៀន។ សុំសម្រាប់ថ្ងៃនេះ ត្រូវធ្វើឡើងមុនម៉ោង <strong><span id="clientLeaveCutoffDisplay">17:00</span></strong> ឬសម្រាប់ថ្ងៃបន្ទាប់។
+                            </div>
+
+                            <form onsubmit="handleLeaveFormSubmit(event)" style="display:flex; flex-direction:column; gap:12px;">
+                                <div>
+                                    <label class="small font-weight-bold mb-1">ជ្រើសរើសគ្រូបង្រៀន *</label>
+                                    <select id="leaveReqTeacherSelect" class="form-control" onchange="checkClientLeaveEligibility()" required>
+                                        <!-- Dynamically populated -->
+                                    </select>
+                                </div>
+                                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                                    <div>
+                                        <label class="small font-weight-bold mb-1">ចាប់ពីថ្ងៃ *</label>
+                                        <input type="date" id="leaveReqStart" class="form-control" onchange="checkClientLeaveEligibility()" required>
+                                    </div>
+                                    <div>
+                                        <label class="small font-weight-bold mb-1">ដល់ថ្ងៃ *</label>
+                                        <input type="date" id="leaveReqEnd" class="form-control" onchange="checkClientLeaveEligibility()" required>
+                                    </div>
+                                </div>
+
+                                <!-- Live Schedule Feedback -->
+                                <div id="leaveReqFeedback" style="display:none; padding:10px 12px; border-radius:10px; font-size:0.82rem; line-height:1.4;"></div>
+
+                                <div>
+                                    <label class="small font-weight-bold mb-1">មូលហេតុនៃការសុំច្បាប់ *</label>
+                                    <textarea id="leaveReqReason" rows="2" class="form-control" placeholder="បញ្ជាក់មូលហេតុ (ឧ. ឈឺ មានធុរៈគ្រួសារ...)" required></textarea>
+                                </div>
+                                <button type="submit" id="clientLeaveSubmitBtn" class="btn btn-primary" style="align-self:flex-start;">
+                                    <i class="fa-solid fa-paper-plane"></i> ផ្ញើពាក្យសុំច្បាប់
+                                </button>
+                            </form>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-title">បញ្ជីពាក្យសុំច្បាប់ទាំងអស់</div>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>អ្នកស្នើសុំ</th>
+                                                <th>ចាប់ពីថ្ងៃ</th>
+                                                <th>ដល់ថ្ងៃ</th>
+                                                <th>វេន</th>
+                                                <th>មូលហេតុ</th>
+                                                <th>ស្ថានភាព</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="leaveRequestsTbody">
+                                            <!-- Dynamically populated -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ============================================================== -->
+                <!-- 8. REPORTS VIEW (reports.html)                                -->
+                <!-- ============================================================== -->
+                <div id="view-reports" class="view-pane">
+                    <div class="reports-page">
+                        <div class="page-header-row">
+                            <div>
+                                <h1 class="page-title"><i class="fa-solid fa-file-excel text-success"></i> របាយការណ៍ & Export Excel</h1>
+                                <p class="page-subtitle">ទាញយករបាយការណ៍វត្តមានតាមស្តង់ដារក្រសួងអប់រំ យុវជន និងកីឡា</p>
+                            </div>
+                        </div>
+
+                        <div class="card p-4" style="max-width:650px;">
+                            <h3 class="card-title mb-3"><i class="fa-solid fa-download text-primary"></i> ទាញយករបាយការណ៍ជា Excel (.xlsx)</h3>
+                            <div style="display:flex; flex-direction:column; gap:14px;">
+                                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                                    <div>
+                                        <label class="small font-weight-bold mb-1">កាលបរិច្ឆេទ</label>
+                                        <input type="date" id="repDatePicker" class="form-control">
+                                    </div>
+                                    <div>
+                                        <label class="small font-weight-bold mb-1">ថ្នាក់រៀន</label>
+                                        <select id="repClassSelect" class="form-control">
+                                            <option value="ALL">គ្រប់ថ្នាក់ទាំងអស់ (All Classes)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div style="display:flex; gap:10px;">
+                                    <button type="button" class="btn btn-success" onclick="generateExcelReport('students')">
+                                        <i class="fa-solid fa-file-excel"></i> Export របាយការណ៍សិស្ស (.xlsx)
+                                    </button>
+                                    <button type="button" class="btn btn-primary" onclick="generateExcelReport('teachers')">
+                                        <i class="fa-solid fa-file-excel"></i> Export របាយការណ៍គ្រូ (.xlsx)
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ============================================================== -->
+                <!-- 9. USERS VIEW (users.html)                                    -->
+                <!-- ============================================================== -->
+                <div id="view-users" class="view-pane">
+                    <div class="users-page">
+                        <div class="page-header-row">
+                            <div>
+                                <h1 class="page-title"><i class="fa-solid fa-users-gear text-primary"></i> គ្រប់គ្រងគណនី (Users)</h1>
+                                <p class="page-subtitle">បញ្ជីគណនីចូលប្រើប្រាស់របស់ Admin និងគ្រូបង្រៀនទាំងអស់</p>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>ល.រ</th>
+                                                <th>ឈ្មោះអ្នកប្រើ (Username)</th>
+                                                <th>ឈ្មោះពេញ</th>
+                                                <th>តួនាទី (Role)</th>
+                                                <th>ពាក្យសម្ងាត់លំនាំដើម</th>
+                                                <th>ស្ថានភាព</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="usersListTbody">
+                                            <!-- Dynamically populated -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ============================================================== -->
+                <!-- 10. SETTINGS VIEW (settings.html)                             -->
+                <!-- ============================================================== -->
+                <div id="view-settings" class="view-pane">
+                    <div class="settings-page">
+                        <div class="page-header-row">
+                            <div>
+                                <h1 class="page-title"><i class="fa-solid fa-sliders text-primary"></i> Google Sheets & Cloud Settings</h1>
+                                <p class="page-subtitle">ការកំណត់ និងធ្វើសមកាលកម្មទិន្នន័យលើ Cloud</p>
+                            </div>
+                        </div>
+
+                        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap:16px;">
+                            <div class="card p-4">
+                                <h3 class="card-title mb-2"><i class="fa-solid fa-table text-success"></i> Google Sheets Central Bridge</h3>
+                                <p class="text-muted small mb-3">តារាងទិន្នន័យកណ្តាលរបស់សាលា SchoolSM 2026-2027</p>
+                                <div style="margin-bottom:12px;">
+                                    <label class="small text-muted">Google Sheet ID:</label>
+                                    <input type="text" class="form-control" value="1RnTas3BW3UfhwqMPhR7rU7b1FPEw35Xt-CL0aTJ2XkE" readonly style="background:#f8fafc; font-family:monospace; font-size:0.82rem;">
+                                </div>
+                                <a href="https://docs.google.com/spreadsheets/d/1RnTas3BW3UfhwqMPhR7rU7b1FPEw35Xt-CL0aTJ2XkE" target="_blank" class="btn btn-outline" style="align-self:flex-start;">
+                                    <i class="fa-solid fa-arrow-up-right-from-square"></i> បើកមើលលើ Google Sheets
+                                </a>
+                            </div>
+
+                            <div class="card p-4">
+                                <h3 class="card-title mb-2"><i class="fa-solid fa-cloud text-primary"></i> Firebase Cloud Database</h3>
+                                <p class="text-muted small mb-3">គម្រោង Cloud Firebase RTDB ផ្លូវការ</p>
+                                <div style="margin-bottom:12px;">
+                                    <label class="small text-muted">Project ID:</label>
+                                    <input type="text" class="form-control" value="school-timetable-67972" readonly style="background:#f8fafc; font-family:monospace; font-size:0.82rem;">
+                                </div>
+                                <div class="badge badge-success">
+                                    <i class="fa-solid fa-circle-check"></i> Connected & Active
+                                </div>
+                            </div>
+
+                            <div class="card p-4">
+                                <h3 class="card-title mb-2"><i class="fa-solid fa-calendar-check text-warning"></i> គោលការណ៍សុំច្បាប់របស់គ្រូ</h3>
+                                <p class="text-muted small mb-3">កំណត់ម៉ោងចុងក្រោយសម្រាប់សុំច្បាប់ថ្ងៃនេះ (Cutoff Time)</p>
+                                <div style="margin-bottom:12px;">
+                                    <label class="small text-muted">ម៉ោងកំណត់ (Cutoff Time):</label>
+                                    <input type="time" id="clientSettingsCutoff" class="form-control" value="17:00" style="font-size:0.9rem;">
+                                </div>
+                                <button type="button" onclick="saveClientCutoffSetting()" class="btn btn-primary" style="align-self:flex-start;">
+                                    <i class="fa-solid fa-floppy-disk"></i> រក្សាទុកម៉ោងកំណត់
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </main>
+        </div>
     </div>
 
-    <!-- Toast Notification Container -->
-    <div id="toastContainer" class="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm pointer-events-none"></div>
+    <!-- ============================================================== -->
+    <!-- MOBILE TEACHER PORTAL (100% IDENTICAL TO portal.html)          -->
+    <!-- ============================================================== -->
+    <div id="mobilePortalLayout" class="mobile-portal-body" style="display:none; min-height:100vh;">
+        <div class="mobile-app-container">
+            <!-- Mobile Header -->
+            <header class="mobile-header">
+                <div class="mobile-top-bar">
+                    <div class="mobile-school-title">
+                        <i class="fa-solid fa-graduation-cap"></i>
+                        <span>វិទ្យាល័យ ហ៊ុន សែន កំពង់កន្តែរ</span>
+                    </div>
+                    <div class="mobile-header-actions">
+                        <button type="button" onclick="switchToDesktopLayout()" class="mobile-icon-btn" title="ប្តូរទៅ Desktop Mode" style="background:none; border:none; cursor:pointer;">
+                            <i class="fa-solid fa-desktop"></i>
+                        </button>
+                        <button type="button" onclick="handleLogout()" class="mobile-icon-btn" title="ចាកចេញ (Logout)" style="color:#fca5a5; background:none; border:none; cursor:pointer;">
+                            <i class="fa-solid fa-right-from-bracket"></i>
+                        </button>
+                    </div>
+                </div>
 
-    <!-- Application Logic Script -->
+                <!-- Teacher Profile Card -->
+                <div class="teacher-profile-card">
+                    <div class="teacher-info-left">
+                        <div class="teacher-avatar">
+                            <i class="fa-solid fa-user-tie"></i>
+                        </div>
+                        <div class="teacher-name-group">
+                            <h3 id="mobTeacherName">លោកគ្រូ...</h3>
+                            <p id="mobTeacherSubject">មុខវិជ្ជា... • កូដ: ...</p>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Main Mobile Content -->
+            <main class="mobile-content">
+                <!-- Real-time Active Teaching Slot Banner -->
+                <div class="active-slot-banner" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: #fff; border-radius: 18px; padding: 16px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(37,99,235,0.25);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.2); padding-bottom:10px; margin-bottom:12px;">
+                        <div>
+                            <span style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; opacity:0.85;">
+                                <i class="fa-regular fa-clock"></i> ពេលវេលាជាក់ស្តែង
+                            </span>
+                            <div id="mobLiveClock" style="font-size:1.35rem; font-weight:700; letter-spacing:1px; line-height:1.2;">--:--:--</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <span id="mobActivePeriodBadge" class="badge" style="background:rgba(255,255,255,0.25); color:#fff; font-size:0.78rem; padding:4px 10px; border-radius:12px; font-weight:600;">
+                                ម៉ោងទី ១ (07:00 - 07:45)
+                            </span>
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom:14px;">
+                        <h4 id="mobSlotClassTitle" style="font-size:1.15rem; font-weight:700; margin-bottom:2px;">ម៉ោងទី... ថ្នាក់...</h4>
+                        <p id="mobSlotSubjectDesc" style="font-size:0.82rem; opacity:0.9;">មុខវិជ្ជា៖ ... | បន្ទប់៖ ...</p>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                        <button type="button" onclick="mobTriggerAttendance()" style="padding:12px 8px; background:#10b981; color:#fff; font-weight:700; border:none; border-radius:12px; font-size:0.85rem; display:flex; align-items:center; justify-content:center; gap:6px; cursor:pointer; box-shadow:0 4px 12px rgba(16,185,129,0.25);">
+                            <i class="fa-solid fa-clipboard-user"></i>
+                            <span>ស្រង់វត្តមាន</span>
+                        </button>
+                        <button type="button" onclick="mobOpenLeaveRequest()" style="padding:12px 8px; background:#f59e0b; color:#fff; font-weight:700; border:none; border-radius:12px; font-size:0.85rem; display:flex; align-items:center; justify-content:center; gap:6px; cursor:pointer; box-shadow:0 4px 12px rgba(245,158,11,0.25);">
+                            <i class="fa-solid fa-envelope-open-text"></i>
+                            <span>សុំច្បាប់ផ្ទាល់ខ្លួន</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Today Schedule Card -->
+                <div class="card p-3 mb-4">
+                    <h4 style="font-size:0.95rem; font-weight:700; margin-bottom:10px; color:#0f172a;">
+                        <i class="fa-solid fa-calendar-day text-primary"></i> ម៉ោងបង្រៀនថ្ងៃនេះ
+                    </h4>
+                    <div id="mobTodaySlotsList" style="display:flex; flex-direction:column; gap:8px;">
+                        <!-- Slots -->
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toastContainer" class="toast-container" style="position:fixed; bottom:20px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:8px; pointer-events:none;"></div>
+
+    <!-- ============================================================== -->
+    <!-- LOGIC SCRIPT (CONNECTING TO FIREBASE CLOUD DATABASE)           -->
+    <!-- ============================================================== -->
     <script>
-        // -------------------------------------------------------------
         // 1. Firebase Initialization
-        // -------------------------------------------------------------
         const firebaseConfig = {
             databaseURL: "https://school-timetable-67972-default-rtdb.asia-southeast1.firebasedatabase.app",
             projectId: "school-timetable-67972"
@@ -493,7 +935,7 @@
         firebase.initializeApp(firebaseConfig);
         const rtdb = firebase.database();
 
-        // App Global State
+        // Global State
         let dbData = {
             classes: [],
             teachers: [],
@@ -502,38 +944,43 @@
             users: [],
             settings: {}
         };
-        let currentUser = null;
-        let activeAttendanceState = {}; // { student_id: { status: 'present'|'absent'|'permission'|'late', reason: '' } }
-        let currentClassStudents = [];
+        let currentUser = { username: 'admin', role: 'admin', full_name_kh: 'គណៈគ្រប់គ្រងសាលា' };
+        let activeStudentAttendance = {}; // { student_code: { status, reason } }
+        let activeTeacherAttendance = {}; // { teacher_id: { status, substitute, reason } }
+        let timetableViewType = 'class';
 
-        // -------------------------------------------------------------
-        // 2. Lifecycle & Data Fetching
-        // -------------------------------------------------------------
+        // 2. Lifecycle
         window.addEventListener('DOMContentLoaded', async () => {
-            initDate();
-            registerServiceWorker();
-            initPwaInstall();
+            startLiveClock();
+            initDatePickers();
             await loadFirebaseData();
-            checkPersistedAuth();
+            initApp();
         });
 
-        function initDate() {
-            const today = new Date();
-            const yyyy = today.getFullYear();
-            const mm = String(today.getMonth() + 1).padStart(2, '0');
-            const dd = String(today.getDate()).padStart(2, '0');
-            const todayStr = `${yyyy}-${mm}-${dd}`;
-            
-            const selDate = document.getElementById('selectDate');
-            if (selDate) selDate.value = todayStr;
+        function startLiveClock() {
+            function update() {
+                const now = new Date();
+                const timeStr = now.toLocaleTimeString('en-US', { hour12: false });
+                const mobClock = document.getElementById('mobLiveClock');
+                if (mobClock) mobClock.innerText = timeStr;
 
-            // Khmer date format
-            const daysKh = ['ថ្ងៃអាទិត្យ', 'ថ្ងៃចន្ទ', 'ថ្ងៃអង្គារ', 'ថ្ងៃពុធ', 'ថ្ងៃព្រហស្បតិ៍', 'ថ្ងៃសុក្រ', 'ថ្ងៃសៅរ៍'];
-            const monthsKh = ['មករា', 'កុម្ភៈ', 'មីនា', 'មេសា', 'ឧសភា', 'មិថុនា', 'កក្កដា', 'សីហា', 'កញ្ញា', 'តុលា', 'វិច្ឆិកា', 'ធ្នូ'];
-            const dateKhmer = `${daysKh[today.getDay()]} ទី${today.getDate()} ${monthsKh[today.getMonth()]} ${yyyy}`;
-            
-            const dateSpan = document.getElementById('currentDateStr');
-            if (dateSpan) dateSpan.innerText = dateKhmer;
+                const daysKh = ['អាទិត្យ', 'ចន្ទ', 'អង្គារ', 'ពុធ', 'ព្រហស្បតិ៍', 'សុក្រ', 'សៅរ៍'];
+                const monthsKh = ['មករា', 'កុម្ភៈ', 'មីនា', 'មេសា', 'ឧសភា', 'មិថុនា', 'កក្កដា', 'សីហា', 'កញ្ញា', 'តុលា', 'វិច្ឆិកា', 'ធ្នូ'];
+                const dateStr = `ថ្ងៃ${daysKh[now.getDay()]} ទី${now.getDate()} ${monthsKh[now.getMonth()]} ${now.getFullYear()}`;
+                
+                const headerDate = document.getElementById('headerLiveDate');
+                if (headerDate) headerDate.innerText = dateStr;
+            }
+            update();
+            setInterval(update, 1000);
+        }
+
+        function initDatePickers() {
+            const today = new Date().toISOString().split('T')[0];
+            ['dashDatePicker', 'attDatePicker', 'teacherAttDate', 'repDatePicker', 'leaveReqStart', 'leaveReqEnd'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = today;
+            });
         }
 
         async function loadFirebaseData() {
@@ -541,386 +988,280 @@
                 const snap = await rtdb.ref('/absence_system').once('value');
                 if (snap.exists()) {
                     dbData = snap.val();
-                    populateClassDropdown();
-                } else {
-                    showToast('មិនទាន់មានទិន្នន័យក្នុង Firebase នៅឡើយទេ!', 'warning');
                 }
             } catch (err) {
                 console.error("Firebase read error:", err);
-                showToast('កំហុសតភ្ជាប់ Firebase: ' + err.message, 'error');
+                showToast("កំហុសក្នុងការទាញយកទិន្នន័យ៖ " + err.message, "error");
             } finally {
                 const overlay = document.getElementById('loadingOverlay');
                 if (overlay) {
-                    overlay.classList.add('opacity-0');
-                    setTimeout(() => overlay.classList.add('hidden'), 300);
+                    overlay.style.opacity = '0';
+                    setTimeout(() => overlay.style.display = 'none', 300);
                 }
             }
         }
 
-        function populateClassDropdown() {
-            const sel = document.getElementById('selectClass');
-            if (!sel || !dbData.classes) return;
-            sel.innerHTML = '';
-            dbData.classes.forEach(c => {
-                const opt = document.createElement('option');
-                opt.value = c.class_name;
-                opt.innerText = `ថ្នាក់ ${c.class_name}`;
-                sel.appendChild(opt);
-            });
-        }
-
-        // -------------------------------------------------------------
-        // 3. Authentication & Roles
-        // -------------------------------------------------------------
-        function checkPersistedAuth() {
-            const saved = localStorage.getItem('kkhs_absence_auth');
-            if (saved) {
-                try {
-                    currentUser = JSON.parse(saved);
-                    renderAppShell();
-                } catch (e) {
-                    localStorage.removeItem('kkhs_absence_auth');
-                }
+        function initApp() {
+            if (dbData.settings && dbData.settings.teacher_leave_cutoff_time) {
+                const el = document.getElementById('clientSettingsCutoff');
+                if (el) el.value = dbData.settings.teacher_leave_cutoff_time;
+                const disp = document.getElementById('clientLeaveCutoffDisplay');
+                if (disp) disp.innerText = dbData.settings.teacher_leave_cutoff_time;
             }
+            populateAllClassDropdowns();
+            populateAllTeacherDropdowns();
+            renderDashboard();
+            loadClassAttendanceTable();
+            loadTeacherAttendanceTable();
+            renderTimetableGrid();
+            renderTeachersListTable();
+            renderStudentsListTable();
+            renderUsersListTable();
+            loadLeaveRequests();
         }
 
-        function quickLogin(username, password) {
-            document.getElementById('loginUsername').value = username;
-            document.getElementById('loginPassword').value = password;
-            handleLogin(new Event('submit'));
-        }
-
-        function handleLogin(e) {
-            if (e && e.preventDefault) e.preventDefault();
-            const u = document.getElementById('loginUsername').value.trim();
-            const p = document.getElementById('loginPassword').value.trim();
-
-            // Check Admin
-            if (u.toLowerCase() === 'admin' && (p === 'admin123' || p === '123456')) {
-                currentUser = {
-                    username: 'admin',
-                    role: 'admin',
-                    displayName: 'គណៈគ្រប់គ្រងសាលា',
-                    subject: 'Admin Console'
-                };
-                finishLogin();
-                return;
-            }
-
-            // Check Teacher in users array or teachers list
-            let matchedTeacher = null;
-            if (dbData.teachers) {
-                matchedTeacher = dbData.teachers.find(t => 
-                    (t.teacher_code && t.teacher_code.toString() === u) ||
-                    (t.phone && t.phone.replace(/[^0-9]/g, '') === u.replace(/[^0-9]/g, '')) ||
-                    (t.full_name_kh && t.full_name_kh === u)
-                );
-            }
-
-            if (matchedTeacher) {
-                currentUser = {
-                    username: u,
-                    role: 'teacher',
-                    teacherId: matchedTeacher.id,
-                    teacherCode: matchedTeacher.teacher_code,
-                    displayName: matchedTeacher.full_name_kh,
-                    subject: matchedTeacher.subject || 'គ្រូបង្រៀន'
-                };
-                finishLogin();
-                return;
-            }
-
-            showToast('ឈ្មោះអ្នកប្រើ ឬពាក្យសម្ងាត់មិនត្រឹមត្រូវទេ!', 'error');
-        }
-
-        function finishLogin() {
-            localStorage.setItem('kkhs_absence_auth', JSON.stringify(currentUser));
-            showToast(`សូមស្វាគមន៍ ${currentUser.displayName}!`, 'success');
-            renderAppShell();
-        }
-
-        function handleLogout() {
-            currentUser = null;
-            localStorage.removeItem('kkhs_absence_auth');
-            document.getElementById('viewApp').classList.add('hidden');
-            document.getElementById('viewLogin').classList.remove('hidden');
-            showToast('បានចាកចេញពីប្រព័ន្ធដោយសុវត្ថិភាព', 'info');
-        }
-
-        function renderAppShell() {
-            document.getElementById('viewLogin').classList.add('hidden');
-            document.getElementById('viewApp').classList.remove('hidden');
-
-            document.getElementById('userDisplayName').innerText = currentUser.displayName;
-            document.getElementById('userSubjectSpan').innerText = currentUser.subject || '';
-            
-            const badge = document.getElementById('userRoleBadge');
-            badge.innerText = currentUser.role.toUpperCase();
-
-            if (currentUser.role === 'admin') {
-                document.getElementById('teacherTabs').classList.add('hidden');
-                document.getElementById('adminTabs').classList.remove('hidden');
-                badge.className = 'text-[10px] px-2 py-0.5 rounded-full bg-amber-500/30 text-amber-200 border border-amber-400/30 font-semibold uppercase';
-                switchTab('tabAdminOverview');
-                loadAdminDashboard();
-            } else {
-                document.getElementById('adminTabs').classList.add('hidden');
-                document.getElementById('teacherTabs').classList.remove('hidden');
-                badge.className = 'text-[10px] px-2 py-0.5 rounded-full bg-blue-500/30 text-blue-200 border border-blue-400/30 font-semibold uppercase';
-                switchTab('tabTeacherTake');
-                detectActivePeriod();
-                loadTeacherRoster();
-            }
-        }
-
-        function switchTab(tabId) {
-            document.querySelectorAll('.tab-pane').forEach(el => el.classList.add('hidden'));
-            const target = document.getElementById(tabId);
-            if (target) target.classList.remove('hidden');
-
-            document.querySelectorAll('.tab-btn').forEach(btn => {
-                if (btn.getAttribute('data-target') === tabId) {
-                    btn.classList.add('bg-white/20', 'text-white', 'font-semibold');
-                    btn.classList.remove('text-blue-200');
-                } else {
-                    btn.classList.remove('bg-white/20', 'text-white', 'font-semibold');
-                    btn.classList.add('text-blue-200');
-                }
-            });
-
-            if (tabId === 'tabTeacherSchedule') renderTeacherSchedule();
-            if (tabId === 'tabAdminOverview') loadAdminDashboard();
-        }
-
-        // -------------------------------------------------------------
-        // 4. Teacher Realtime Period Detection & Attendance
-        // -------------------------------------------------------------
-        function detectActivePeriod() {
-            if (!currentUser || currentUser.role !== 'teacher') return;
-            const now = new Date();
-            const currentHour = now.getHours();
-            const currentMin = now.getMinutes();
-            const timeVal = currentHour * 60 + currentMin;
-
-            // Day code mapping (1 = Monday, 6 = Saturday)
-            const dayCode = now.getDay() === 0 ? 7 : now.getDay();
-
-            // Calculate Period 1 to 5
-            let activePeriod = 1;
-            let shift = 'morning';
-
-            if (timeVal >= 420 && timeVal < 465) { activePeriod = 1; shift = 'morning'; }
-            else if (timeVal >= 465 && timeVal < 510) { activePeriod = 2; shift = 'morning'; }
-            else if (timeVal >= 525 && timeVal < 570) { activePeriod = 3; shift = 'morning'; }
-            else if (timeVal >= 570 && timeVal < 615) { activePeriod = 4; shift = 'morning'; }
-            else if (timeVal >= 615 && timeVal < 660) { activePeriod = 5; shift = 'morning'; }
-            else if (timeVal >= 780 && timeVal < 825) { activePeriod = 1; shift = 'afternoon'; }
-            else if (timeVal >= 825 && timeVal < 870) { activePeriod = 2; shift = 'afternoon'; }
-            else if (timeVal >= 885 && timeVal < 930) { activePeriod = 3; shift = 'afternoon'; }
-            else if (timeVal >= 930 && timeVal < 975) { activePeriod = 4; shift = 'afternoon'; }
-            else if (timeVal >= 975 && timeVal < 1020) { activePeriod = 5; shift = 'afternoon'; }
-
-            // Find matching slot for this teacher
-            const teacherSlots = (dbData.timetable_slots || []).filter(s => 
-                (s.teacher_id === currentUser.teacherId || (s.teacher_name && s.teacher_name === currentUser.displayName)) &&
-                s.day_code === dayCode
-            );
-
-            const activeSlot = teacherSlots.find(s => s.period_num === activePeriod);
-
-            const titleEl = document.getElementById('activePeriodTitle');
-            const subEl = document.getElementById('activePeriodSubtitle');
-
-            if (activeSlot) {
-                titleEl.innerText = `ម៉ោងទី ${activeSlot.period_num} - ថ្នាក់ ${activeSlot.class_code}`;
-                subEl.innerText = `មុខវិជ្ជា៖ ${activeSlot.subject_name || currentUser.subject} | វេន៖ ${shift === 'morning' ? 'ព្រឹក' : 'រសៀល'}`;
+        function populateAllClassDropdowns() {
+            const dropdownIds = ['attClassSelect', 'ttClassSelect', 'studentsClassSelect', 'repClassSelect'];
+            dropdownIds.forEach(id => {
+                const sel = document.getElementById(id);
+                if (!sel || !dbData.classes) return;
+                const isRep = (id === 'repClassSelect');
+                sel.innerHTML = isRep ? '<option value="ALL">គ្រប់ថ្នាក់ទាំងអស់ (All Classes)</option>' : '';
                 
-                // Auto set selectors
-                const selClass = document.getElementById('selectClass');
-                const selPeriod = document.getElementById('selectPeriod');
-                if (selClass) selClass.value = activeSlot.class_code;
-                if (selPeriod) selPeriod.value = activeSlot.period_num;
-            } else if (teacherSlots.length > 0) {
-                const next = teacherSlots[0];
-                titleEl.innerText = `កាលវិភាគថ្ងៃនេះ៖ ថ្នាក់ ${next.class_code} (ម៉ោងទី ${next.period_num})`;
-                subEl.innerText = `មុខវិជ្ជា៖ ${next.subject_name || currentUser.subject}`;
-            } else {
-                titleEl.innerText = `គ្មានម៉ោងបង្រៀនសម្រាប់ថ្ងៃនេះទេ`;
-                subEl.innerText = `សូមពិនិត្យមើលកាលវិភាគប្រចាំសប្តាហ៍`;
+                dbData.classes.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c.class_name;
+                    opt.innerText = `ថ្នាក់ ${c.class_name} (កម្រិតទី ${c.grade_level})`;
+                    sel.appendChild(opt);
+                });
+            });
+        }
+
+        function populateAllTeacherDropdowns() {
+            ['ttTeacherSelect', 'leaveReqTeacherSelect'].forEach(id => {
+                const sel = document.getElementById(id);
+                if (!sel || !dbData.teachers) return;
+                sel.innerHTML = '';
+                dbData.teachers.forEach(t => {
+                    const opt = document.createElement('option');
+                    opt.value = t.id;
+                    opt.innerText = `${t.full_name_kh} (${t.subject || 'គ្រូ'}) - ${t.teacher_code || ''}`;
+                    sel.appendChild(opt);
+                });
+            });
+            checkClientLeaveEligibility();
+        }
+
+        // Navigation
+        function navigateTo(viewName) {
+            document.querySelectorAll('.view-pane').forEach(v => v.classList.remove('active'));
+            const target = document.getElementById('view-' + viewName);
+            if (target) target.classList.add('active');
+
+            document.querySelectorAll('.nav-link').forEach(a => {
+                if (a.getAttribute('data-nav') === viewName) a.classList.add('active');
+                else a.classList.remove('active');
+            });
+
+            // Close sidebar on mobile
+            if (window.innerWidth <= 992) {
+                const sb = document.getElementById('sidebar');
+                if (sb) sb.classList.remove('open');
             }
         }
 
-        function loadActivePeriodAttendance() {
-            detectActivePeriod();
-            loadTeacherRoster();
-            showToast('បានជ្រើសរើសម៉ោងបង្រៀនសកម្មរួចរាល់', 'info');
+        function toggleSidebar() {
+            const sb = document.getElementById('sidebar');
+            if (sb) sb.classList.toggle('open');
         }
 
-        function onFilterChange() { loadTeacherRoster(); }
-        function onClassChange() { loadTeacherRoster(); }
-        function onPeriodChange() { loadTeacherRoster(); }
+        function toggleUserDropdown() {
+            const menu = document.getElementById('userDropdownMenu');
+            if (menu) menu.style.display = (menu.style.display === 'block' ? 'none' : 'block');
+        }
 
-        async function loadTeacherRoster() {
-            const cls = document.getElementById('selectClass').value;
-            const date = document.getElementById('selectDate').value;
-            const period = document.getElementById('selectPeriod').value;
+        document.addEventListener('click', (e) => {
+            const btn = document.getElementById('userMenuBtn');
+            const menu = document.getElementById('userDropdownMenu');
+            if (btn && menu && !btn.contains(e.target) && !menu.contains(e.target)) {
+                menu.style.display = 'none';
+            }
+        });
+
+        // 3. Dashboard
+        async function renderDashboard() {
+            const date = document.getElementById('dashDatePicker') ? document.getElementById('dashDatePicker').value : new Date().toISOString().split('T')[0];
+            
+            // Total students & teachers
+            document.getElementById('dashTotalTeachers').innerHTML = `${(dbData.teachers || []).length} <small>នាក់</small>`;
+            document.getElementById('dashTotalStudents').innerHTML = `${(dbData.students_count || 1998).toLocaleString()} <small>នាក់</small>`;
+
+            // Read today's records from Firebase
+            try {
+                const snap = await rtdb.ref(`/attendance/students/${date}`).once('value');
+                const studentRecords = snap.exists() ? snap.val() : {};
+
+                let pCnt = 0, aCnt = 0, permCnt = 0, lCnt = 0;
+                let recordedClasses = new Set();
+
+                Object.values(studentRecords).forEach(slot => {
+                    if (slot.class_name) recordedClasses.add(slot.class_name);
+                    if (slot.records) {
+                        Object.values(slot.records).forEach(r => {
+                            if (r.status === 'present' || r.status === 'PRESENT') pCnt++;
+                            else if (r.status === 'absent' || r.status === 'ABSENT') aCnt++;
+                            else if (r.status === 'permission' || r.status === 'PERMISSION') permCnt++;
+                            else if (r.status === 'late' || r.status === 'LATE') lCnt++;
+                        });
+                    }
+                });
+
+                document.getElementById('dashStudentsAbsentTotal').innerHTML = `${(aCnt + permCnt)} <small>នាក់</small>`;
+                document.getElementById('dashStudentPermission').innerText = `ច្បាប់: ${permCnt}`;
+                document.getElementById('dashStudentAbsent').innerText = `ឥតច្បាប់: ${aCnt}`;
+                document.getElementById('dashStudentLate').innerText = `យឺត: ${lCnt}`;
+                document.getElementById('dashClassCompletedBadge').innerText = `${recordedClasses.size} / ${(dbData.classes || []).length} ថ្នាក់ស្រង់រួច`;
+
+                // Render class matrix grid
+                const matrix = document.getElementById('dashClassMatrixGrid');
+                if (matrix && dbData.classes) {
+                    matrix.innerHTML = '';
+                    dbData.classes.forEach(c => {
+                        const isDone = recordedClasses.has(c.class_name);
+                        const card = document.createElement('div');
+                        card.style.cssText = `padding:8px; border-radius:10px; border:1px solid ${isDone ? '#a7f3d0' : '#e2e8f0'}; background:${isDone ? '#ecfdf5' : '#f8fafc'}; text-align:center; font-weight:600; font-size:0.82rem; cursor:pointer;`;
+                        card.onclick = () => {
+                            document.getElementById('attClassSelect').value = c.class_name;
+                            navigateTo('student-attendance');
+                            loadClassAttendanceTable();
+                        };
+                        card.innerHTML = `
+                            <div>${c.class_name}</div>
+                            <small style="font-size:0.7rem; font-weight:400; color:${isDone ? '#059669' : '#94a3b8'};">
+                                ${isDone ? '✓ ស្រង់រួច' : 'រង់ចាំ'}
+                            </small>
+                        `;
+                        matrix.appendChild(card);
+                    });
+                }
+            } catch (err) {
+                console.error("Dashboard calculation error:", err);
+            }
+        }
+
+        // 4. Student Attendance
+        async function loadClassAttendanceTable() {
+            const cls = document.getElementById('attClassSelect').value;
+            const date = document.getElementById('attDatePicker').value;
+            const period = document.getElementById('attPeriodSelect').value;
 
             if (!cls) return;
 
-            // Load existing attendance from Firebase for this class & period
+            document.getElementById('attTableTitle').innerText = `បញ្ជីឈ្មោះសិស្ស៖ ថ្នាក់ ${cls} (${date} - ម៉ោងទី ${period})`;
+
+            // Load existing from Firebase
             const recordKey = `${cls}_p${period}`;
             try {
                 const snap = await rtdb.ref(`/attendance/students/${date}/${recordKey}`).once('value');
-                activeAttendanceState = snap.exists() ? snap.val().records || {} : {};
+                activeStudentAttendance = snap.exists() ? snap.val().records || {} : {};
             } catch (e) {
-                activeAttendanceState = {};
+                activeStudentAttendance = {};
             }
 
-            // Get students in this class
-            currentClassStudents = (dbData.students_by_class && dbData.students_by_class[cls]) ? dbData.students_by_class[cls] : [];
+            const students = (dbData.students_by_class && dbData.students_by_class[cls]) ? dbData.students_by_class[cls] : [];
+            document.getElementById('attClassCountBadge').innerText = `សរុបសិស្សក្នុងថ្នាក់: ${students.length} នាក់`;
 
-            document.getElementById('rosterHeading').innerText = `បញ្ជីឈ្មោះសិស្ស ថ្នាក់ ${cls}`;
-            document.getElementById('rosterCountBadge').innerText = `${currentClassStudents.length} នាក់`;
+            const tbody = document.getElementById('studentAttTbody');
+            tbody.innerHTML = '';
 
-            renderStudentsList();
-            updateSummaryCounts();
-        }
+            students.forEach((s, idx) => {
+                const rec = activeStudentAttendance[s.student_code] || { status: 'PRESENT', reason: '' };
+                const st = (rec.status || 'PRESENT').toUpperCase();
 
-        function renderStudentsList(filteredList = null) {
-            const container = document.getElementById('studentsList');
-            if (!container) return;
-            container.innerHTML = '';
-
-            const list = filteredList || currentClassStudents;
-
-            if (list.length === 0) {
-                container.innerHTML = `<div class="p-8 text-center text-slate-400 text-xs">រកមិនឃើញទិន្នន័យសិស្សក្នុងថ្នាក់នេះទេ</div>`;
-                return;
-            }
-
-            list.forEach((s, idx) => {
-                const currentRec = activeAttendanceState[s.student_code] || { status: 'present', reason: '' };
-                const st = currentRec.status || 'present';
-
-                const row = document.createElement('div');
-                row.className = 'p-3.5 sm:p-4 hover:bg-slate-50 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3';
-                row.id = `studentRow_${s.student_code}`;
-
-                row.innerHTML = `
-                    <div class="flex items-center gap-3">
-                        <span class="w-6 text-center text-xs font-bold text-slate-400">${idx + 1}</span>
-                        <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs ${s.gender === 'F' ? 'bg-rose-100 text-rose-700' : 'bg-blue-100 text-blue-700'}">
-                            ${s.gender === 'F' ? 'ស' : 'ប'}
-                        </div>
-                        <div>
-                            <div class="font-bold text-sm text-slate-800">${s.full_name_kh || s.full_name_en}</div>
-                            <div class="text-[11px] text-slate-400 font-medium flex items-center gap-2">
-                                <span>កូដ៖ ${s.student_code}</span>
-                                <span>•</span>
-                                <span>ភេទ៖ ${s.gender === 'F' ? 'ស្រី' : 'ប្រុស'}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="flex flex-col sm:items-end gap-1.5">
-                        <div class="inline-flex rounded-xl bg-slate-100 p-1 gap-1 border border-slate-200/80">
-                            <button type="button" onclick="setStudentStatus('${s.student_code}', 'present')" 
-                                    class="status-pill px-3 py-1.5 rounded-lg text-xs font-bold ${st === 'present' ? 'bg-emerald-500 text-white shadow' : 'text-slate-600 hover:bg-slate-200'}">
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="text-center">${idx + 1}</td>
+                    <td><span class="badge badge-light fw-bold">${s.student_code}</span></td>
+                    <td>
+                        <div class="fw-bold">${s.full_name_kh}</div>
+                        ${s.full_name_en ? `<small class="text-muted">${s.full_name_en}</small>` : ''}
+                    </td>
+                    <td>${s.gender === 'F' ? 'ស្រី' : 'ប្រុស'}</td>
+                    <td>
+                        <div class="status-btn-group" style="display:inline-flex; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">
+                            <label class="status-btn ${st === 'PRESENT' ? 'active' : ''}" style="color:#10b981; padding:4px 8px; font-size:0.75rem; font-weight:700; cursor:pointer;" onclick="setStudentAttStatus('${s.student_code}', 'PRESENT')">
                                 វត្តមាន
-                            </button>
-                            <button type="button" onclick="setStudentStatus('${s.student_code}', 'permission')" 
-                                    class="status-pill px-3 py-1.5 rounded-lg text-xs font-bold ${st === 'permission' ? 'bg-amber-500 text-white shadow' : 'text-slate-600 hover:bg-slate-200'}">
+                            </label>
+                            <label class="status-btn ${st === 'PERMISSION' ? 'active' : ''}" style="color:#f59e0b; padding:4px 8px; font-size:0.75rem; font-weight:700; cursor:pointer;" onclick="setStudentAttStatus('${s.student_code}', 'PERMISSION')">
                                 ច្បាប់
-                            </button>
-                            <button type="button" onclick="setStudentStatus('${s.student_code}', 'absent')" 
-                                    class="status-pill px-3 py-1.5 rounded-lg text-xs font-bold ${st === 'absent' ? 'bg-rose-500 text-white shadow' : 'text-slate-600 hover:bg-slate-200'}">
+                            </label>
+                            <label class="status-btn ${st === 'ABSENT' ? 'active' : ''}" style="color:#ef4444; padding:4px 8px; font-size:0.75rem; font-weight:700; cursor:pointer;" onclick="setStudentAttStatus('${s.student_code}', 'ABSENT')">
                                 ឥតច្បាប់
-                            </button>
-                            <button type="button" onclick="setStudentStatus('${s.student_code}', 'late')" 
-                                    class="status-pill px-3 py-1.5 rounded-lg text-xs font-bold ${st === 'late' ? 'bg-blue-500 text-white shadow' : 'text-slate-600 hover:bg-slate-200'}">
+                            </label>
+                            <label class="status-btn ${st === 'LATE' ? 'active' : ''}" style="color:#3b82f6; padding:4px 8px; font-size:0.75rem; font-weight:700; cursor:pointer;" onclick="setStudentAttStatus('${s.student_code}', 'LATE')">
                                 យឺត
-                            </button>
+                            </label>
                         </div>
-                        
-                        <div id="reasonBox_${s.student_code}" class="${(st === 'absent' || st === 'permission') ? '' : 'hidden'} w-full sm:w-64">
-                            <input type="text" value="${currentRec.reason || ''}" onchange="setStudentReason('${s.student_code}', this.value)" 
-                                   placeholder="បញ្ជាក់មូលហេតុ..." class="w-full text-xs p-1.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500">
-                        </div>
-                    </div>
+                    </td>
+                    <td>
+                        <input type="text" class="form-control" style="font-size:0.78rem; padding:4px 8px;" placeholder="មូលហេតុ..." value="${rec.reason || ''}" onchange="setStudentAttReason('${s.student_code}', this.value)">
+                    </td>
+                    <td><small class="text-muted">${s.parent_phone || s.phone || '-'}</small></td>
                 `;
-                container.appendChild(row);
+                tbody.appendChild(tr);
             });
+
+            updateStudentAttBadges();
         }
 
-        function setStudentStatus(code, status) {
-            if (!activeAttendanceState[code]) activeAttendanceState[code] = {};
-            activeAttendanceState[code].status = status;
-            
-            // Re-render specific row
-            renderStudentsList();
-            updateSummaryCounts();
+        function setStudentAttStatus(code, status) {
+            if (!activeStudentAttendance[code]) activeStudentAttendance[code] = {};
+            activeStudentAttendance[code].status = status;
+            loadClassAttendanceTable();
         }
 
-        function setStudentReason(code, reason) {
-            if (!activeAttendanceState[code]) activeAttendanceState[code] = { status: 'absent' };
-            activeAttendanceState[code].reason = reason;
+        function setStudentAttReason(code, reason) {
+            if (!activeStudentAttendance[code]) activeStudentAttendance[code] = { status: 'ABSENT' };
+            activeStudentAttendance[code].reason = reason;
         }
 
-        function markAllPresent() {
-            currentClassStudents.forEach(s => {
-                activeAttendanceState[s.student_code] = { status: 'present', reason: '' };
+        function markAllStudentsPresent() {
+            const cls = document.getElementById('attClassSelect').value;
+            const students = (dbData.students_by_class && dbData.students_by_class[cls]) ? dbData.students_by_class[cls] : [];
+            students.forEach(s => {
+                activeStudentAttendance[s.student_code] = { status: 'PRESENT', reason: '' };
             });
-            renderStudentsList();
-            updateSummaryCounts();
-            showToast('បានកំណត់វត្តមានទាំងអស់ដោយជោគជ័យ!', 'success');
+            loadClassAttendanceTable();
+            showToast("បានកំណត់វត្តមានទាំងអស់ដោយជោគជ័យ!", "success");
         }
 
-        function updateSummaryCounts() {
+        function updateStudentAttBadges() {
             let p = 0, a = 0, perm = 0, l = 0;
-            currentClassStudents.forEach(s => {
-                const st = (activeAttendanceState[s.student_code] && activeAttendanceState[s.student_code].status) || 'present';
-                if (st === 'present') p++;
-                else if (st === 'absent') a++;
-                else if (st === 'permission') perm++;
-                else if (st === 'late') l++;
+            const cls = document.getElementById('attClassSelect').value;
+            const students = (dbData.students_by_class && dbData.students_by_class[cls]) ? dbData.students_by_class[cls] : [];
+            students.forEach(s => {
+                const st = (activeStudentAttendance[s.student_code] && activeStudentAttendance[s.student_code].status) || 'PRESENT';
+                if (st === 'PRESENT') p++;
+                else if (st === 'ABSENT') a++;
+                else if (st === 'PERMISSION') perm++;
+                else if (st === 'LATE') l++;
             });
-
-            document.getElementById('cntTotal').innerText = currentClassStudents.length;
-            document.getElementById('cntPresent').innerText = p;
-            document.getElementById('cntPermission').innerText = perm;
-            document.getElementById('cntAbsent').innerText = a;
-            document.getElementById('cntLate').innerText = l;
+            document.getElementById('badgePresent').innerText = `វត្តមាន: ${p}`;
+            document.getElementById('badgePermission').innerText = `ច្បាប់: ${perm}`;
+            document.getElementById('badgeAbsent').innerText = `ឥតច្បាប់: ${a}`;
+            document.getElementById('badgeLate').innerText = `យឺត: ${l}`;
         }
 
-        function filterStudentRoster() {
-            const q = document.getElementById('studentSearchInput').value.toLowerCase().trim();
-            if (!q) {
-                renderStudentsList();
-                return;
-            }
-            const filtered = currentClassStudents.filter(s => 
-                (s.full_name_kh && s.full_name_kh.toLowerCase().includes(q)) ||
-                (s.student_code && s.student_code.toLowerCase().includes(q)) ||
-                (s.full_name_en && s.full_name_en.toLowerCase().includes(q))
-            );
-            renderStudentsList(filtered);
-        }
+        async function saveStudentAttendanceCloud() {
+            const cls = document.getElementById('attClassSelect').value;
+            const date = document.getElementById('attDatePicker').value;
+            const period = document.getElementById('attPeriodSelect').value;
 
-        // Save Attendance to Firebase Realtime Database
-        async function saveCurrentAttendance() {
-            const cls = document.getElementById('selectClass').value;
-            const date = document.getElementById('selectDate').value;
-            const period = document.getElementById('selectPeriod').value;
-
-            if (!cls || !date || !period) {
-                showToast('សូមជ្រើសរើស ថ្នាក់ កាលបរិច្ឆេទ និងម៉ោងជាមុនសិន!', 'warning');
-                return;
-            }
-
-            // Fill default present if untouched
-            currentClassStudents.forEach(s => {
-                if (!activeAttendanceState[s.student_code]) {
-                    activeAttendanceState[s.student_code] = { status: 'present', reason: '' };
+            // Fill default present
+            const students = (dbData.students_by_class && dbData.students_by_class[cls]) ? dbData.students_by_class[cls] : [];
+            students.forEach(s => {
+                if (!activeStudentAttendance[s.student_code]) {
+                    activeStudentAttendance[s.student_code] = { status: 'PRESENT', reason: '' };
                 }
             });
 
@@ -929,256 +1270,596 @@
                 class_name: cls,
                 date: date,
                 period: period,
-                recorded_by: currentUser.displayName,
+                recorded_by: currentUser.full_name_kh,
                 recorded_at: new Date().toISOString(),
-                records: activeAttendanceState
+                records: activeStudentAttendance
             };
 
+            showToast("កំពុងរក្សាទុកទៅកាន់ Cloud...", "info");
             try {
-                showToast('កំពុងរក្សាទុកទៅកាន់ Cloud Firebase...', 'info');
                 await rtdb.ref(`/attendance/students/${date}/${recordKey}`).set(payload);
-                showToast(`✅ បានរក្សាទុកវត្តមានថ្នាក់ ${cls} ម៉ោងទី ${period} ជោគជ័យ!`, 'success');
+                showToast(`✅ បានរក្សាទុកវត្តមានថ្នាក់ ${cls} ម៉ោងទី ${period} ជោគជ័យ!`, "success");
+                renderDashboard();
             } catch (err) {
-                console.error("Save error:", err);
-                showToast('❌ កំហុសរក្សាទុក៖ ' + err.message, 'error');
+                showToast("❌ កំហុសរក្សាទុក៖ " + err.message, "error");
             }
         }
 
-        // -------------------------------------------------------------
-        // 5. Teacher Schedule Tab
-        // -------------------------------------------------------------
-        function renderTeacherSchedule() {
-            const container = document.getElementById('teacherScheduleGrid');
-            if (!container || !currentUser) return;
-            container.innerHTML = '';
+        // 5. Teacher Attendance
+        async function loadTeacherAttendanceTable() {
+            const date = document.getElementById('teacherAttDate').value;
+            const session = document.getElementById('teacherAttSession').value;
 
-            const dayNames = { 1: 'ថ្ងៃចន្ទ', 2: 'ថ្ងៃអង្គារ', 3: 'ថ្ងៃពុធ', 4: 'ថ្ងៃព្រហស្បតិ៍', 5: 'ថ្ងៃសុក្រ', 6: 'ថ្ងៃសៅរ៍' };
+            try {
+                const snap = await rtdb.ref(`/attendance/teachers/${date}/${session}`).once('value');
+                activeTeacherAttendance = snap.exists() ? snap.val().records || {} : {};
+            } catch (e) {
+                activeTeacherAttendance = {};
+            }
 
-            const teacherSlots = (dbData.timetable_slots || []).filter(s => 
-                (s.teacher_id === currentUser.teacherId || (s.teacher_name && s.teacher_name === currentUser.displayName))
-            );
+            const tbody = document.getElementById('teacherAttTbody');
+            tbody.innerHTML = '';
 
-            for (let d = 1; d <= 6; d++) {
-                const daySlots = teacherSlots.filter(s => s.day_code === d).sort((a,b) => a.period_num - b.period_num);
-                const dayCard = document.createElement('div');
-                dayCard.className = 'border border-slate-200 rounded-xl p-3 bg-slate-50';
+            (dbData.teachers || []).forEach((t, idx) => {
+                const rec = activeTeacherAttendance[t.id] || { status: 'PRESENT', substitute: '', reason: '' };
+                const st = (rec.status || 'PRESENT').toUpperCase();
 
-                let slotsHtml = daySlots.map(s => `
-                    <div class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-200 shadow-sm text-xs font-semibold text-slate-700">
-                        <span class="w-5 h-5 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[10px]">${s.period_num}</span>
-                        <span>ថ្នាក់ ${s.class_code} (${s.subject_name || ''})</span>
-                    </div>
-                `).join('');
-
-                if (daySlots.length === 0) {
-                    slotsHtml = `<span class="text-xs text-slate-400 font-normal">គ្មានម៉ោងបង្រៀន</span>`;
-                }
-
-                dayCard.innerHTML = `
-                    <div class="font-bold text-xs text-blue-900 mb-2">${dayNames[d]} (${daySlots.length} ម៉ោង)</div>
-                    <div class="flex flex-wrap gap-1.5">${slotsHtml}</div>
+                const tr = document.createElement('tr');
+                tr.setAttribute('data-name', (t.full_name_kh || '').toLowerCase());
+                tr.innerHTML = `
+                    <td class="text-center">${idx + 1}</td>
+                    <td><span class="badge badge-light fw-bold">${t.teacher_code || t.id}</span></td>
+                    <td><div class="fw-bold">${t.full_name_kh}</div></td>
+                    <td><small class="text-muted">${t.subject || 'គ្រូ'}</small></td>
+                    <td>
+                        <div class="status-btn-group" style="display:inline-flex; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">
+                            <label class="status-btn ${st === 'PRESENT' ? 'active' : ''}" style="color:#10b981; padding:4px 8px; font-size:0.75rem; font-weight:700; cursor:pointer;" onclick="setTeacherAttStatus('${t.id}', 'PRESENT')">វត្តមាន</label>
+                            <label class="status-btn ${st === 'PERMISSION' ? 'active' : ''}" style="color:#f59e0b; padding:4px 8px; font-size:0.75rem; font-weight:700; cursor:pointer;" onclick="setTeacherAttStatus('${t.id}', 'PERMISSION')">ច្បាប់</label>
+                            <label class="status-btn ${st === 'ABSENT' ? 'active' : ''}" style="color:#ef4444; padding:4px 8px; font-size:0.75rem; font-weight:700; cursor:pointer;" onclick="setTeacherAttStatus('${t.id}', 'ABSENT')">ឥតច្បាប់</label>
+                            <label class="status-btn ${st === 'LATE' ? 'active' : ''}" style="color:#3b82f6; padding:4px 8px; font-size:0.75rem; font-weight:700; cursor:pointer;" onclick="setTeacherAttStatus('${t.id}', 'LATE')">យឺត</label>
+                        </div>
+                    </td>
+                    <td>
+                        <input type="text" class="form-control" style="font-size:0.78rem; padding:4px 8px;" placeholder="គ្រូជំនួស..." value="${rec.substitute || ''}" onchange="setTeacherAttSub('${t.id}', this.value)">
+                    </td>
+                    <td>
+                        <input type="text" class="form-control" style="font-size:0.78rem; padding:4px 8px;" placeholder="មូលហេតុ..." value="${rec.reason || ''}" onchange="setTeacherAttReason('${t.id}', this.value)">
+                    </td>
                 `;
-                container.appendChild(dayCard);
+                tbody.appendChild(tr);
+            });
+        }
+
+        function setTeacherAttStatus(id, st) {
+            if (!activeTeacherAttendance[id]) activeTeacherAttendance[id] = {};
+            activeTeacherAttendance[id].status = st;
+            loadTeacherAttendanceTable();
+        }
+
+        function setTeacherAttSub(id, sub) {
+            if (!activeTeacherAttendance[id]) activeTeacherAttendance[id] = { status: 'PRESENT' };
+            activeTeacherAttendance[id].substitute = sub;
+        }
+
+        function setTeacherAttReason(id, reason) {
+            if (!activeTeacherAttendance[id]) activeTeacherAttendance[id] = { status: 'ABSENT' };
+            activeTeacherAttendance[id].reason = reason;
+        }
+
+        function markAllTeachersPresent() {
+            (dbData.teachers || []).forEach(t => {
+                activeTeacherAttendance[t.id] = { status: 'PRESENT', substitute: '', reason: '' };
+            });
+            loadTeacherAttendanceTable();
+            showToast("បានកំណត់វត្តមានគ្រូទាំងអស់រួចរាល់!", "success");
+        }
+
+        async function saveTeacherAttendanceCloud() {
+            const date = document.getElementById('teacherAttDate').value;
+            const session = document.getElementById('teacherAttSession').value;
+
+            const payload = {
+                date: date,
+                session: session,
+                recorded_by: currentUser.full_name_kh,
+                recorded_at: new Date().toISOString(),
+                records: activeTeacherAttendance
+            };
+
+            showToast("កំពុងរក្សាទុកវត្តមានគ្រូ...", "info");
+            try {
+                await rtdb.ref(`/attendance/teachers/${date}/${session}`).set(payload);
+                showToast("✅ បានរក្សាទុកវត្តមានគ្រូជោគជ័យ!", "success");
+            } catch (err) {
+                showToast("❌ កំហុសរក្សាទុក៖ " + err.message, "error");
             }
         }
 
-        // -------------------------------------------------------------
-        // 6. Teacher Leave Request
-        // -------------------------------------------------------------
-        async function submitLeaveRequest(e) {
-            e.preventDefault();
-            const start = document.getElementById('leaveStartDate').value;
-            const end = document.getElementById('leaveEndDate').value;
-            const session = document.getElementById('leaveSession').value;
-            const reason = document.getElementById('leaveReason').value.trim();
+        function filterTeacherAttTable() {
+            const q = document.getElementById('teacherAttSearch').value.toLowerCase().trim();
+            document.querySelectorAll('#teacherAttTbody tr').forEach(tr => {
+                const name = tr.getAttribute('data-name') || '';
+                tr.style.display = name.includes(q) ? '' : 'none';
+            });
+        }
 
-            const reqData = {
-                teacher_id: currentUser.teacherId || '',
-                teacher_name: currentUser.displayName,
+        // 6. Timetable
+        function setTimetableViewType(type) {
+            timetableViewType = type;
+            if (type === 'class') {
+                document.getElementById('btnTtViewClass').className = 'btn btn-sm btn-primary';
+                document.getElementById('btnTtViewTeacher').className = 'btn btn-sm btn-outline';
+                document.getElementById('ttClassSelectContainer').style.display = 'block';
+                document.getElementById('ttTeacherSelectContainer').style.display = 'none';
+            } else {
+                document.getElementById('btnTtViewClass').className = 'btn btn-sm btn-outline';
+                document.getElementById('btnTtViewTeacher').className = 'btn btn-sm btn-primary';
+                document.getElementById('ttClassSelectContainer').style.display = 'none';
+                document.getElementById('ttTeacherSelectContainer').style.display = 'block';
+            }
+            renderTimetableGrid();
+        }
+
+        function renderTimetableGrid() {
+            const tbody = document.getElementById('timetableGridTbody');
+            tbody.innerHTML = '';
+
+            const isClass = (timetableViewType === 'class');
+            const targetVal = isClass ? document.getElementById('ttClassSelect').value : parseInt(document.getElementById('ttTeacherSelect').value);
+
+            const allSlots = dbData.timetable_slots || [];
+            const filteredSlots = allSlots.filter(s => {
+                if (isClass) return s.class_code === targetVal;
+                return s.teacher_id === targetVal;
+            });
+
+            // Periods 1 to 5
+            for (let p = 1; p <= 5; p++) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td style="font-weight:700; background:#f8fafc;">ម៉ោងទី ${p}</td>`;
+
+                // Days 1 (Mon) to 6 (Sat)
+                for (let d = 1; d <= 6; d++) {
+                    const slot = filteredSlots.find(s => s.day_code === d && s.period_num === p);
+                    if (slot) {
+                        tr.innerHTML += `
+                            <td style="padding:10px; vertical-align:middle; background:#f0fdf4; border:1px solid #e2e8f0;">
+                                <div style="font-weight:700; color:#1e40af; font-size:0.85rem;">${slot.subject_name || slot.subject_code}</div>
+                                <div style="font-size:0.75rem; color:#475569; margin-top:2px;">
+                                    ${isClass ? (slot.teacher_name || '') : `ថ្នាក់ ${slot.class_code}`}
+                                </div>
+                                <small style="font-size:0.7rem; color:#94a3b8;">${slot.room_number || ''}</small>
+                            </td>
+                        `;
+                    } else {
+                        tr.innerHTML += `<td style="border:1px solid #f1f5f9; color:#cbd5e1;">-</td>`;
+                    }
+                }
+                tbody.appendChild(tr);
+            }
+        }
+
+        // 7. Teachers List Table
+        function renderTeachersListTable() {
+            const tbody = document.getElementById('teachersListTbody');
+            tbody.innerHTML = '';
+            (dbData.teachers || []).forEach((t, idx) => {
+                const tr = document.createElement('tr');
+                tr.setAttribute('data-search', `${t.teacher_code} ${t.full_name_kh} ${t.subject}`.toLowerCase());
+                tr.innerHTML = `
+                    <td class="text-center">${idx + 1}</td>
+                    <td><span class="badge badge-light fw-bold">${t.teacher_code || t.id}</span></td>
+                    <td>
+                        <div class="fw-bold">${t.full_name_kh}</div>
+                        ${t.full_name_en ? `<small class="text-muted">${t.full_name_en}</small>` : ''}
+                    </td>
+                    <td>${t.gender === 'F' ? 'ស្រី' : 'ប្រុស'}</td>
+                    <td><span class="badge badge-soft text-primary font-weight-bold">${t.subject || 'គ្រូ'}</span></td>
+                    <td>${t.phone || '-'}</td>
+                    <td class="text-center"><strong>${t.total_hours_weekly || 18}</strong> ម៉ោង</td>
+                    <td><span class="badge badge-success">សកម្ម</span></td>
+                `;
+                tbody.appendChild(tr);
+            });
+            document.getElementById('teachersTotalCount').innerText = (dbData.teachers || []).length;
+        }
+
+        function filterTeachersList() {
+            const q = document.getElementById('teachersSearchInput').value.toLowerCase().trim();
+            document.querySelectorAll('#teachersListTbody tr').forEach(tr => {
+                const txt = tr.getAttribute('data-search') || '';
+                tr.style.display = txt.includes(q) ? '' : 'none';
+            });
+        }
+
+        // 8. Students List Table
+        function renderStudentsListTable() {
+            const cls = document.getElementById('studentsClassSelect').value;
+            const students = (dbData.students_by_class && dbData.students_by_class[cls]) ? dbData.students_by_class[cls] : [];
+
+            const tbody = document.getElementById('studentsListTbody');
+            tbody.innerHTML = '';
+
+            students.forEach((s, idx) => {
+                const tr = document.createElement('tr');
+                tr.setAttribute('data-search', `${s.student_code} ${s.full_name_kh}`.toLowerCase());
+                tr.innerHTML = `
+                    <td class="text-center">${idx + 1}</td>
+                    <td><span class="badge badge-light fw-bold">${s.student_code}</span></td>
+                    <td>
+                        <div class="fw-bold">${s.full_name_kh}</div>
+                        ${s.full_name_en ? `<small class="text-muted">${s.full_name_en}</small>` : ''}
+                    </td>
+                    <td>${s.gender === 'F' ? 'ស្រី' : 'ប្រុស'}</td>
+                    <td>${s.dob || '-'}</td>
+                    <td>${s.parent_phone || s.phone || '-'}</td>
+                    <td><span class="badge badge-success">កំពុងរៀន</span></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function filterStudentsListTable() {
+            const q = document.getElementById('studentsSearchInput').value.toLowerCase().trim();
+            document.querySelectorAll('#studentsListTbody tr').forEach(tr => {
+                const txt = tr.getAttribute('data-search') || '';
+                tr.style.display = txt.includes(q) ? '' : 'none';
+            });
+        }
+
+        // 9. Users Table
+        function renderUsersListTable() {
+            const tbody = document.getElementById('usersListTbody');
+            tbody.innerHTML = '';
+            (dbData.users || []).forEach((u, idx) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${idx + 1}</td>
+                    <td><code>${u.username}</code></td>
+                    <td>${u.full_name_kh || u.display_name}</td>
+                    <td><span class="badge ${u.role === 'admin' ? 'badge-primary' : 'badge-light'}">${u.role.toUpperCase()}</span></td>
+                    <td><span style="font-family:monospace; color:#64748b;">${u.plain_password_hint || '123456'}</span></td>
+                    <td><span class="badge badge-success">សកម្ម</span></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // 10. Leave Requests
+        async function loadLeaveRequests() {
+            try {
+                const snap = await rtdb.ref('/attendance/leave_requests').once('value');
+                const tbody = document.getElementById('leaveRequestsTbody');
+                tbody.innerHTML = '';
+                if (snap.exists()) {
+                    const list = Object.values(snap.val()).reverse();
+                    list.forEach(req => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td><strong>${req.teacher_name || 'គ្រូ'}</strong></td>
+                            <td>${req.start_date}</td>
+                            <td>${req.end_date}</td>
+                            <td>${req.session === 'morning' ? 'ព្រឹក' : req.session === 'afternoon' ? 'រសៀល' : 'ពេញមួយថ្ងៃ'}</td>
+                            <td>${req.reason || ''}</td>
+                            <td><span class="badge badge-success"><i class="fa-solid fa-circle-check"></i> បានអនុម័ត</span></td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                }
+            } catch (e) {}
+        }
+
+        function checkClientLeaveEligibility() {
+            const tSelect = document.getElementById('leaveReqTeacherSelect');
+            const tid = parseInt(tSelect?.value);
+            const start = document.getElementById('leaveReqStart')?.value;
+            let end = document.getElementById('leaveReqEnd')?.value;
+            const feedback = document.getElementById('leaveReqFeedback');
+            const submitBtn = document.getElementById('clientLeaveSubmitBtn');
+
+            if (!feedback || !submitBtn) return;
+            if (!tid || !start) {
+                feedback.style.display = 'none';
+                return;
+            }
+            if (!end || end < start) {
+                end = start;
+                document.getElementById('leaveReqEnd').value = start;
+            }
+
+            const now = new Date();
+            const todayStr = now.toISOString().split('T')[0];
+            const nowTime = now.toLocaleTimeString('en-US', { hour12: false }).substring(0, 5);
+            const cutoff = (dbData.settings && dbData.settings.teacher_leave_cutoff_time) || '17:00';
+            const cutoffDisplay = document.getElementById('clientLeaveCutoffDisplay');
+            if (cutoffDisplay) cutoffDisplay.innerText = cutoff;
+
+            // Check 1: Past date check
+            if (start < todayStr) {
+                feedback.style.display = 'block';
+                feedback.style.background = '#fef2f2';
+                feedback.style.border = '1px solid #fca5a5';
+                feedback.style.color = '#b91c1c';
+                feedback.innerHTML = `<strong><i class="fa-solid fa-triangle-exclamation"></i> មិនអាចសុំច្បាប់កាលបរិច្ឆេទកន្លងផុតទៅបានទេ!</strong> (ចាប់ពីថ្ងៃនេះ ${todayStr} ឡើងទៅ)`;
+                submitBtn.disabled = true;
+                return;
+            }
+
+            // Check 2: Same day cutoff check
+            if (start === todayStr && nowTime >= cutoff) {
+                feedback.style.display = 'block';
+                feedback.style.background = '#fef2f2';
+                feedback.style.border = '1px solid #fca5a5';
+                feedback.style.color = '#b91c1c';
+                feedback.innerHTML = `<strong><i class="fa-solid fa-clock text-danger"></i> ផុតម៉ោងកំណត់សុំច្បាប់សម្រាប់ថ្ងៃនេះហើយ (កំណត់ត្រឹមម៉ោង ${cutoff})!</strong> សូមទាក់ទងរដ្ឋបាល។`;
+                submitBtn.disabled = true;
+                return;
+            }
+
+            // Check 3: Check teaching slots in dbData.timetable_slots
+            const dayKhMap = { 1: 'ច', 2: 'អ', 3: 'ព', 4: 'ព្រ', 5: 'សុ', 6: 'ស' };
+            const teacherSlots = (dbData.timetable_slots || []).filter(s => s.teacher_id === tid);
+
+            let cur = new Date(start + 'T00:00:00');
+            const endDt = new Date(end + 'T00:00:00');
+            let affected = [];
+            let nonTeachingDates = [];
+
+            while (cur <= endDt) {
+                const dayNum = cur.getDay(); // 0 is Sunday
+                const dStr = cur.toISOString().split('T')[0];
+                if (dayNum === 0) {
+                    nonTeachingDates.push(dStr + ' (ថ្ងៃអាទិត្យ)');
+                } else {
+                    const dayCode = dayKhMap[dayNum];
+                    const slots = teacherSlots.filter(s => s.day_code === dayCode);
+                    if (slots.length > 0) {
+                        slots.forEach(s => {
+                            affected.push(`• ${dStr}: ថ្នាក់ <strong>${s.class_code}</strong> (ម៉ោងទី ${s.period_num} - ${s.subject_name})`);
+                        });
+                    } else {
+                        nonTeachingDates.push(dStr);
+                    }
+                }
+                cur.setDate(cur.getDate() + 1);
+            }
+
+            if (affected.length === 0) {
+                feedback.style.display = 'block';
+                feedback.style.background = '#fef2f2';
+                feedback.style.border = '1px solid #fca5a5';
+                feedback.style.color = '#b91c1c';
+                feedback.innerHTML = `<strong><i class="fa-solid fa-triangle-exclamation"></i> លោកគ្រូ/អ្នកគ្រូ គ្មានម៉ោងបង្រៀននៅថ្ងៃនេះទេ!</strong> អាចសុំច្បាប់បានតែថ្ងៃដែលមានម៉ោងបង្រៀនប៉ុណ្ណោះ។`;
+                submitBtn.disabled = true;
+            } else {
+                feedback.style.display = 'block';
+                feedback.style.background = '#f0fdf4';
+                feedback.style.border = '1px solid #86efac';
+                feedback.style.color = '#15803d';
+                feedback.innerHTML = `
+                    <div style="font-weight:700;"><i class="fa-solid fa-circle-check"></i> មានម៉ោងបង្រៀន (${affected.length} ម៉ោង)</div>
+                    <div style="font-size:0.78rem; margin-top:4px; color:#166534;">${affected.join('<br>')}</div>
+                    ${nonTeachingDates.length > 0 ? `<div style="margin-top:4px; color:#b45309; font-size:0.75rem;">(ថ្ងៃ ${nonTeachingDates.join(', ')} គ្មានម៉ោងបង្រៀនទេ)</div>` : ''}
+                `;
+                submitBtn.disabled = false;
+            }
+        }
+
+        async function handleLeaveFormSubmit(e) {
+            e.preventDefault();
+            const tSelect = document.getElementById('leaveReqTeacherSelect');
+            const tid = parseInt(tSelect.value);
+            const teacherObj = (dbData.teachers || []).find(t => t.id === tid);
+            const teacherName = teacherObj ? teacherObj.full_name_kh : 'គ្រូ';
+            const start = document.getElementById('leaveReqStart').value;
+            const end = document.getElementById('leaveReqEnd').value;
+            const reason = document.getElementById('leaveReqReason').value.trim();
+
+            const payload = {
+                teacher_id: tid,
+                teacher_name: teacherName,
                 start_date: start,
                 end_date: end,
-                session: session,
                 reason: reason,
-                status: 'pending',
+                status: 'approved',
                 created_at: new Date().toISOString()
             };
 
+            showToast("កំពុងរក្សាទុកពាក្យសុំច្បាប់...", "info");
             try {
-                await rtdb.ref('/attendance/leave_requests').push(reqData);
-                showToast('បានផ្ញើពាក្យសុំច្បាប់ដោយជោគជ័យ!', 'success');
-                document.getElementById('leaveReason').value = '';
+                await rtdb.ref('/attendance/leave_requests').push(payload);
+                showToast("✅ បានកត់ត្រាពាក្យសុំច្បាប់ដោយជោគជ័យ!", "success");
+                document.getElementById('leaveReqReason').value = '';
+                loadLeaveRequests();
             } catch (err) {
-                showToast('កំហុសផ្ញើពាក្យសុំច្បាប់៖ ' + err.message, 'error');
+                showToast("❌ កំហុស៖ " + err.message, "error");
             }
         }
 
-        // -------------------------------------------------------------
-        // 7. Admin Dashboard & Export
-        // -------------------------------------------------------------
-        async function loadAdminDashboard() {
-            const date = document.getElementById('selectDate') ? document.getElementById('selectDate').value : new Date().toISOString().split('T')[0];
-            
-            // Total students
-            const total = dbData.students_count || 1998;
-            document.getElementById('admTotalStudents').innerText = total.toLocaleString();
-
-            // Fetch today's records across all classes
+        async function saveClientCutoffSetting() {
+            const val = document.getElementById('clientSettingsCutoff').value || '17:00';
+            if (!dbData.settings) dbData.settings = {};
+            dbData.settings.teacher_leave_cutoff_time = val;
             try {
-                const snap = await rtdb.ref(`/attendance/students/${date}`).once('value');
-                const todayRecords = snap.exists() ? snap.val() : {};
-
-                let recordedClasses = new Set();
-                let presentCnt = 0, absentCnt = 0, permCnt = 0;
-
-                Object.values(todayRecords).forEach(item => {
-                    if (item.class_name) recordedClasses.add(item.class_name);
-                    if (item.records) {
-                        Object.values(item.records).forEach(r => {
-                            if (r.status === 'present') presentCnt++;
-                            else if (r.status === 'absent') absentCnt++;
-                            else if (r.status === 'permission' || r.status === 'late') permCnt++;
-                        });
-                    }
-                });
-
-                document.getElementById('admTotalPresent').innerText = presentCnt.toLocaleString();
-                document.getElementById('admTotalAbsent').innerText = absentCnt.toLocaleString();
-                document.getElementById('admTotalPermission').innerText = permCnt.toLocaleString();
-                document.getElementById('admRecordedClassCount').innerText = `${recordedClasses.size} / ${(dbData.classes || []).length} ថ្នាក់ស្រង់រួច`;
-
-                // Render grid
-                const grid = document.getElementById('admClassGrid');
-                if (grid && dbData.classes) {
-                    grid.innerHTML = '';
-                    dbData.classes.forEach(c => {
-                        const isRecorded = recordedClasses.has(c.class_name);
-                        const pill = document.createElement('div');
-                        pill.className = `p-2 rounded-xl font-bold border transition ${isRecorded ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-400 border-slate-200'}`;
-                        pill.innerHTML = `
-                            <span class="block">${c.class_name}</span>
-                            <span class="text-[9px] font-normal">${isRecorded ? 'ស្រង់រួច' : 'រង់ចាំ'}</span>
-                        `;
-                        grid.appendChild(pill);
-                    });
-                }
-
+                await rtdb.ref('/absence_system/settings/teacher_leave_cutoff_time').set(val);
+                showToast("✅ បានរក្សាទុកម៉ោងកំណត់សុំច្បាប់៖ " + val, "success");
+                checkClientLeaveEligibility();
             } catch (err) {
-                console.error("Admin dashboard error:", err);
+                showToast("❌ កំហុស៖ " + err.message, "error");
             }
         }
 
-        // Export Today Attendance as Excel (.xlsx) using SheetJS
-        async function exportTodayAttendanceExcel() {
-            const date = document.getElementById('selectDate').value;
-            showToast('កំពុងផលិតរបាយការណ៍ Excel...', 'info');
+        // 11. Reports & Excel Export
+        async function generateExcelReport(type) {
+            const date = document.getElementById('repDatePicker').value;
+            showToast("កំពុងផលិតរបាយការណ៍ Excel...", "info");
 
             try {
-                const snap = await rtdb.ref(`/attendance/students/${date}`).once('value');
-                const records = snap.exists() ? snap.val() : {};
-
-                let exportRows = [];
-                exportRows.push(["កាលបរិច្ឆេទ", "ថ្នាក់រៀន", "ម៉ោងទី", "អត្តលេខ", "ឈ្មោះសិស្ស", "ភេទ", "ស្ថានភាពវត្តមាន", "មូលហេតុ", "អ្នកស្រង់វត្តមាន"]);
-
-                // Lookup student map
-                let studentMap = {};
-                if (dbData.students_by_class) {
-                    Object.values(dbData.students_by_class).flat().forEach(s => {
-                        studentMap[s.student_code] = s;
-                    });
-                }
-
-                Object.values(records).forEach(slot => {
-                    if (slot.records) {
-                        Object.entries(slot.records).forEach(([code, r]) => {
-                            const s = studentMap[code] || {};
-                            let stKh = 'វត្តមាន';
-                            if (r.status === 'absent') stKh = 'អវត្តមាន';
-                            else if (r.status === 'permission') stKh = 'មានច្បាប់';
-                            else if (r.status === 'late') stKh = 'មកយឺត';
-
-                            exportRows.push([
-                                slot.date,
-                                slot.class_name,
-                                slot.period,
-                                code,
-                                s.full_name_kh || s.full_name_en || code,
-                                s.gender === 'F' ? 'ស្រី' : 'ប្រុស',
-                                stKh,
-                                r.reason || '',
-                                slot.recorded_by || ''
-                            ]);
+                let rows = [];
+                if (type === 'students') {
+                    rows.push(["កាលបរិច្ឆេទ", "ថ្នាក់រៀន", "ម៉ោងទី", "អត្តលេខ", "ឈ្មោះសិស្ស", "ភេទ", "ស្ថានភាពវត្តមាន", "មូលហេតុ", "អ្នកស្រង់វត្តមាន"]);
+                    const snap = await rtdb.ref(`/attendance/students/${date}`).once('value');
+                    if (snap.exists()) {
+                        Object.values(snap.val()).forEach(slot => {
+                            if (slot.records) {
+                                Object.entries(slot.records).forEach(([code, r]) => {
+                                    rows.push([
+                                        slot.date, slot.class_name, slot.period, code,
+                                        code, '', r.status || 'PRESENT', r.reason || '', slot.recorded_by || ''
+                                    ]);
+                                });
+                            }
                         });
                     }
-                });
+                } else {
+                    rows.push(["កាលបរិច្ឆេទ", "វេន", "កូដគ្រូ", "ឈ្មោះគ្រូបង្រៀន", "មុខវិជ្ជា", "ស្ថានភាពវត្តមាន", "គ្រូជំនួស", "មូលហេតុ"]);
+                    const snap = await rtdb.ref(`/attendance/teachers/${date}`).once('value');
+                    if (snap.exists()) {
+                        Object.entries(snap.val()).forEach(([session, item]) => {
+                            if (item.records) {
+                                Object.entries(item.records).forEach(([id, r]) => {
+                                    const t = (dbData.teachers || []).find(x => x.id == id) || {};
+                                    rows.push([
+                                        date, session === 'morning' ? 'ព្រឹក' : 'រសៀល', t.teacher_code || id,
+                                        t.full_name_kh || id, t.subject || '', r.status || 'PRESENT', r.substitute || '', r.reason || ''
+                                    ]);
+                                });
+                            }
+                        });
+                    }
+                }
 
-                if (exportRows.length <= 1) {
-                    showToast('មិនទាន់មានទិន្នន័យស្រង់វត្តមានសម្រាប់ថ្ងៃនេះទេ!', 'warning');
+                if (rows.length <= 1) {
+                    showToast("មិនទាន់មានទិន្នន័យស្រង់វត្តមានក្នុងថ្ងៃនេះទេ!", "warning");
                     return;
                 }
 
-                const ws = XLSX.utils.aoa_to_sheet(exportRows);
+                const ws = XLSX.utils.aoa_to_sheet(rows);
                 const wb = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(wb, ws, "វត្តមានសិស្ស");
-
-                XLSX.writeFile(wb, `KKHS_Attendance_${date}.xlsx`);
-                showToast('✅ បានទាញយកឯកសារ Excel ជោគជ័យ!', 'success');
-            } catch (err) {
-                showToast('កំហុស Export Excel: ' + err.message, 'error');
+                XLSX.utils.book_append_sheet(wb, ws, "Attendance");
+                XLSX.writeFile(wb, `KKHS_Attendance_${type}_${date}.xlsx`);
+                showToast("✅ បានទាញយករបាយការណ៍ Excel ជោគជ័យ!", "success");
+            } catch (e) {
+                showToast("❌ កំហុស Export: " + e.message, "error");
             }
         }
 
-        // -------------------------------------------------------------
-        // 8. Toast UI Notifications & PWA Support
-        // -------------------------------------------------------------
+        function exportTimetableExcel() {
+            showToast("កំពុងទាញយកកាលវិភាគជា Excel...", "info");
+            let rows = [["ល.រ", "ថ្នាក់", "ថ្ងៃ", "ម៉ោងទី", "មុខវិជ្ជា", "គ្រូបង្រៀន", "បន្ទប់"]];
+            (dbData.timetable_slots || []).forEach((s, idx) => {
+                rows.push([idx + 1, s.class_code, s.day_name, s.period_num, s.subject_name, s.teacher_name, s.room_number]);
+            });
+            const ws = XLSX.utils.aoa_to_sheet(rows);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Timetable");
+            XLSX.writeFile(wb, `KKHS_Timetable_Full.xlsx`);
+            showToast("✅ បានទាញយកកាលវិភាគ Excel ជោគជ័យ!", "success");
+        }
+
+        // 12. Mobile Portal Switching
+        function switchToMobilePortal() {
+            document.getElementById('desktopAppLayout').style.display = 'none';
+            document.getElementById('mobilePortalLayout').style.display = 'block';
+
+            // Find teacher or set default
+            const t = (dbData.teachers && dbData.teachers.length > 0) ? dbData.teachers[0] : { full_name_kh: 'កាន ដាវី', subject: 'គណិតវិទ្យា', teacher_code: '2890800096' };
+            document.getElementById('mobTeacherName').innerText = t.full_name_kh;
+            document.getElementById('mobTeacherSubject').innerText = `${t.subject} • កូដ: ${t.teacher_code}`;
+
+            renderMobileTeacherView(t);
+        }
+
+        function switchToDesktopLayout() {
+            document.getElementById('mobilePortalLayout').style.display = 'none';
+            document.getElementById('desktopAppLayout').style.display = 'flex';
+        }
+
+        function renderMobileTeacherView(t) {
+            window.currentMobileTeacherId = t.id;
+            const now = new Date();
+            const dayKhMap = { 1: 'ច', 2: 'អ', 3: 'ព', 4: 'ព្រ', 5: 'សុ', 6: 'ស' };
+            const dayCode = dayKhMap[now.getDay()] || '';
+
+            const mySlots = (dbData.timetable_slots || []).filter(s => s.teacher_id === t.id && s.day_code === dayCode);
+            const list = document.getElementById('mobTodaySlotsList');
+            list.innerHTML = '';
+
+            if (mySlots.length === 0) {
+                list.innerHTML = `<div style="text-align:center; padding:16px; color:#94a3b8; font-size:0.82rem;">គ្មានម៉ោងបង្រៀនក្នុងថ្ងៃនេះទេ</div>`;
+                document.getElementById('mobSlotClassTitle').innerText = 'គ្មានម៉ោងបង្រៀនឥឡូវនេះ';
+                document.getElementById('mobSlotSubjectDesc').innerText = 'សូមពិនិត្យកាលវិភាគប្រចាំសប្តាហ៍';
+            } else {
+                const first = mySlots[0];
+                document.getElementById('mobSlotClassTitle').innerText = `ម៉ោងទី ${first.period_num} - ថ្នាក់ ${first.class_code}`;
+                document.getElementById('mobSlotSubjectDesc').innerText = `មុខវិជ្ជា៖ ${first.subject_name} | បន្ទប់៖ ${first.room_number || '-'}`;
+
+                mySlots.forEach(s => {
+                    const item = document.createElement('div');
+                    item.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:10px 12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px;';
+                    item.innerHTML = `
+                        <div>
+                            <div style="font-weight:700; font-size:0.88rem; color:#0f172a;">ថ្នាក់ ${s.class_code} (${s.subject_name})</div>
+                            <small style="color:#64748b;">ម៉ោងទី ${s.period_num} • បន្ទប់ ${s.room_number || '-'}</small>
+                        </div>
+                        <button type="button" onclick="mobSelectSlotAndTake('${s.class_code}', ${s.period_num})" class="btn btn-sm btn-primary" style="padding:4px 10px; font-size:0.75rem;">
+                            ស្រង់វត្តមាន
+                        </button>
+                    `;
+                    list.appendChild(item);
+                });
+            }
+        }
+
+        function mobTriggerAttendance() {
+            switchToDesktopLayout();
+            navigateTo('student-attendance');
+        }
+
+        function mobOpenLeaveRequest() {
+            switchToDesktopLayout();
+            navigateTo('leave-requests');
+            const tSelect = document.getElementById('leaveReqTeacherSelect');
+            if (tSelect && window.currentMobileTeacherId) {
+                tSelect.value = window.currentMobileTeacherId;
+            }
+            checkClientLeaveEligibility();
+        }
+
+        function mobSelectSlotAndTake(cls, p) {
+            switchToDesktopLayout();
+            document.getElementById('attClassSelect').value = cls;
+            document.getElementById('attPeriodSelect').value = p;
+            navigateTo('student-attendance');
+            loadClassAttendanceTable();
+        }
+
+        function handleLogout() {
+            showToast("បានចាកចេញពីប្រព័ន្ធ!", "info");
+            setTimeout(() => {
+                location.reload();
+            }, 500);
+        }
+
+        // Toast Notification System
         function showToast(msg, type = 'info') {
-            const c = document.getElementById('toastContainer');
-            if (!c) return;
+            const container = document.getElementById('toastContainer');
+            if (!container) return;
 
             const t = document.createElement('div');
-            const bg = type === 'success' ? 'bg-emerald-600 text-white' : 
-                       type === 'error' ? 'bg-rose-600 text-white' : 
-                       type === 'warning' ? 'bg-amber-600 text-white' : 'bg-slate-800 text-white';
-
-            t.className = `p-3 px-4 rounded-xl shadow-xl text-xs font-semibold flex items-center gap-2 pointer-events-auto transform transition-all duration-200 translate-y-2 opacity-0 ${bg}`;
+            const bg = type === 'success' ? '#059669' : type === 'error' ? '#dc2626' : type === 'warning' ? '#d97706' : '#1e293b';
+            t.style.cssText = `background:${bg}; color:#fff; padding:12px 18px; border-radius:12px; font-size:0.84rem; font-weight:600; box-shadow:0 10px 25px rgba(0,0,0,0.2); pointer-events:auto; display:flex; align-items:center; gap:8px; animation:fadeIn 0.2s ease;`;
             t.innerHTML = `
-                <i class="fa-solid ${type === 'success' ? 'fa-circle-check' : type === 'error' ? 'fa-triangle-exclamation' : 'fa-circle-info'}"></i>
+                <i class="fa-solid ${type === 'success' ? 'fa-circle-check' : type === 'error' ? 'fa-circle-xmark' : 'fa-circle-info'}"></i>
                 <span>${msg}</span>
             `;
 
-            c.appendChild(t);
-            requestAnimationFrame(() => {
-                t.classList.remove('translate-y-2', 'opacity-0');
-            });
-
+            container.appendChild(t);
             setTimeout(() => {
-                t.classList.add('opacity-0', 'translate-x-full');
-                setTimeout(() => t.remove(), 200);
+                t.style.opacity = '0';
+                t.style.transition = 'opacity 0.3s';
+                setTimeout(() => t.remove(), 300);
             }, 3500);
-        }
-
-        function registerServiceWorker() {
-            if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('sw.js').catch(() => {});
-            }
-        }
-
-        let deferredPrompt;
-        function initPwaInstall() {
-            window.addEventListener('beforeinstallprompt', (e) => {
-                e.preventDefault();
-                deferredPrompt = e;
-                const banner = document.getElementById('pwaBanner');
-                if (banner) banner.classList.remove('hidden');
-
-                const btn = document.getElementById('btnInstallPwa');
-                if (btn) {
-                    btn.addEventListener('click', () => {
-                        banner.classList.add('hidden');
-                        deferredPrompt.prompt();
-                        deferredPrompt.userChoice.then(() => { deferredPrompt = null; });
-                    });
-                }
-            });
         }
     </script>
 </body>

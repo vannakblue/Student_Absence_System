@@ -6,7 +6,7 @@ Database Layer with SQLite
 import sqlite3
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 
 if sys.platform == "win32":
@@ -638,6 +638,118 @@ def add_leave_request(person_type, person_id, start_date, end_date, reason, appr
     new_id = cursor.lastrowid
     conn.close()
     return new_id
+
+
+def get_teacher_teaching_days(teacher_id):
+    """ទាញយកថ្ងៃនៃសប្តាហ៍ដែលគ្រូមានម៉ោងបង្រៀន (ច, អ, ព, ព្រ, សុ, ស)"""
+    conn = get_db_connection()
+    rows = conn.execute("""
+        SELECT DISTINCT day_code, day_name
+        FROM timetable_slots
+        WHERE teacher_id = ?
+        ORDER BY 
+            CASE day_code
+                WHEN 'ច' THEN 1
+                WHEN 'អ' THEN 2
+                WHEN 'ព' THEN 3
+                WHEN 'ព្រ' THEN 4
+                WHEN 'សុ' THEN 5
+                WHEN 'ស' THEN 6
+                ELSE 7
+            END
+    """, (teacher_id,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def validate_teacher_leave_eligibility(teacher_id, start_date, end_date=None, current_dt=None):
+    """
+    ផ្ទៀងផ្ទាត់លក្ខខណ្ឌសុំច្បាប់របស់គ្រូបង្រៀន៖
+    1. មិនអនុញ្ញាតឱ្យសុំច្បាប់កាលបរិច្ឆេទអតីតកាល (start_date < today)
+    2. ប្រសិនបើសុំសម្រាប់ថ្ងៃនេះ (start_date == today)៖ ត្រូវធ្វើឡើងមុនម៉ោងកំណត់ដោយ Admin (ឧ. 17:00 / ម៉ោង ៥ រសៀល)
+    3. ថ្ងៃដែលសុំច្បាប់ ត្រូវតែជាថ្ងៃដែលគ្រូនោះមានម៉ោងបង្រៀនជាក់ស្តែងក្នុងកាលវិភាគ (Timetable)
+    """
+    if current_dt is None:
+        current_dt = datetime.now()
+
+    today_str = current_dt.strftime("%Y-%m-%d")
+    current_time_str = current_dt.strftime("%H:%M")
+
+    if not end_date:
+        end_date = start_date
+
+    try:
+        start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+        end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+    except Exception:
+        return False, "ទម្រង់កាលបរិច្ឆេទមិនត្រឹមត្រូវ (ត្រូវជា YYYY-MM-DD)", []
+
+    if start_dt > end_dt:
+        return False, "កាលបរិច្ឆេទចាប់ផ្តើមមិនអាចក្រោយកាលបរិច្ឆេទបញ្ចប់បានទេ", []
+
+    # Check 1: មិនអនុញ្ញាតកាលបរិច្ឆេទអតីតកាល
+    if start_date < today_str:
+        return False, f"មិនអាចសុំច្បាប់សម្រាប់កាលបរិច្ឆេទកន្លងផុតទៅបានទេ (អាចសុំបានចាប់ពីថ្ងៃនេះ {today_str} ឡើងទៅ)!", []
+
+    # Check 2: ប្រសិនបើសុំសម្រាប់ថ្ងៃនេះ ត្រូវតែមុនម៉ោងកំណត់ដោយ Admin (Cutoff Time)
+    cutoff_time = get_setting("teacher_leave_cutoff_time", "17:00")
+    if not cutoff_time or not str(cutoff_time).strip():
+        cutoff_time = "17:00"
+    cutoff_time = str(cutoff_time).strip()
+
+    if start_date == today_str and current_time_str >= cutoff_time:
+        return False, f"ផុតម៉ោងកំណត់សុំច្បាប់សម្រាប់ថ្ងៃនេះហើយ (កំណត់ត្រឹមម៉ោង {cutoff_time})! សូមទំនាក់ទំនងរដ្ឋបាលសាលាដោយផ្ទាល់។", []
+
+    # Check 3: ពិនិត្យកាលវិភាគបង្រៀន (Timetable Slots)
+    day_kh_map = {0: 'ច', 1: 'អ', 2: 'ព', 3: 'ព្រ', 4: 'សុ', 5: 'ស', 6: 'អា'}
+    day_name_map = {0: 'ចន្ទ', 1: 'អង្គារ', 2: 'ពុធ', 3: 'ព្រហស្បតិ៍', 4: 'សុក្រ', 5: 'សៅរ៍', 6: 'អាទិត្យ'}
+
+    teacher_slots = get_timetable_by_teacher(teacher_id)
+    if not teacher_slots:
+        return False, "លោកគ្រូ/អ្នកគ្រូ មិនទាន់មានកាលវិភាគបង្រៀននៅក្នុងប្រព័ន្ធនៅឡើយទេ! សូមទាក់ទងរដ្ឋបាល។", []
+
+    cur = start_dt
+    date_slots_map = {}
+    non_teaching_dates = []
+
+    while cur <= end_dt:
+        cur_str = cur.strftime("%Y-%m-%d")
+        w_idx = cur.weekday()
+        if w_idx == 6:  # Sunday
+            non_teaching_dates.append(f"{cur_str} (ថ្ងៃអាទិត្យ)")
+            cur += timedelta(days=1)
+            continue
+
+        day_code = day_kh_map.get(w_idx, "")
+        slots_on_day = [s for s in teacher_slots if s.get("day_code") == day_code]
+        if slots_on_day:
+            date_slots_map[cur_str] = slots_on_day
+        else:
+            non_teaching_dates.append(f"{cur_str} (ថ្ងៃ{day_name_map[w_idx]})")
+        cur += timedelta(days=1)
+
+    if not date_slots_map:
+        days_str = ", ".join(non_teaching_dates)
+        return False, f"លោកគ្រូ/អ្នកគ្រូ គ្មានម៉ោងបង្រៀននៅថ្ងៃ {days_str} ទេ! អាចសុំច្បាប់បានតែថ្ងៃដែលមានម៉ោងបង្រៀនប៉ុណ្ណោះ។", []
+
+    all_affected_slots = []
+    for d, s_list in date_slots_map.items():
+        for s in s_list:
+            all_affected_slots.append({
+                "date": d,
+                "class_code": s.get("class_code"),
+                "class_name": s.get("class_name"),
+                "period_num": s.get("period_num"),
+                "shift": s.get("shift"),
+                "subject_name": s.get("subject_name"),
+                "room_number": s.get("room_number")
+            })
+
+    warning_msg = None
+    if non_teaching_dates:
+        warning_msg = f"សម្គាល់៖ ថ្ងៃ {', '.join(non_teaching_dates)} គ្មានម៉ោងបង្រៀនទេ (ច្បាប់ត្រូវបានគិតតែថ្ងៃដែលមានម៉ោងបង្រៀន)"
+
+    return True, warning_msg, all_affected_slots
 
 
 # ==========================================
