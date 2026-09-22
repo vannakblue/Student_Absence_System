@@ -306,6 +306,35 @@
                                    placeholder="ឧ. -1001234567890 ឬ 987654321">
                             <small class="text-muted">Chat ID ឬ Group ID របស់ Admin សម្រាប់ទទួលរបាយការណ៍សរុប</small>
                         </div>
+                        <div class="form-group mb-3">
+                            <label class="form-label">Telegram Leave Admin Chat ID (ទទួលពាក្យសុំច្បាប់ & ប៊ូតុងអនុម័ត)</label>
+                            <input type="text" name="telegram_leave_admin_chat_id" id="telegramLeaveAdminChatId" class="form-control" 
+                                   value="{{ settings.telegram_leave_admin_chat_id or '' }}" 
+                                   placeholder="ទុកនៅទទេបើប្រើ Chat ID តែមួយជាមួយ Admin ខាងលើ">
+                            <small class="text-muted">Telegram Chat ID របស់គណៈគ្រប់គ្រងដែលមានសិទ្ធិអនុម័តច្បាប់ (ប៊ូតុងចុច)</small>
+                        </div>
+                        <div class="form-group mb-3">
+                            <label class="form-label">ម៉ោងរំលឹកគ្រូខកខានស្រង់វត្តមាន (នាទីក្រោយចូលរៀន)</label>
+                            <input type="number" name="telegram_period_reminder_minutes" id="telegramReminderMinutes" class="form-control" 
+                                   value="{{ settings.telegram_period_reminder_minutes or '30' }}" min="5" max="55">
+                            <small class="text-muted">ប្រព័ន្ធនឹងដើរពិនិត្យរៀងរាល់ម៉ោងចូលរៀន បើហួស (ឧ. ៣០ នាទី) មិនទាន់ស្រង់ នឹងបាញ់សារព្រមានទៅ Admin</small>
+                        </div>
+                    </div>
+
+                    <div class="form-group mb-3 p-3" style="background:#f1f5f9; border-radius:12px; border:1px solid #cbd5e1;">
+                        <label class="form-label fw-bold"><i class="fa-solid fa-link text-primary"></i> Telegram Webhook URL (សម្រាប់ការចុចប៊ូតុង ✅ អនុម័ត / ❌ បដិសេធ លើ Telegram)</label>
+                        <div class="d-flex gap-2">
+                            <input type="text" name="telegram_webhook_url" id="telegramWebhookUrl" class="form-control" 
+                                   value="{{ settings.telegram_webhook_url or '' }}" 
+                                   placeholder="ឧ. https://your-server-domain.com/api/telegram/webhook">
+                            <button type="button" class="btn btn-outline" onclick="setTelegramWebhook()">
+                                <i class="fa-solid fa-cloud-arrow-up"></i> ភ្ជាប់ Webhook
+                            </button>
+                            <button type="button" class="btn btn-outline" onclick="checkTelegramWebhookInfo()">
+                                <i class="fa-solid fa-circle-info"></i> Webhook Info
+                            </button>
+                        </div>
+                        <small class="text-muted">Telegram ទាមទារ Public HTTPS URL (ឧ. URL លើ Render ឬ Cloud Server) ដើម្បីហៅ Callback មកកាន់ Endpoint <code>/api/telegram/webhook</code></small>
                     </div>
 
                     <div style="display:flex; flex-wrap:wrap; gap:20px; margin: 15px 0; padding: 12px; background:#f8fafc; border-radius:12px; border:1px solid #e2e8f0;">
@@ -332,6 +361,9 @@
                         </button>
                         <button type="button" class="btn btn-accent" onclick="triggerDailyReportNow()">
                             <i class="fa-solid fa-paper-plane"></i> ផ្ញើរបាយការណ៍ប្រចាំថ្ងៃឥឡូវនេះ
+                        </button>
+                        <button type="button" class="btn btn-warning" onclick="triggerPeriodCheckNow()">
+                            <i class="fa-solid fa-clock-rotate-left"></i> តេស្តឆែកម៉ោងបង្រៀន (៣០ នាទី)
                         </button>
                     </div>
                 </form>
@@ -460,6 +492,75 @@
             } else {
                 if (window.showToast) showToast('កំហុស!', data.message, 'danger');
                 else alert('កំហុស៖ ' + data.message);
+            }
+        })
+        .catch(err => alert('កំហុស៖ ' + err));
+    }
+
+    function triggerPeriodCheckNow() {
+        if (window.showToast) showToast('កំពុងដើរពិនិត្យម៉ោងបង្រៀន...', 'info');
+
+        fetch('/api/telegram/trigger-period-check', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({})
+        })
+        .then(res => res.json())
+        .then(data => {
+            const res = data.result || {};
+            if (res.checked) {
+                const msg = `បានឆែក ${res.period || ''}៖ មិនទាន់ស្រង់ ${res.unmarked_count || 0} នាក់, ស្រង់រួច ${res.marked_count || 0} នាក់ (បានផ្ញើសារព្រមាន ${res.alerts_sent || 0})`;
+                if (window.showToast) showToast('លទ្ធផលពិនិត្យ', msg, 'success');
+                else alert(msg);
+            } else {
+                const msg = `មិនទាន់ដល់ពេល ឬក្រៅម៉ោងបង្រៀន៖ ${res.reason || ''}`;
+                if (window.showToast) showToast('ព័ត៌មាន', msg, 'info');
+                else alert(msg);
+            }
+        })
+        .catch(err => alert('កំហុស៖ ' + err));
+    }
+
+    function setTelegramWebhook() {
+        const url = document.getElementById('telegramWebhookUrl').value.trim();
+        if (!url) {
+            alert('សូមបញ្ចូល Telegram Webhook URL ជាមុនសិន!');
+            return;
+        }
+
+        if (window.showToast) showToast('កំពុងភ្ជាប់ Webhook ជាមួយ Telegram...', 'info');
+
+        fetch('/api/telegram/set-webhook', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ webhook_url: url })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                if (window.showToast) showToast('ជោគជ័យ!', data.message, 'success');
+                else alert('✅ ' + data.message);
+            } else {
+                alert('❌ ' + data.message);
+            }
+        })
+        .catch(err => alert('កំហុស៖ ' + err));
+    }
+
+    function checkTelegramWebhookInfo() {
+        if (window.showToast) showToast('កំពុងទាញយកព័ត៌មាន Webhook...', 'info');
+
+        fetch('/api/telegram/webhook-info')
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                const info = data.info || {};
+                const url = info.url || '(មិនទាន់កំណត់ Webhook)';
+                const pending = info.pending_update_count || 0;
+                const lastErr = info.last_error_message || 'គ្មាន';
+                alert(`🌐 ព័ត៌មាន Webhook បច្ចុប្បន្ន៖\n• URL: ${url}\n• Updates កំពុងរង់ចាំ: ${pending}\n• កំហុសចុងក្រោយ: ${lastErr}`);
+            } else {
+                alert('❌ ' + data.message);
             }
         })
         .catch(err => alert('កំហុស៖ ' + err));

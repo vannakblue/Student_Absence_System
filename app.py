@@ -890,11 +890,15 @@ def api_leave_requests():
         start_date = data.get("start_date")
         end_date = data.get("end_date") or start_date
         reason = data.get("reason", "").strip()
-        approved_by = data.get("approved_by", "Headmaster")
         notes = data.get("notes", "")
 
         if not person_id or not start_date or not end_date or not reason:
             return jsonify({"success": False, "message": "សូមបំពេញព័ត៌មានច្បាប់ឱ្យបានពេញលេញ"}), 400
+
+        user = session.get("user")
+        is_admin = bool(user and user.get("role") == "admin")
+        status = "Approved" if is_admin else data.get("status", "Pending")
+        approved_by = "Admin" if is_admin else "រង់ចាំការអនុម័ត"
 
         affected_slots = []
         warning_msg = None
@@ -907,11 +911,20 @@ def api_leave_requests():
                 return jsonify({"success": False, "message": msg}), 400
             warning_msg = msg
 
-        new_id = db.add_leave_request(person_type, person_id, start_date, end_date, reason, approved_by, notes)
+        new_id = db.add_leave_request(person_type, person_id, start_date, end_date, reason, approved_by, notes, status=status)
+
+        # ផ្ញើដំណឹងពាក្យសុំច្បាប់ទៅកាន់ Telegram Admin ជាមួយប៊ូតុងចុចអនុម័ត/បដិសេធ (បើ Pending)
+        if status == "Pending":
+            try:
+                telegram_service.send_leave_request_to_admin_with_buttons(new_id)
+            except Exception as tg_ex:
+                app.logger.warning(f"Failed to send Telegram leave notification: {tg_ex}")
+
         return jsonify({
             "success": True, 
             "id": new_id, 
             "message": "បានកត់ត្រាពាក្យសុំច្បាប់ជោគជ័យ!",
+            "status": status,
             "warning": warning_msg,
             "affected_slots": affected_slots
         })
@@ -919,6 +932,27 @@ def api_leave_requests():
     person_type = request.args.get("person_type")
     rows = db.get_leave_requests(person_type)
     return jsonify({"success": True, "data": rows})
+
+
+@app.route("/api/leave-requests/update-status", methods=["POST"])
+@login_required(role="admin")
+def api_update_leave_request_status():
+    """Admin អនុម័ត ឬបដិសេធពាក្យសុំច្បាប់តាម Web App"""
+    data = request.get_json() or {}
+    leave_id = data.get("leave_id")
+    status = data.get("status") # Approved, Rejected, Pending
+    notes = data.get("notes")
+
+    if not leave_id or status not in ("Approved", "Rejected", "Pending"):
+        return jsonify({"success": False, "message": "ព័ត៌មានមិនត្រឹមត្រូវ"}), 400
+
+    user = session.get("user", {})
+    admin_name = user.get("full_name_kh") or user.get("username") or "Admin"
+    success = db.update_leave_request_status(int(leave_id), status, approved_by=admin_name, notes=notes)
+    if success:
+        action_kh = "អនុម័ត" if status == "Approved" else ("បដិសេធ" if status == "Rejected" else "រង់ចាំ")
+        return jsonify({"success": True, "message": f"បាន{action_kh}ពាក្យសុំច្បាប់ដោយជោគជ័យ!"})
+    return jsonify({"success": False, "message": "មិនអាចកែប្រែស្ថានភាពច្បាប់បានទេ"}), 400
 
 
 @app.route("/api/teacher/<int:teacher_id>/leave-eligibility")
@@ -1171,6 +1205,74 @@ def api_class_homeroom():
         telegram_chat_id=telegram_chat_id
     )
     return jsonify({"success": True, "message": "បានកំណត់គ្រូបន្ទុកថ្នាក់ និង Telegram Group ដោយជោគជ័យ!"})
+
+
+# -------------------------------------------------------------
+# Telegram Webhook & Period Automation Endpoints
+# -------------------------------------------------------------
+@app.route("/api/telegram/webhook", methods=["POST"])
+def api_telegram_webhook():
+    """
+    Webhook Endpoint ទទួលការបញ្ជាពី Telegram Server
+    (ឧ. Admin ចុចប៊ូតុង Inline "អនុម័ត / បដិសេធ" លើ Telegram App)
+    """
+    data = request.get_json(force=True, silent=True) or {}
+    if "callback_query" in data:
+        success, msg = telegram_service.handle_telegram_callback_query(data["callback_query"])
+        return jsonify({"ok": True, "handled": success, "message": msg})
+    return jsonify({"ok": True, "message": "Update received"})
+
+
+@app.route("/api/telegram/set-webhook", methods=["POST"])
+@login_required(role="admin")
+def api_telegram_set_webhook():
+    """ចុះឈ្មោះ Webhook URL ជាមួយ Telegram"""
+    data = request.get_json() or {}
+    webhook_url = data.get("webhook_url", "").strip()
+    if not webhook_url:
+        return jsonify({"success": False, "message": "សូមបញ្ចូល Webhook URL"}), 400
+
+    success, msg = telegram_service.setup_telegram_webhook(webhook_url)
+    return jsonify({"success": success, "message": msg})
+
+
+@app.route("/api/telegram/webhook-info", methods=["GET"])
+@login_required(role="admin")
+def api_telegram_webhook_info():
+    """ត្រួតពិនិត្យព័ត៌មាន Webhook បច្ចុប្បន្នពី Telegram"""
+    success, info = telegram_service.get_telegram_webhook_info()
+    return jsonify({"success": success, "info": info})
+
+
+@app.route("/api/telegram/trigger-period-check", methods=["POST", "GET"])
+def api_telegram_trigger_period_check():
+    """
+    ឆែកស្ថានភាពម៉ោងបង្រៀន (ក្រោយចូលរៀន ៣០ នាទី)
+    អាចហៅដោយ Manual ឬ Background Scheduler / Cron
+    """
+    res = telegram_service.check_and_dispatch_period_attendance()
+    return jsonify({"success": True, "result": res})
+
+
+# -------------------------------------------------------------
+# Background Daemon Worker for 30-Min Period Checks
+# -------------------------------------------------------------
+import threading
+import time
+
+def background_period_checker_loop():
+    """ដើរឆែកម៉ោងបង្រៀន និងរំលឹកគ្រូដែលភ្លេចស្រង់វត្តមានរៀងរាល់ ៦០ វិនាទីម្តង"""
+    while True:
+        try:
+            telegram_service.check_and_dispatch_period_attendance()
+        except Exception as e:
+            app.logger.warning(f"Background period check error: {e}")
+        time.sleep(60)
+
+# Start background thread once when starting app
+if not app.debug or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+    _bg_thread = threading.Thread(target=background_period_checker_loop, daemon=True)
+    _bg_thread.start()
 
 
 if __name__ == "__main__":

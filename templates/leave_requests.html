@@ -30,7 +30,8 @@
                             <th style="width: 130px;">កាលបរិច្ឆេទបញ្ចប់</th>
                             <th style="width: 240px;">មូលហេតុសុំច្បាប់</th>
                             <th style="width: 130px;">អ្នកអនុម័ត</th>
-                            <th style="width: 100px;">ស្ថានភាព</th>
+                            <th style="width: 120px;">ស្ថានភាព</th>
+                            <th style="width: 150px;" class="text-center">សកម្មភាព</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -54,13 +55,33 @@
                                 <td>{{ r.reason }}</td>
                                 <td>{{ r.approved_by or 'នាយកសាលា' }}</td>
                                 <td>
-                                    <span class="badge badge-success"><i class="fa-solid fa-circle-check"></i> បានអនុម័ត</span>
+                                    {% if r.status == 'Approved' %}
+                                        <span class="badge badge-success"><i class="fa-solid fa-circle-check"></i> បានអនុម័ត</span>
+                                    {% elif r.status == 'Rejected' %}
+                                        <span class="badge badge-danger" style="background:#fee2e2; color:#dc2626;"><i class="fa-solid fa-circle-xmark"></i> បានបដិសេធ</span>
+                                    {% else %}
+                                        <span class="badge badge-warning" style="background:#fef3c7; color:#d97706;"><i class="fa-solid fa-clock"></i> រង់ចាំពិនិត្យ</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% if r.status == 'Pending' %}
+                                        <div class="d-flex gap-1 justify-content-center">
+                                            <button type="button" class="btn btn-sm btn-success" style="padding: 4px 8px; font-size: 0.78rem;" onclick="updateLeaveStatus({{ r.id }}, 'Approved')" title="អនុម័តច្បាប់">
+                                                <i class="fa-solid fa-check"></i> អនុម័ត
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-danger" style="padding: 4px 8px; font-size: 0.78rem;" onclick="updateLeaveStatus({{ r.id }}, 'Rejected')" title="បដិសេធច្បាប់">
+                                                <i class="fa-solid fa-xmark"></i> បដិសេធ
+                                            </button>
+                                        </div>
+                                    {% else %}
+                                        <small class="text-muted"><i class="fa-solid fa-lock"></i> រួចរាល់</small>
+                                    {% endif %}
                                 </td>
                             </tr>
                             {% endfor %}
                         {% else %}
                             <tr>
-                                <td colspan="8" class="text-center py-4">
+                                <td colspan="9" class="text-center py-4">
                                     <div class="empty-state">
                                         <i class="fa-solid fa-inbox text-muted"></i>
                                         <p>មិនទាន់មានពាក្យសុំច្បាប់នៅឡើយទេ</p>
@@ -270,6 +291,29 @@
         .catch(err => {
             alert('❌ មានបញ្ហាក្នុងការរក្សាទុកច្បាប់');
         });
+    }
+
+    async function updateLeaveStatus(id, status) {
+        const actionText = status === 'Approved' ? 'អនុម័ត' : 'បដិសេធ';
+        if (!confirm(`តើលោកអ្នកពិតជាចង់ "${actionText}" ពាក្យសុំច្បាប់នេះមែនទេ?`)) return;
+
+        try {
+            const res = await fetch('/api/leave-requests/update-status', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ leave_id: id, status: status })
+            });
+            const data = await res.json();
+            if (data.success) {
+                if (window.showToast) showToast(data.message, 'success');
+                else alert(data.message);
+                setTimeout(() => window.location.reload(), 600);
+            } else {
+                alert('❌ ' + data.message);
+            }
+        } catch (e) {
+            alert('❌ មានបញ្ហាក្នុងការតភ្ជាប់');
+        }
     }
 </script>
 {% endblock %}

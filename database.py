@@ -145,6 +145,18 @@ def init_db():
         );
     """)
 
+    # 7.1 Telegram Alert Logs Table (កត់ត្រាការផ្ញើសារព្រមានកុំឱ្យផ្ញើជាន់គ្នា)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS telegram_alert_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date TEXT NOT NULL,
+            slot_id INTEGER NOT NULL,
+            alert_type TEXT NOT NULL, -- MISSED_ATTENDANCE, CLASS_SUMMARY
+            sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(date, slot_id, alert_type)
+        );
+    """)
+
     # 8. Timetable Slots Table (កាលវិភាគបង្រៀន)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS timetable_slots (
@@ -627,17 +639,178 @@ def get_leave_requests(person_type=None):
     return [dict(r) for r in rows]
 
 
-def add_leave_request(person_type, person_id, start_date, end_date, reason, approved_by="Headmaster", notes=""):
+def add_leave_request(person_type, person_id, start_date, end_date, reason, approved_by="Headmaster", notes="", status="Pending"):
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""
-        INSERT INTO leave_requests (person_type, person_id, start_date, end_date, reason, approved_by, notes)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-    """, (person_type, person_id, start_date, end_date, reason, approved_by, notes))
+        INSERT INTO leave_requests (person_type, person_id, start_date, end_date, reason, approved_by, notes, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    """, (person_type, person_id, start_date, end_date, reason, approved_by, notes, status))
     conn.commit()
     new_id = cursor.lastrowid
     conn.close()
     return new_id
+
+
+def get_leave_request_by_id(leave_id):
+    """ទាញយកព័ត៌មានពាក្យសុំច្បាប់លម្អិតតាមរយៈ ID"""
+    conn = get_db_connection()
+    query = """
+        SELECT lr.*,
+               CASE 
+                   WHEN lr.person_type = 'TEACHER' THEN (SELECT full_name_kh FROM teachers WHERE id = lr.person_id)
+                   WHEN lr.person_type = 'STUDENT' THEN (SELECT full_name_kh FROM students WHERE id = lr.person_id)
+               END as person_name_kh,
+               CASE 
+                   WHEN lr.person_type = 'TEACHER' THEN (SELECT teacher_code FROM teachers WHERE id = lr.person_id)
+                   WHEN lr.person_type = 'STUDENT' THEN (SELECT student_code FROM students WHERE id = lr.person_id)
+               END as person_code,
+               CASE 
+                   WHEN lr.person_type = 'TEACHER' THEN (SELECT subject FROM teachers WHERE id = lr.person_id)
+                   ELSE NULL
+               END as subject,
+               CASE 
+                   WHEN lr.person_type = 'TEACHER' THEN (SELECT phone FROM teachers WHERE id = lr.person_id)
+                   ELSE NULL
+               END as phone
+        FROM leave_requests lr
+        WHERE lr.id = ?
+    """
+    row = conn.execute(query, (leave_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def update_leave_request_status(leave_id, status, approved_by="Admin", notes=None):
+    """
+    កែប្រែស្ថានភាពពាក្យសុំច្បាប់ (Approved, Rejected, Pending)
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    if notes is not None:
+        cursor.execute("""
+            UPDATE leave_requests
+            SET status = ?, approved_by = ?, notes = ?
+            WHERE id = ?
+        """, (status, approved_by, notes, leave_id))
+    else:
+        cursor.execute("""
+            UPDATE leave_requests
+            SET status = ?, approved_by = ?
+            WHERE id = ?
+        """, (status, approved_by, leave_id))
+    conn.commit()
+    updated = cursor.rowcount > 0
+    conn.close()
+    return updated
+
+
+def is_period_alert_sent(date_str, slot_id, alert_type):
+    """ពិនិត្យមើលថាតើប្រព័ន្ធធ្លាប់បានផ្ញើសារព្រមានសម្រាប់ slot នេះនៅថ្ងៃនេះរួចហើយឬនៅ"""
+    conn = get_db_connection()
+    row = conn.execute("""
+        SELECT COUNT(*) as c FROM telegram_alert_logs
+        WHERE date = ? AND slot_id = ? AND alert_type = ?
+    """, (date_str, slot_id, alert_type)).fetchone()
+    conn.close()
+    return bool(row and row["c"] > 0)
+
+
+def record_period_alert_sent(date_str, slot_id, alert_type):
+    """កត់ត្រាការផ្ញើសារព្រមានដើម្បីកុំឱ្យផ្ញើផ្ទួនៗគ្នា"""
+    conn = get_db_connection()
+    try:
+        conn.execute("""
+            INSERT OR IGNORE INTO telegram_alert_logs (date, slot_id, alert_type)
+            VALUES (?, ?, ?)
+        """, (date_str, slot_id, alert_type))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_unmarked_slots_for_period(date_str, period_num, shift):
+    """
+    ទាញយកបញ្ជី timetable_slots ក្នុងវេន (shift) និងម៉ោង (period_num) នៃថ្ងៃ date_str
+    ដែលគ្រូមិនទាន់បានស្រង់វត្តមាន (និងមិនមានច្បាប់ឈប់សម្រាក Approved)
+    """
+    try:
+        dt = datetime.strptime(date_str, "%Y-%m-%d")
+        weekday_idx = dt.weekday()
+    except Exception:
+        weekday_idx = 0
+
+    day_map = {0: 'ច', 1: 'អ', 2: 'ព', 3: 'ព្រ', 4: 'សុ', 5: 'ស'}
+    if weekday_idx not in day_map:
+        return {"unmarked": [], "marked": []}
+
+    day_code = day_map[weekday_idx]
+    conn = get_db_connection()
+
+    query = """
+        SELECT ts.*, COALESCE(c.id, ts.class_id) as resolved_class_id,
+               c.class_name, c.telegram_chat_id as class_telegram_chat_id,
+               t.full_name_kh as teacher_full_name, t.teacher_code as t_code,
+               t.phone as teacher_phone, t.subject as teacher_subject
+        FROM timetable_slots ts
+        LEFT JOIN classes c ON ts.class_id = c.id OR c.class_name LIKE '%' || ts.class_code || '%'
+        JOIN teachers t ON ts.teacher_id = t.id
+        WHERE ts.day_code = ? AND ts.period_num = ? AND ts.shift = ? AND ts.teacher_id IS NOT NULL
+        ORDER BY ts.class_code ASC
+    """
+    slots = conn.execute(query, (day_code, period_num, shift)).fetchall()
+
+    leaves = conn.execute("""
+        SELECT person_id, reason FROM leave_requests
+        WHERE person_type = 'TEACHER' AND status = 'Approved'
+          AND start_date <= ? AND end_date >= ?
+    """, (date_str, date_str)).fetchall()
+    leave_map = {r["person_id"]: r["reason"] for r in leaves}
+
+    p_label = f"ម៉ោងទី {period_num}"
+    s_label = f"Session {period_num}"
+
+    unmarked = []
+    marked = []
+    for s in slots:
+        c_id = s["resolved_class_id"]
+        t_id = s["teacher_id"]
+
+        # Check if already has approved leave
+        if t_id in leave_map:
+            continue
+
+        audit_row = conn.execute("""
+            SELECT COUNT(*) as c FROM attendance_audit_logs
+            WHERE date = ? AND class_id = ?
+              AND (period = ? OR period = ? OR period = ? OR period = 'Daily')
+        """, (date_str, c_id, p_label, s_label, str(period_num))).fetchone()
+        audit_cnt = audit_row["c"] if audit_row else 0
+
+        cnt_row = conn.execute("""
+            SELECT COUNT(*) as cnt,
+                   SUM(CASE WHEN status = 'ABSENT' THEN 1 ELSE 0 END) as absent_cnt,
+                   SUM(CASE WHEN status = 'PERMISSION' THEN 1 ELSE 0 END) as permission_cnt,
+                   SUM(CASE WHEN status = 'LATE' THEN 1 ELSE 0 END) as late_cnt
+            FROM student_attendance
+            WHERE date = ? AND class_id = ?
+              AND (period = ? OR period = ? OR period = ? OR period = 'Daily')
+        """, (date_str, c_id, p_label, s_label, str(period_num))).fetchone()
+
+        is_marked = bool((cnt_row and cnt_row["cnt"] > 0) or audit_cnt > 0)
+        s_dict = dict(s)
+        s_dict["is_marked"] = is_marked
+        s_dict["absent_cnt"] = (cnt_row["absent_cnt"] or 0) if cnt_row else 0
+        s_dict["permission_cnt"] = (cnt_row["permission_cnt"] or 0) if cnt_row else 0
+        s_dict["late_cnt"] = (cnt_row["late_cnt"] or 0) if cnt_row else 0
+
+        if not is_marked:
+            unmarked.append(s_dict)
+        else:
+            marked.append(s_dict)
+
+    conn.close()
+    return {"unmarked": unmarked, "marked": marked}
 
 
 def get_teacher_teaching_days(teacher_id):
