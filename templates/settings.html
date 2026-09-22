@@ -1,0 +1,618 @@
+{% extends "base.html" %}
+
+{% block title %}ការកំណត់ Google Sheets & រចនាសម្ព័ន្ធប្រព័ន្ធ{% endblock %}
+
+{% block content %}
+<div class="settings-page">
+    <div class="page-header-row" style="margin-bottom: 24px;">
+        <div>
+            <h1 class="page-title"><i class="fa-solid fa-sliders text-primary"></i> ការកំណត់ Google Sheets & រចនាសម្ព័ន្ធសាលារៀន</h1>
+            <p class="page-subtitle">កំណត់ការតភ្ជាប់ទៅកាន់ Google Sheets API, គណនី Service Account និងព័ត៌មានរចនាសម្ព័ន្ធផ្លូវការនៃសាលារៀន</p>
+        </div>
+    </div>
+
+    <div class="grid-2-col">
+        <!-- Card 1: Google Sheets Configuration -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    <i class="fa-brands fa-google text-success"></i>
+                    <span>Google Sheets Synchronization (Cloud Database)</span>
+                </div>
+                <span class="badge badge-primary">gspread API (Connected)</span>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info mb-3">
+                    <i class="fa-solid fa-circle-check" style="font-size:1.2rem; color:#16a34a;"></i>
+                    <div style="font-size:0.88rem; line-height:1.5;">
+                        <strong>ប្រព័ន្ធ Google Sheets ភ្ជាប់រួចរាល់៖</strong><br>
+                        បានតភ្ជាប់ជាមួយ Spreadsheet ផ្លូវការ <strong>SchoolSM 2026-2027</strong> តាមរយៈ Google Service Account JSON ដោយស្វ័យប្រវត្តិ។
+                    </div>
+                </div>
+
+                <form id="googleSheetsForm" onsubmit="handleSaveSettings(event)">
+                    <div class="form-group mb-3">
+                        <label class="form-label">Google Spreadsheet ID</label>
+                        <input type="text" name="google_sheet_id" id="googleSheetId" class="form-control" 
+                               value="{{ settings.google_sheet_id or '1RnTas3BW3UfhwqMPhR7rU7b1FPEw35Xt-CL0aTJ2XkE' }}" 
+                               placeholder="1RnTas3BW3UfhwqMPhR7rU7b1FPEw35Xt-CL0aTJ2XkE">
+                        <small class="text-muted">ID នៃ Google Sheet របស់សាលា៖ <code>1RnTas3BW3UfhwqMPhR7rU7b1FPEw35Xt-CL0aTJ2XkE</code></small>
+                    </div>
+
+                    <div class="form-group mb-3">
+                        <label class="form-label">ឈ្មោះឯកសារ Credentials (Service Account JSON)</label>
+                        <input type="text" name="google_credentials_file" id="googleCredsFile" class="form-control" 
+                               value="{{ settings.google_credentials_file or 'google_service_account.json' }}" 
+                               placeholder="google_service_account.json">
+                        <small class="text-muted">គណនី Service Account៖ <code>firebase-adminsdk-fbsvc@schoolsm.iam.gserviceaccount.com</code></small>
+                    </div>
+
+                    <div class="form-group mb-3">
+                        <label class="form-label">Google Drive Folder ID</label>
+                        <input type="text" name="google_drive_folder_id" class="form-control" 
+                               value="{{ settings.google_drive_folder_id or '1WGYYh07JnfyRzimtuFKAAGCzWjAI-rQa' }}">
+                    </div>
+
+                    <div class="d-flex gap-2 mt-4 flex-wrap">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fa-solid fa-floppy-disk"></i> រក្សាទុកការកំណត់
+                        </button>
+                        <button type="button" class="btn btn-outline" onclick="testGoogleSheetsConnection()">
+                            <i class="fa-solid fa-plug"></i> តេស្តការតភ្ជាប់
+                        </button>
+                        <button type="button" class="btn btn-accent" onclick="triggerGoogleSheetsSync()">
+                            <i class="fa-solid fa-cloud-arrow-up"></i> Sync ទៅ Sheets ឥឡូវនេះ
+                        </button>
+                    </div>
+                </form>
+
+                <div class="mt-4 pt-3 border-top">
+                    <div class="text-muted small mb-1">កាលបរិច្ឆេទ Sync ចុងក្រោយ៖</div>
+                    <div class="fw-bold text-primary" id="lastSyncDisplay">{{ settings.last_sync_time or 'Never' }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 1.5: KKHS Cloud Timetable Synchronization (kkhs.web.app) -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    <i class="fa-solid fa-cloud-arrow-down text-primary"></i>
+                    <span>KKHS Timetable Synchronization (kkhs.web.app)</span>
+                </div>
+                <span class="badge badge-primary" style="background:#eff6ff; color:#2563eb;">Firebase & Google Sheets Bridge</span>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info mb-3" style="background:#f0fdf4; border-color:#bbf7d0; color:#166534;">
+                    <i class="fa-solid fa-circle-check" style="font-size:1.2rem; color:#16a34a;"></i>
+                    <div style="font-size:0.88rem; line-height:1.5;">
+                        <strong>ប្រព័ន្ធកាលវិភាគអនឡាញផ្លូវការ kkhs.web.app និង Google Sheets Bridge៖</strong><br>
+                        អនុញ្ញាតឱ្យ Admin ធ្វើសមកាលកម្មទាញយកកាលវិភាគរួម ៤០ ថ្នាក់, គ្រូបង្រៀន ១១៩ នាក់, និងម៉ោងបង្រៀន ១,១៨៨ ម៉ោង ព្រមទាំង Backup ទៅកាន់ Google Sheets និងទាញយកមក Local Database ប្រើប្រាស់ជាអចិន្ត្រៃយ៍សម្រាប់គ្រូបង្រៀនយកអវត្តមានសិស្ស។
+                    </div>
+                </div>
+
+                <form id="kkhsSyncForm" onsubmit="handleSaveSettings(event)">
+                    <div class="form-group mb-3">
+                        <label class="form-label">តំណភ្ជាប់ប្រព័ន្ធកាលវិភាគ (Web App URL)</label>
+                        <input type="text" class="form-control" value="https://kkhs.web.app" readonly style="background:#f8fafc;">
+                    </div>
+
+                    <div class="form-group mb-3">
+                        <label class="form-label">Firebase Realtime Database Endpoint</label>
+                        <input type="text" name="kkhs_firebase_url" id="kkhsFirebaseUrl" class="form-control" 
+                               value="{{ settings.kkhs_firebase_url or 'https://school-timetable-67972-default-rtdb.asia-southeast1.firebasedatabase.app' }}">
+                        <small class="text-muted">Cloud REST API endpoint សម្រាប់ទាញយកទិន្នន័យកាលវិភាគរួម</small>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="d-flex gap-2 mt-3 flex-wrap">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fa-solid fa-floppy-disk"></i> រក្សាទុកការកំណត់
+                        </button>
+                        <button type="button" class="btn btn-outline" onclick="testKkhsConnectionSettings()">
+                            <i class="fa-solid fa-plug"></i> តេស្តការតភ្ជាប់ kkhs
+                        </button>
+                        <button type="button" class="btn btn-primary" onclick="triggerKkhsSyncSettings()" style="background:#2563eb; border-color:#2563eb;">
+                            <i class="fa-solid fa-rotate"></i> Sync ផ្ទាល់ពី kkhs
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Google Sheets Bridge Section -->
+                <div class="mt-4 pt-3 border-top" style="background:#f8fafc; margin:-10px -20px -20px -20px; padding:18px 20px; border-radius:0 0 12px 12px;">
+                    <div class="d-flex justify-between align-center mb-2 flex-wrap gap-2">
+                        <h4 style="margin:0; font-size:0.95rem; font-weight:700; color:#1e293b;">
+                            <i class="fa-brands fa-google text-success"></i> Google Sheets Backup & Permanent Timetable Bridge
+                        </h4>
+                        {% if settings.google_sheet_id %}
+                        <a href="https://docs.google.com/spreadsheets/d/{{ settings.google_sheet_id }}" target="_blank" class="btn btn-sm btn-outline" style="font-size:0.78rem; text-decoration:none;">
+                            <i class="fa-solid fa-arrow-up-right-from-square"></i> បើកមើល Google Sheets
+                        </a>
+                        {% endif %}
+                    </div>
+                    <p style="font-size:0.83rem; color:#64748b; margin-bottom:12px;">
+                        Backup ទិន្នន័យកាលវិភាគពី <code>kkhs.web.app</code> ចូលទៅក្នុង Google Sheets ក្នុងសន្លឹកកិច្ចការ <code>🗓️ កាលវិភាគរួម (KKHS Backup)</code> រួចទាញយកមកកាន់ប្រព័ន្ធ Student_Absence_System សម្រាប់ប្រើប្រាស់ជាអចិន្ត្រៃយ៍។
+                    </p>
+
+                    <div class="d-flex gap-2 flex-wrap">
+                        <button type="button" class="btn btn-outline" onclick="triggerKkhsToSheetsBackup()" style="border-color:#16a34a; color:#15803d; background:#fff; font-weight:600;">
+                            <i class="fa-brands fa-google text-success"></i> 1. Backup ពី kkhs ទៅ Google Sheets
+                        </button>
+                        <button type="button" class="btn btn-accent" onclick="triggerSheetsToLocalPull()" style="font-weight:600;">
+                            <i class="fa-solid fa-cloud-arrow-down"></i> 2. ទាញយកពី Sheets មក Local DB
+                        </button>
+                        <button type="button" class="btn btn-primary" onclick="triggerSheetsToFirestoreSync()" style="background:#f59e0b; border-color:#d97706; color:#fff; font-weight:600;">
+                            <i class="fa-solid fa-fire text-white"></i> 3. Sync ពី Sheets ទៅ Firestore
+                        </button>
+                        <button type="button" class="btn btn-outline" onclick="testFirestoreConnectionSettings()" style="border-color:#94a3b8; color:#475569;">
+                            <i class="fa-solid fa-plug"></i> តេស្ត Firestore
+                        </button>
+                    </div>
+
+                    <div class="row mt-3" style="display:flex; gap:16px; flex-wrap:wrap; font-size:0.82rem;">
+                        <div>
+                            <span class="text-muted">កាលបរិច្ឆេទ Sync ផ្ទាល់ចុងក្រោយ៖</span>
+                            <strong class="text-primary" id="lastKkhsSyncDisplay">{{ settings.kkhs_last_sync_time or 'មិនទាន់ Sync' }}</strong>
+                        </div>
+                        <div>
+                            <span class="text-muted">Backup ទៅ Sheets ចុងក្រោយ៖</span>
+                            <strong class="text-success" id="lastKkhsSheetsBackupDisplay">{{ settings.kkhs_sheets_last_backup_time or 'មិនទាន់ Backup' }}</strong>
+                        </div>
+                        <div>
+                            <span class="text-muted">ទាញយកពី Sheets មក Local ចុងក្រោយ៖</span>
+                            <strong class="text-info" id="lastKkhsSheetsPullDisplay">{{ settings.kkhs_sheets_last_pull_time or 'មិនទាន់ទាញយក' }}</strong>
+                        </div>
+                        <div>
+                            <span class="text-muted">Sync ទៅ Firestore ចុងក្រោយ៖</span>
+                            <strong class="text-warning" id="lastFirestoreSyncDisplay" style="color:#d97706;">{{ settings.firestore_last_sync_time or 'មិនទាន់ Sync' }}</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 2: Official School Profile & Structure -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    <i class="fa-solid fa-school text-primary"></i>
+                    <span>រចនាសម្ព័ន្ធផ្លូវការនៃសាលារៀន (School Structure)</span>
+                </div>
+            </div>
+            <div class="card-body">
+                <form id="schoolProfileForm" onsubmit="handleSaveSettings(event)">
+                    <div class="row" style="display:flex; gap:12px; margin-bottom:12px;">
+                        <div style="flex:1;">
+                            <label class="form-label">ក្រសួងសាមី</label>
+                            <input type="text" name="ministry_name" class="form-control" 
+                                   value="{{ settings.ministry_name or 'ក្រសួងអប់រំ យុវជន និងកីឡា' }}">
+                        </div>
+                        <div style="flex:1;">
+                            <label class="form-label">មន្ទីរអប់រំ (POE)</label>
+                            <input type="text" name="poe_name" class="form-control" 
+                                   value="{{ settings.poe_name or 'មន្ទីរអប់រំ យុវជន និងកីឡា ខេត្តកណ្តាល' }}">
+                        </div>
+                    </div>
+
+                    <div class="row" style="display:flex; gap:12px; margin-bottom:12px;">
+                        <div style="flex:1;">
+                            <label class="form-label">ការិយាល័យអប់រំ (DOE)</label>
+                            <input type="text" name="doe_name" class="form-control" 
+                                   value="{{ settings.doe_name or 'ការិយាល័យអប់រំ យុវជន និងកីឡា ស្រុកកណ្តាលស្ទឹង' }}">
+                        </div>
+                        <div style="flex:1;">
+                            <label class="form-label">កូដសាលារៀន (School Code)</label>
+                            <input type="text" name="school_code" class="form-control" 
+                                   value="{{ settings.school_code or '08010306901' }}">
+                        </div>
+                    </div>
+
+                    <div class="form-group mb-3">
+                        <label class="form-label">ឈ្មោះសាលារៀន (ភាសាខ្មែរ)</label>
+                        <input type="text" name="school_name_kh" class="form-control" 
+                               value="{{ settings.school_name_kh or 'វិទ្យាល័យ ហ៊ុន សែន កំពង់កន្ទួត' }}">
+                    </div>
+
+                    <div class="form-group mb-3">
+                        <label class="form-label">ឈ្មោះសាលារៀន (អក្សរឡាតាំង)</label>
+                        <input type="text" name="school_name_en" class="form-control" 
+                               value="{{ settings.school_name_en or 'Hun Sen Kampong Kantuot High School' }}">
+                    </div>
+
+                    <div class="row" style="display:flex; gap:12px; margin-bottom:12px;">
+                        <div style="flex:1;">
+                            <label class="form-label">នាយកសាលា (Principal)</label>
+                            <input type="text" name="principal_name" class="form-control" 
+                                   value="{{ settings.principal_name or 'លោកបណ្ឌិត សុខ ចាន់ថន' }}">
+                        </div>
+                        <div style="flex:1;">
+                            <label class="form-label">ឆ្នាំសិក្សា</label>
+                            <input type="text" name="academic_year" class="form-control" 
+                                   value="{{ settings.academic_year or '2026-2027' }}">
+                        </div>
+                    </div>
+
+                    <div class="form-group mb-3">
+                        <label class="form-label">បាវចនាសាលា (Motto)</label>
+                        <input type="text" name="school_motto" class="form-control" 
+                               value="{{ settings.school_motto or 'ចំណេះដឹង វិន័យ សីលធម៌ គុណធម៌' }}">
+                    </div>
+
+                    <div class="row" style="display:flex; gap:12px; margin-bottom:12px;">
+                        <div style="flex:1;">
+                            <label class="form-label">លេខទូរស័ព្ទទំនាក់ទំនង</label>
+                            <input type="text" name="school_phone" class="form-control" 
+                                   value="{{ settings.school_phone or '023 888 999 / 012 345 678' }}">
+                        </div>
+                        <div style="flex:1;">
+                            <label class="form-label">អ៊ីមែលផ្លូវការ</label>
+                            <input type="text" name="school_email" class="form-control" 
+                                   value="{{ settings.school_email or 'info@schoolsm.edu.kh' }}">
+                        </div>
+                    </div>
+
+                    <div class="mt-3">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fa-solid fa-floppy-disk"></i> រក្សាទុកព័ត៌មានរចនាសម្ព័ន្ធសាលា
+                        </button>
+                    </div>
+                </form>
+
+                <div class="mt-4 pt-3 border-top">
+                    <div class="card-title mb-2">
+                        <i class="fa-solid fa-database text-info"></i>
+                        <span>ស្ថានភាពមូលដ្ឋានទិន្នន័យ (SQLite Database)</span>
+                    </div>
+                    <p class="text-muted small">
+                        ប្រព័ន្ធកំពុងដំណើរការលើឯកសារ SQLite ឈ្មោះ <code>attendance.db</code> ក្នុងម៉ាស៊ីន (៤០ ថ្នាក់រៀន, ១១៩ គ្រូបង្រៀន, ១,៩៩៨ សិស្សានុសិស្ស, ១៧ មុខវិជ្ជា, ១,១៨៨ ម៉ោងកាលវិភាគ)។
+                        ដំណើរការ Offline យ៉ាងរលូន និង Sync ឡើង Google Sheets ផ្លូវការបានគ្រប់ពេលវេលា។
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 3: Telegram Bot & Automated Notifications -->
+        <div class="card" style="grid-column: 1 / -1; margin-top: 16px;">
+            <div class="card-header">
+                <div class="card-title">
+                    <i class="fa-brands fa-telegram text-info"></i>
+                    <span>ការកំណត់ Telegram Bot & ប្រព័ន្ធផ្ញើរបាយការណ៍ស្វ័យប្រវត្តិ</span>
+                </div>
+                <span class="badge badge-primary">Telegram Bot API</span>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info mb-3">
+                    <i class="fa-brands fa-telegram" style="font-size:1.3rem; color:#0284c7;"></i>
+                    <div style="font-size:0.88rem; line-height:1.5;">
+                        <strong>ប្រព័ន្ធដំណឹងស្វ័យប្រវត្តិតាម Telegram៖</strong><br>
+                        • <strong>របាយការណ៍ប្រចាំថ្ងៃ៖</strong> ផ្ញើសេចក្តីរាយការណ៍អវត្តមានសរុបនៃសិស្ស និងគ្រូប្រចាំថ្ងៃ ទៅកាន់ Telegram Admin/គណៈគ្រប់គ្រងសាលា។<br>
+                        • <strong>របាយការណ៍តាមម៉ោង៖</strong> ផ្ញើដំណឹងជាបុគ្គលទៅកាន់អាណាព្យាបាលសិស្សដែលអវត្តមានភ្លាមៗ និងផ្ញើបញ្ជីសង្ខេបទៅកាន់ Group គ្រូបន្ទុកថ្នាក់។
+                    </div>
+                </div>
+
+                <form id="telegramSettingsForm" onsubmit="handleSaveSettings(event)">
+                    <div class="grid-2-col">
+                        <div class="form-group mb-3">
+                            <label class="form-label">Telegram Bot Token</label>
+                            <input type="text" name="telegram_bot_token" id="telegramBotToken" class="form-control" 
+                                   value="{{ settings.telegram_bot_token or '' }}" 
+                                   placeholder="ឧ. 123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ">
+                            <small class="text-muted">ទទួលបានពី <code>@BotFather</code> ក្នុងកម្មវិធី Telegram</small>
+                        </div>
+                        <div class="form-group mb-3">
+                            <label class="form-label">Telegram Admin Chat ID (ទទួលរបាយការណ៍ប្រចាំថ្ងៃ)</label>
+                            <input type="text" name="telegram_admin_chat_id" id="telegramAdminChatId" class="form-control" 
+                                   value="{{ settings.telegram_admin_chat_id or '' }}" 
+                                   placeholder="ឧ. -1001234567890 ឬ 987654321">
+                            <small class="text-muted">Chat ID ឬ Group ID របស់ Admin សម្រាប់ទទួលរបាយការណ៍សរុប</small>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; flex-wrap:wrap; gap:20px; margin: 15px 0; padding: 12px; background:#f8fafc; border-radius:12px; border:1px solid #e2e8f0;">
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-weight:600; font-size:0.9rem;">
+                            <input type="checkbox" name="telegram_notify_absence" value="1" {% if settings.telegram_notify_absence != '0' %}checked{% endif %}>
+                            <span>បើកដំណើរការផ្ញើរបាយការណ៍សិស្ស-គ្រូប្រចាំថ្ងៃ (Daily Admin Report)</span>
+                        </label>
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-weight:600; font-size:0.9rem;">
+                            <input type="checkbox" name="telegram_notify_parent" value="1" {% if settings.telegram_notify_parent != '0' %}checked{% endif %}>
+                            <span>ផ្ញើដំណឹងតាមម៉ោងទៅអាណាព្យាបាលសិស្សម្នាក់ៗ (Parent Alert)</span>
+                        </label>
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-weight:600; font-size:0.9rem;">
+                            <input type="checkbox" name="telegram_notify_homeroom" value="1" {% if settings.telegram_notify_homeroom != '0' %}checked{% endif %}>
+                            <span>ផ្ញើបញ្ជីអវត្តមានតាមម៉ោងទៅ Telegram Group គ្រូបន្ទុកថ្នាក់ (Homeroom Group Alert)</span>
+                        </label>
+                    </div>
+
+                    <div class="d-flex gap-2 mt-4 flex-wrap">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fa-solid fa-floppy-disk"></i> រក្សាទុកការកំណត់ Telegram
+                        </button>
+                        <button type="button" class="btn btn-outline" onclick="testTelegramBot()">
+                            <i class="fa-brands fa-telegram text-primary"></i> តេស្តផ្ញើសារសាកល្បង Telegram
+                        </button>
+                        <button type="button" class="btn btn-accent" onclick="triggerDailyReportNow()">
+                            <i class="fa-solid fa-paper-plane"></i> ផ្ញើរបាយការណ៍ប្រចាំថ្ងៃឥឡូវនេះ
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    function handleSaveSettings(e) {
+        e.preventDefault();
+        const form = e.target;
+        const formData = new FormData(form);
+
+        fetch('/api/settings/save', {
+            method: 'POST',
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                if (window.showToast) showToast('ជោគជ័យ!', data.message, 'success');
+                else alert(data.message);
+            } else {
+                if (window.showToast) showToast('កំហុស!', data.message, 'danger');
+                else alert(data.message);
+            }
+        })
+        .catch(err => alert('កំហុស៖ ' + err));
+    }
+
+    function testTelegramBot() {
+        const botToken = document.getElementById('telegramBotToken').value.trim();
+        const chatId = document.getElementById('telegramAdminChatId').value.trim();
+
+        if (!botToken || !chatId) {
+            alert('សូមបញ្ចូល Bot Token និង Admin Chat ID ជាមុនសិន!');
+            return;
+        }
+
+        if (window.showToast) showToast('កំពុងផ្ញើសារតេស្តទៅ Telegram...', 'info');
+
+        fetch('/api/telegram/test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bot_token: botToken, chat_id: chatId })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                if (window.showToast) showToast('ជោគជ័យ!', data.message, 'success');
+                else alert(data.message);
+            } else {
+                if (window.showToast) showToast('កំហុស!', data.message, 'danger');
+                else alert('កំហុសតេស្ត៖ ' + data.message);
+            }
+        })
+        .catch(err => alert('កំហុស៖ ' + err));
+    }
+
+    function triggerDailyReportNow() {
+        if (!confirm('តើអ្នកពិតជាចង់ផ្ញើរបាយការណ៍អវត្តមានប្រចាំថ្ងៃទៅ Telegram Admin ឥឡូវនេះមែនទេ?')) return;
+
+        if (window.showToast) showToast('កំពុងផ្ញើរបាយការណ៍ប្រចាំថ្ងៃ...', 'info');
+
+        fetch('/api/telegram/send-daily-report', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({})
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                if (window.showToast) showToast('ជោគជ័យ!', data.message, 'success');
+                else alert(data.message);
+            } else {
+                if (window.showToast) showToast('កំហុស!', data.message, 'danger');
+                else alert('កំហុស៖ ' + data.message);
+            }
+        })
+        .catch(err => alert('កំហុស៖ ' + err));
+    }
+
+    function testGoogleSheetsConnection() {
+        const sheetId = document.getElementById('googleSheetId').value.trim();
+        if (window.showToast) showToast('កំពុងតេស្តការតភ្ជាប់ទៅកាន់ Google Sheets...', 'info');
+
+        fetch('/api/sync/test-sheets', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sheet_id: sheetId })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                if (window.showToast) showToast('ជោគជ័យ!', data.message, 'success');
+                else alert(data.message);
+            } else {
+                if (window.showToast) showToast('កំហុស!', data.message, 'danger');
+                else alert(data.message);
+            }
+        })
+        .catch(err => alert('កំហុស៖ ' + err));
+    }
+
+    function triggerGoogleSheetsSync() {
+        if (window.showToast) showToast('កំពុង Sync ទិន្នន័យទាំងអស់ទៅកាន់ Google Sheets...', 'info');
+
+        fetch('/api/sync/push-sheets', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({})
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                if (window.showToast) showToast('ជោគជ័យ!', data.message, 'success');
+                else alert(data.message);
+                if (data.sync_time) {
+                    const disp = document.getElementById('lastSyncDisplay');
+                    if (disp) disp.textContent = data.sync_time;
+                }
+            } else {
+                if (window.showToast) showToast('កំហុស!', data.message, 'danger');
+                else alert(data.message);
+            }
+        })
+        .catch(err => alert('កំហុស៖ ' + err));
+    }
+
+    function testKkhsConnectionSettings() {
+        if (window.showToast) showToast('កំពុងតេស្តការតភ្ជាប់ទៅកាន់ kkhs.web.app...', 'info');
+
+        fetch('/api/sync/test-kkhs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                if (window.showToast) showToast('ជោគជ័យ!', data.message, 'success');
+                else alert(data.message);
+            } else {
+                if (window.showToast) showToast('កំហុស!', data.message, 'danger');
+                else alert(data.message);
+            }
+        })
+        .catch(err => alert('កំហុស៖ ' + err));
+    }
+
+    function triggerKkhsSyncSettings() {
+        if (!confirm('តើអ្នកពិតជាចង់ធ្វើសមកាលកម្មទាញយកកាលវិភាគថ្មីពី kkhs.web.app មែនឬទេ?')) return;
+        if (window.showToast) showToast('កំពុងទាញយកទិន្នន័យកាលវិភាគពី kkhs.web.app...', 'info');
+
+        fetch('/api/sync/kkhs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mode: 'merge' })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                if (window.showToast) showToast('ជោគជ័យ!', data.message, 'success');
+                else alert(data.message);
+                if (data.sync_time) {
+                    const disp = document.getElementById('lastKkhsSyncDisplay');
+                    if (disp) disp.textContent = data.sync_time;
+                }
+            } else {
+                if (window.showToast) showToast('កំហុស!', data.message, 'danger');
+                else alert(data.message);
+            }
+        })
+        .catch(err => {
+            if (window.showToast) showToast('កំហុស!', err, 'danger');
+            else alert('កំហុស៖ ' + err);
+        });
+    }
+
+    function triggerKkhsToSheetsBackup() {
+        if (!confirm('តើអ្នកពិតជាចង់ Backup ទិន្នន័យកាលវិភាគពី kkhs.web.app ទៅកាន់ Google Sheets មែនឬទេ?')) return;
+        if (window.showToast) showToast('កំពុង Backup ទិន្នន័យកាលវិភាគទៅ Google Sheets...', 'info');
+
+        fetch('/api/sync/kkhs-to-sheets', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({})
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                if (window.showToast) showToast('ជោគជ័យ!', data.message, 'success');
+                else alert(data.message);
+                if (data.backup_time) {
+                    const disp = document.getElementById('lastKkhsSheetsBackupDisplay');
+                    if (disp) disp.textContent = data.backup_time;
+                }
+            } else {
+                if (window.showToast) showToast('កំហុស!', data.message, 'danger');
+                else alert(data.message);
+            }
+        })
+        .catch(err => alert('កំហុស៖ ' + err));
+    }
+
+    function triggerSheetsToLocalPull() {
+        if (!confirm('តើអ្នកពិតជាចង់ទាញយកកាលវិភាគពី Google Sheets Backup មកកាន់ Local Database មែនឬទេ?')) return;
+        if (window.showToast) showToast('កំពុងទាញយកទិន្នន័យកាលវិភាគពី Google Sheets...', 'info');
+
+        fetch('/api/sync/sheets-to-timetable', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mode: 'merge' })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                if (window.showToast) showToast('ជោគជ័យ!', data.message, 'success');
+                else alert(data.message);
+                if (data.pull_time) {
+                    const disp = document.getElementById('lastKkhsSheetsPullDisplay');
+                    if (disp) disp.textContent = data.pull_time;
+                }
+            } else {
+                if (window.showToast) showToast('កំហុស!', data.message, 'danger');
+                else alert(data.message);
+            }
+        })
+        .catch(err => alert('កំហុស៖ ' + err));
+    }
+
+    function triggerSheetsToFirestoreSync() {
+        if (!confirm('តើអ្នកពិតជាចង់ Sync ទិន្នន័យកាលវិភាគពី Google Sheets ទៅកាន់ Cloud Firestore មែនឬទេ?')) return;
+        if (window.showToast) showToast('កំពុង Sync ទិន្នន័យទៅកាន់ Cloud Firestore...', 'info');
+
+        fetch('/api/sync/sheets-to-firestore', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({})
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                if (window.showToast) showToast('ជោគជ័យ!', data.message, 'success');
+                else alert(data.message);
+                if (data.sync_time) {
+                    const disp = document.getElementById('lastFirestoreSyncDisplay');
+                    if (disp) disp.textContent = data.sync_time;
+                }
+            } else {
+                if (data.needs_creation) {
+                    alert('សេចក្តីជូនដំណឹង Cloud Firestore៖\n\n' + data.message);
+                } else {
+                    if (window.showToast) showToast('កំហុស!', data.message, 'danger');
+                    else alert(data.message);
+                }
+            }
+        })
+        .catch(err => alert('កំហុស៖ ' + err));
+    }
+
+    function testFirestoreConnectionSettings() {
+        if (window.showToast) showToast('កំពុងតេស្តការតភ្ជាប់ទៅកាន់ Cloud Firestore...', 'info');
+        fetch('/api/sync/test-firestore', { method: 'POST' })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                if (window.showToast) showToast('ជោគជ័យ!', data.message, 'success');
+                else alert(data.message);
+            } else {
+                if (data.needs_creation) {
+                    alert('សេចក្តីជូនដំណឹង Cloud Firestore៖\n\n' + data.message);
+                } else {
+                    if (window.showToast) showToast('កំហុស!', data.message, 'danger');
+                    else alert(data.message);
+                }
+            }
+        })
+        .catch(err => alert('កំហុសតភ្ជាប់៖ ' + err));
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block title %}របាយការណ៍ និង Export{% endblock %}
+
+{% block content %}
+<div class="reports-page">
+    <div class="page-header-row">
+        <div>
+            <h1 class="page-title"><i class="fa-solid fa-file-excel text-success"></i> របាយការណ៍ និង Export ទិន្នន័យ</h1>
+            <p class="page-subtitle">បូកសរុបអវត្តមានសិស្ស និងគ្រូ តាមកាលបរិច្ឆេទ ព្រមទាំងទាញយកជា Excel</p>
+        </div>
+        <div class="header-actions">
+            {% if report_type == 'teachers' %}
+            <a href="/export/excel/teachers?start_date={{ start_date }}&end_date={{ end_date }}" class="btn btn-success">
+                <i class="fa-solid fa-file-arrow-down"></i> ទាញយក Excel គ្រូ (.xlsx)
+            </a>
+            {% else %}
+            <a href="/export/excel/students?class_id={{ selected_class_id or '' }}&start_date={{ start_date }}&end_date={{ end_date }}" class="btn btn-success">
+                <i class="fa-solid fa-file-arrow-down"></i> ទាញយក Excel សិស្ស (.xlsx)
+            </a>
+            {% endif %}
+            <button onclick="triggerGoogleSheetsSync()" class="btn btn-accent">
+                <i class="fa-solid fa-cloud-arrow-up"></i> Sync ទៅ Google Sheets
+            </button>
+        </div>
+    </div>
+
+    <!-- Filter Control Card -->
+    <div class="card mb-3 p-3">
+        <form method="GET" action="{{ url_for('reports_page') }}" class="filter-form">
+            <div class="filter-group">
+                <label><i class="fa-solid fa-users"></i> ប្រភេទរបាយការណ៍</label>
+                <select name="type" class="form-control" onchange="this.form.submit()">
+                    <option value="students" {% if report_type == 'students' %}selected{% endif %}>របាយការណ៍សិស្ស (Students)</option>
+                    <option value="teachers" {% if report_type == 'teachers' %}selected{% endif %}>របាយការណ៍គ្រូបង្រៀន (Teachers)</option>
+                </select>
+            </div>
+
+            {% if report_type != 'teachers' %}
+            <div class="filter-group">
+                <label><i class="fa-solid fa-chalkboard"></i> ថ្នាក់រៀន</label>
+                <select name="class_id" class="form-control" onchange="this.form.submit()">
+                    <option value="">-- គ្រប់ថ្នាក់ទាំងអស់ --</option>
+                    {% for c in classes %}
+                    <option value="{{ c.id }}" {% if c.id == selected_class_id %}selected{% endif %}>{{ c.class_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+
+            <div class="filter-group">
+                <label><i class="fa-regular fa-calendar"></i> ចាប់ពីថ្ងៃ</label>
+                <input type="date" name="start_date" class="form-control" value="{{ start_date }}">
+            </div>
+
+            <div class="filter-group">
+                <label><i class="fa-regular fa-calendar"></i> ដល់ថ្ងៃ</label>
+                <input type="date" name="end_date" class="form-control" value="{{ end_date }}">
+            </div>
+
+            <div class="filter-group d-flex align-end">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fa-solid fa-filter"></i> ស្រង់ទិន្នន័យ
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Reports Table Card -->
+    <div class="card">
+        <div class="card-header d-flex justify-between align-center">
+            <div class="card-title">
+                <i class="fa-solid fa-table-list text-primary"></i>
+                {% if report_type == 'teachers' %}
+                    <span>តារាងបូកសរុបវត្តមានគ្រូបង្រៀន</span>
+                {% else %}
+                    <span>តារាងបូកសរុបវត្តមានសិស្សានុសិស្ស</span>
+                {% endif %}
+            </div>
+            <span class="badge badge-primary">សរុប: {{ report_data|length }} នាក់</span>
+        </div>
+
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                {% if report_type == 'teachers' %}
+                <!-- Teachers Report Table -->
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;">ល.រ</th>
+                            <th style="width: 120px;">កូដគ្រូ</th>
+                            <th style="width: 220px;">គោត្តនាម-នាម</th>
+                            <th style="width: 70px;">ភេទ</th>
+                            <th style="width: 160px;">មុខវិជ្ជាឯកទេស</th>
+                            <th style="width: 120px;" class="text-center">មានច្បាប់ (P)</th>
+                            <th style="width: 120px;" class="text-center">ឥតច្បាប់ (A)</th>
+                            <th style="width: 120px;" class="text-center">មកយឺត (L)</th>
+                            <th style="width: 120px;" class="text-center">វត្តមាន (Pr)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if report_data %}
+                            {% for t in report_data %}
+                            <tr>
+                                <td class="text-center">{{ loop.index }}</td>
+                                <td><span class="badge badge-light fw-bold">{{ t.teacher_code }}</span></td>
+                                <td class="fw-bold">{{ t.full_name_kh }}</td>
+                                <td>{{ 'ប្រុស' if t.gender == 'M' else 'ស្រី' }}</td>
+                                <td><span class="badge badge-primary">{{ t.subject }}</span></td>
+                                <td class="text-center"><span class="badge badge-warning">{{ t.permission_count or 0 }}</span></td>
+                                <td class="text-center"><span class="badge badge-danger">{{ t.absent_count or 0 }}</span></td>
+                                <td class="text-center"><span class="badge badge-secondary">{{ t.late_count or 0 }}</span></td>
+                                <td class="text-center"><span class="badge badge-success">{{ t.present_count or 0 }}</span></td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="9" class="text-center py-4">គ្មានទិន្នន័យ</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+                {% else %}
+                <!-- Students Report Table -->
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;">ល.រ</th>
+                            <th style="width: 130px;">អត្តលេខ</th>
+                            <th style="width: 220px;">គោត្តនាម-នាម</th>
+                            <th style="width: 70px;">ភេទ</th>
+                            <th style="width: 120px;">ថ្នាក់</th>
+                            <th style="width: 110px;" class="text-center">មានច្បាប់ (P)</th>
+                            <th style="width: 110px;" class="text-center">ឥតច្បាប់ (A)</th>
+                            <th style="width: 110px;" class="text-center">មកយឺត (L)</th>
+                            <th style="width: 110px;" class="text-center">វត្តមាន (Pr)</th>
+                            <th style="width: 120px;" class="text-center">សរុបអវត្តមាន</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if report_data %}
+                            {% for s in report_data %}
+                            {% set total_abs = (s.permission_count or 0) + (s.absent_count or 0) %}
+                            <tr>
+                                <td class="text-center">{{ loop.index }}</td>
+                                <td><span class="badge badge-light fw-bold">{{ s.student_code }}</span></td>
+                                <td class="fw-bold">{{ s.full_name_kh }}</td>
+                                <td>{{ 'ប្រុស' if s.gender == 'M' else 'ស្រី' }}</td>
+                                <td><span class="badge badge-primary">{{ s.class_name }}</span></td>
+                                <td class="text-center"><span class="badge badge-warning">{{ s.permission_count or 0 }}</span></td>
+                                <td class="text-center"><span class="badge badge-danger">{{ s.absent_count or 0 }}</span></td>
+                                <td class="text-center"><span class="badge badge-secondary">{{ s.late_count or 0 }}</span></td>
+                                <td class="text-center"><span class="badge badge-success">{{ s.present_count or 0 }}</span></td>
+                                <td class="text-center">
+                                    <strong class="{% if total_abs > 3 %}text-danger{% elif total_abs > 0 %}text-warning{% else %}text-muted{% endif %}">
+                                        {{ total_abs }} លើក
+                                    </strong>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="10" class="text-center py-4">គ្មានទិន្នន័យ</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

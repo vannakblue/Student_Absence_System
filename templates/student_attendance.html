@@ -1,0 +1,250 @@
+{% extends "base.html" %}
+
+{% block title %}ស្រង់វត្តមានសិស្សានុសិស្ស{% endblock %}
+
+{% block content %}
+<div class="attendance-page">
+    <div class="page-header-row">
+        <div>
+            <h1 class="page-title"><i class="fa-solid fa-user-check text-success"></i> ស្រង់វត្តមានសិស្សានុសិស្ស</h1>
+            <p class="page-subtitle">កត់ត្រាវត្តមានសិស្សប្រចាំថ្ងៃតាមថ្នាក់ និងវេនសិក្សា</p>
+        </div>
+        <div class="header-actions">
+            <button type="button" class="btn btn-outline" id="btnMarkAllStudentPresent">
+                <i class="fa-solid fa-check-double text-success"></i> វត្តមានទាំងអស់
+            </button>
+            <button type="button" class="btn btn-primary" id="btnSaveStudentAttendance">
+                <i class="fa-solid fa-floppy-disk"></i> រក្សាទុកទិន្នន័យ
+            </button>
+        </div>
+    </div>
+
+    <!-- Filter Control Bar -->
+    <div class="filter-bar card">
+        <form method="GET" action="{{ url_for('student_attendance_page') }}" class="filter-form" id="studentFilterForm">
+            <div class="filter-group">
+                <label><i class="fa-solid fa-chalkboard"></i> ជ្រើសរើសថ្នាក់រៀន</label>
+                <select name="class_id" class="form-control font-weight-bold" onchange="document.getElementById('studentFilterForm').submit()">
+                    {% for c in classes %}
+                    <option value="{{ c.id }}" {% if c.id == class_id %}selected{% endif %}>
+                        {{ c.class_name }} (កម្រិតទី {{ c.grade_level }}) - {{ c.student_count }} នាក់
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="filter-group">
+                <label><i class="fa-regular fa-calendar"></i> កាលបរិច្ឆេទ</label>
+                <input type="date" name="date" class="form-control" value="{{ date }}" onchange="document.getElementById('studentFilterForm').submit()">
+            </div>
+            <div class="filter-group">
+                <label><i class="fa-solid fa-sun"></i> វេនសិក្សា</label>
+                <select name="shift" class="form-control" onchange="document.getElementById('studentFilterForm').submit()">
+                    <option value="Morning" {% if shift == 'Morning' %}selected{% endif %}>ពេលព្រឹក (Morning)</option>
+                    <option value="Afternoon" {% if shift == 'Afternoon' %}selected{% endif %}>ពេលរសៀល (Afternoon)</option>
+                    <option value="FullDay" {% if shift == 'FullDay' %}selected{% endif %}>ពេញមួយថ្ងៃ (Full Day)</option>
+                </select>
+            </div>
+            <div class="filter-stats-summary">
+                <span class="badge badge-primary">សរុបសិស្សក្នុងថ្នាក់: {{ attendance_list|length }} នាក់</span>
+            </div>
+        </form>
+    </div>
+
+    <!-- Students Attendance Table -->
+    <div class="card mt-3">
+        <div class="card-header d-flex justify-between align-center">
+            <div class="card-title">
+                <i class="fa-solid fa-list-check text-primary"></i>
+                <span>បញ្ជីឈ្មោះសិស្ស៖ <strong>{{ current_class.class_name if current_class else '' }}</strong> ({{ date }})</span>
+            </div>
+            <div class="attendance-live-summary">
+                <span class="badge badge-success" id="countPresent">វត្តមាន: 0</span>
+                <span class="badge badge-warning" id="countPermission">ច្បាប់: 0</span>
+                <span class="badge badge-danger" id="countAbsent">ឥតច្បាប់: 0</span>
+                <span class="badge badge-secondary" id="countLate">យឺត: 0</span>
+            </div>
+        </div>
+
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover attendance-table" id="studentAttendanceTable">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;">ល.រ</th>
+                            <th style="width: 140px;">អត្តលេខសិស្ស</th>
+                            <th style="width: 240px;">គោត្តនាម និង នាម</th>
+                            <th style="width: 80px;">ភេទ</th>
+                            <th style="width: 320px;">ស្ថានភាពវត្តមាន</th>
+                            <th style="width: 240px;">មូលហេតុ (ពេលអវត្តមាន/ច្បាប់)</th>
+                            <th style="width: 140px;">ទូរស័ព្ទអាណាព្យាបាល</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if attendance_list %}
+                            {% for s in attendance_list %}
+                            <tr data-student-id="{{ s.student_id }}">
+                                <td class="text-center">{{ loop.index }}</td>
+                                <td>
+                                    <span class="badge badge-light fw-bold">{{ s.student_code }}</span>
+                                </td>
+                                <td>
+                                    <div class="fw-bold">{{ s.full_name_kh }}</div>
+                                    {% if s.full_name_en %}
+                                    <div class="text-muted small">{{ s.full_name_en }}</div>
+                                    {% endif %}
+                                </td>
+                                <td>{{ 'ប្រុស' if s.gender == 'M' else 'ស្រី' }}</td>
+                                <td>
+                                    <div class="status-btn-group">
+                                        <label class="status-btn status-present {% if s.status == 'PRESENT' %}active{% endif %}">
+                                            <input type="radio" name="status_{{ s.student_id }}" value="PRESENT" {% if s.status == 'PRESENT' %}checked{% endif %}>
+                                            <i class="fa-solid fa-circle-check"></i> វត្តមាន
+                                        </label>
+                                        <label class="status-btn status-permission {% if s.status == 'PERMISSION' %}active{% endif %}">
+                                            <input type="radio" name="status_{{ s.student_id }}" value="PERMISSION" {% if s.status == 'PERMISSION' %}checked{% endif %}>
+                                            <i class="fa-solid fa-envelope-open-text"></i> ច្បាប់
+                                        </label>
+                                        <label class="status-btn status-absent {% if s.status == 'ABSENT' %}active{% endif %}">
+                                            <input type="radio" name="status_{{ s.student_id }}" value="ABSENT" {% if s.status == 'ABSENT' %}checked{% endif %}>
+                                            <i class="fa-solid fa-circle-xmark"></i> ឥតច្បាប់
+                                        </label>
+                                        <label class="status-btn status-late {% if s.status == 'LATE' %}active{% endif %}">
+                                            <input type="radio" name="status_{{ s.student_id }}" value="LATE" {% if s.status == 'LATE' %}checked{% endif %}>
+                                            <i class="fa-solid fa-clock"></i> យឺត
+                                        </label>
+                                    </div>
+                                </td>
+                                <td>
+                                    <input type="text" class="form-control form-control-sm student-reason" 
+                                           placeholder="មូលហេតុ..." value="{{ s.reason or '' }}">
+                                </td>
+                                <td>
+                                    {% if s.parent_phone %}
+                                    <small><i class="fa-solid fa-phone text-muted"></i> {{ s.parent_phone }}</small>
+                                    {% else %}
+                                    <small class="text-muted">—</small>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="7" class="text-center py-4">
+                                    <div class="empty-state">
+                                        <i class="fa-solid fa-users-slash text-muted"></i>
+                                        <p>មិនមានទិន្នន័យសិស្សក្នុងថ្នាក់នេះនៅឡើយទេ</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card-footer d-flex justify-between align-center">
+            <span class="text-muted small"><i class="fa-solid fa-database"></i> ទិន្នន័យត្រូវបានរក្សាទុកក្នុង SQLite Database និងអាច Export ជា Excel / Google Sheets បានគ្រប់ពេល</span>
+            <button type="button" class="btn btn-primary" onclick="saveStudentAttendanceDirect()">
+                <i class="fa-solid fa-floppy-disk"></i> រក្សាទុកទិន្នន័យឥឡូវនេះ
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    function updateLiveCounters() {
+        let present = 0, permission = 0, absent = 0, late = 0;
+        document.querySelectorAll('#studentAttendanceTable tbody tr[data-student-id]').forEach(row => {
+            const val = row.querySelector('input[type="radio"]:checked')?.value;
+            if (val === 'PRESENT') present++;
+            else if (val === 'PERMISSION') permission++;
+            else if (val === 'ABSENT') absent++;
+            else if (val === 'LATE') late++;
+        });
+        document.getElementById('countPresent').innerText = `វត្តមាន: ${present}`;
+        document.getElementById('countPermission').innerText = `ច្បាប់: ${permission}`;
+        document.getElementById('countAbsent').innerText = `ឥតច្បាប់: ${absent}`;
+        document.getElementById('countLate').innerText = `យឺត: ${late}`;
+    }
+
+    // Attach listeners
+    document.querySelectorAll('.attendance-table input[type="radio"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            const group = this.closest('.status-btn-group');
+            group.querySelectorAll('.status-btn').forEach(btn => btn.classList.remove('active'));
+            this.closest('.status-btn').classList.add('active');
+            updateLiveCounters();
+        });
+    });
+
+    // Mark all present button
+    document.getElementById('btnMarkAllStudentPresent')?.addEventListener('click', function() {
+        document.querySelectorAll('#studentAttendanceTable tbody tr[data-student-id]').forEach(row => {
+            const presentBtn = row.querySelector('.status-present input[type="radio"]');
+            if (presentBtn) {
+                presentBtn.checked = true;
+                const group = presentBtn.closest('.status-btn-group');
+                group.querySelectorAll('.status-btn').forEach(btn => btn.classList.remove('active'));
+                presentBtn.closest('.status-btn').classList.add('active');
+            }
+        });
+        updateLiveCounters();
+        showToast('បានជ្រើសរើស "វត្តមានទាំងអស់" សម្រាប់សិស្សក្នុងថ្នាក់នេះ', 'info');
+    });
+
+    function saveStudentAttendanceDirect() {
+        const rows = document.querySelectorAll('#studentAttendanceTable tbody tr[data-student-id]');
+        const records = [];
+        const classId = parseInt("{{ class_id }}");
+        const dateStr = "{{ date }}";
+        const shift = "{{ shift }}";
+        const period = "{{ period }}";
+
+        rows.forEach(row => {
+            const studentId = parseInt(row.getAttribute('data-student-id'));
+            const selectedStatus = row.querySelector('input[type="radio"]:checked')?.value || 'PRESENT';
+            const reason = row.querySelector('.student-reason')?.value.trim() || '';
+
+            records.push({
+                student_id: studentId,
+                status: selectedStatus,
+                reason: reason
+            });
+        });
+
+        if (records.length === 0) {
+            showToast('គ្មានទិន្នន័យសិស្សសម្រាប់រក្សាទុកទេ', 'warning');
+            return;
+        }
+
+        fetch('/api/student-attendance', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                class_id: classId,
+                date: dateStr,
+                shift: shift,
+                period: period,
+                records: records
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                showToast(data.message, 'success');
+            } else {
+                showToast(data.message, 'danger');
+            }
+        })
+        .catch(err => {
+            showToast('បរាជ័យក្នុងការរក្សាទុក៖ ' + err, 'danger');
+        });
+    }
+
+    document.getElementById('btnSaveStudentAttendance')?.addEventListener('click', saveStudentAttendanceDirect);
+
+    // Initial counter load
+    updateLiveCounters();
+</script>
+{% endblock %}

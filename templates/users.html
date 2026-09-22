@@ -1,0 +1,292 @@
+{% extends "base.html" %}
+
+{% block title %}គ្រប់គ្រងគណនីអ្នកប្រើប្រាស់ (User Management){% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-title-group">
+        <h1 class="page-title">
+            <i class="fa-solid fa-users-gear text-primary"></i>
+            <span>គ្រប់គ្រងគណនីអ្នកប្រើប្រាស់ (User Accounts)</span>
+        </h1>
+        <p class="page-subtitle">បញ្ជីឈ្មោះគណនី Username និង Password សម្រាប់ Admin និងលោកគ្រូ-អ្នកគ្រូទាំងអស់</p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('export_users_excel_route') }}" class="btn-success">
+            <i class="fa-solid fa-file-excel"></i>
+            <span>ទាញយកបញ្ជី Username & Password (Excel)</span>
+        </a>
+    </div>
+</div>
+
+<!-- Stats Grid -->
+<div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-bottom: 24px;">
+    <div class="stat-card">
+        <div class="stat-icon" style="background: #eff6ff; color: #2563eb;">
+            <i class="fa-solid fa-users"></i>
+        </div>
+        <div class="stat-info">
+            <div class="stat-value" id="totalUsersCount">{{ users|length }}</div>
+            <div class="stat-label">គណនីសរុបក្នុងប្រព័ន្ធ</div>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon" style="background: #fdf2f8; color: #db2777;">
+            <i class="fa-solid fa-user-shield"></i>
+        </div>
+        <div class="stat-info">
+            <div class="stat-value">
+                {{ users|selectattr('role', 'equalto', 'admin')|list|length }}
+            </div>
+            <div class="stat-label">អ្នកគ្រប់គ្រង (Admin)</div>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon" style="background: #ecfdf5; color: #10b981;">
+            <i class="fa-solid fa-chalkboard-user"></i>
+        </div>
+        <div class="stat-info">
+            <div class="stat-value">
+                {{ users|selectattr('role', 'equalto', 'teacher')|list|length }}
+            </div>
+            <div class="stat-label">គ្រូបង្រៀន (Teachers)</div>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon" style="background: #fef3c7; color: #d97706;">
+            <i class="fa-solid fa-key"></i>
+        </div>
+        <div class="stat-info">
+            <div class="stat-value" style="font-size: 1.15rem; padding-top: 4px;">123456</div>
+            <div class="stat-label">លេខសម្ងាត់លំនាំដើមគ្រូ</div>
+        </div>
+    </div>
+</div>
+
+<!-- Information Banner -->
+<div class="alert alert-info" style="background:#eff6ff; border:1px solid #bfdbfe; color:#1e40af; border-radius:12px; padding:14px 18px; margin-bottom:24px; display:flex; align-items:center; gap:12px;">
+    <i class="fa-solid fa-circle-info" style="font-size:1.25rem;"></i>
+    <div style="font-size:0.9rem; line-height:1.5;">
+        <strong>ព័ត៌មានគណនី៖</strong> លោកគ្រូ-អ្នកគ្រូ ប្រើប្រាស់ <strong>អត្តលេខមន្ត្រីរាជការ (Teacher Code)</strong> ជា Username និងលេខសម្ងាត់លំនាំដើម <strong>123456</strong>។ 
+        លោកអ្នកអាចចុចប៊ូតុង <strong>«ទាញយកបញ្ជី Username & Password (Excel)»</strong> ខាងលើដើម្បីចែកជូនបុគ្គលិក។
+    </div>
+</div>
+
+<!-- Main Table Card -->
+<div class="card">
+    <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+        <h3 class="card-title" style="margin:0;">
+            <i class="fa-solid fa-list-check text-primary"></i>
+            <span>បញ្ជីគណនីទាំងអស់ (<span id="visibleCount">{{ users|length }}</span>)</span>
+        </h3>
+
+        <!-- Search and Filter -->
+        <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+            <div style="position:relative; width:260px;">
+                <input type="text" id="userSearchInput" class="form-control" placeholder="ស្វែងរកតាមឈ្មោះ ឬ Username..." style="padding-left:36px;">
+                <i class="fa-solid fa-magnifying-glass" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:#94a3b8;"></i>
+            </div>
+
+            <select id="roleFilterSelect" class="form-control" style="width:160px;">
+                <option value="all">តួនាទីទាំងអស់</option>
+                <option value="admin">Admin ប៉ុណ្ណោះ</option>
+                <option value="teacher">គ្រូបង្រៀន ប៉ុណ្ណោះ</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="data-table" id="usersTable">
+            <thead>
+                <tr>
+                    <th style="width: 50px; text-align: center;">ល.រ</th>
+                    <th>Username (អត្តលេខ)</th>
+                    <th>គោត្តនាម និងនាម</th>
+                    <th style="text-align: center;">តួនាទី</th>
+                    <th>មុខវិជ្ជា</th>
+                    <th>លេខទូរស័ព្ទ</th>
+                    <th style="text-align: center;">Password Hint</th>
+                    <th>ចូលចុងក្រោយ</th>
+                    <th style="text-align: center; width: 140px;">សកម្មភាព</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in users %}
+                <tr class="user-row" data-role="{{ u.role }}" data-search="{{ u.username }} {{ u.full_name_kh }} {{ u.phone or '' }} {{ u.subject or '' }}">
+                    <td style="text-align: center; font-weight: 600; color: #64748b;">{{ loop.index }}</td>
+                    <td>
+                        <strong style="font-family: monospace; font-size: 0.95rem; color: #0f172a;">
+                            {{ u.username }}
+                        </strong>
+                    </td>
+                    <td>
+                        <div style="font-weight: 600; color: #1e293b;">
+                            {{ u.full_name_kh }}
+                        </div>
+                    </td>
+                    <td style="text-align: center;">
+                        {% if u.role == 'admin' %}
+                            <span class="badge" style="background:#fce7f3; color:#be185d; border:1px solid #fbcfe8; padding:4px 10px; border-radius:12px; font-weight:600; font-size:0.75rem;">
+                                <i class="fa-solid fa-shield-halved"></i> Administrator
+                            </span>
+                        {% else %}
+                            <span class="badge" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:4px 10px; border-radius:12px; font-weight:600; font-size:0.75rem;">
+                                <i class="fa-solid fa-chalkboard-user"></i> គ្រូបង្រៀន
+                            </span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="text-muted">{{ u.subject or '-' }}</span>
+                    </td>
+                    <td>
+                        {{ u.phone or '-' }}
+                    </td>
+                    <td style="text-align: center;">
+                        <span class="badge badge-soft" style="font-family: monospace; font-size: 0.8rem; background: #f1f5f9; color: #475569; padding: 3px 8px;">
+                            {{ u.plain_password_hint or '••••••' }}
+                        </span>
+                    </td>
+                    <td style="font-size: 0.8rem; color: #64748b;">
+                        {{ u.last_login or 'មិនទាន់ធ្លាប់ចូល' }}
+                    </td>
+                    <td style="text-align: center;">
+                        <button type="button" 
+                                class="btn-secondary btn-sm" 
+                                style="font-size: 0.8rem; padding: 5px 10px;"
+                                onclick="openResetModal({{ u.id }}, '{{ u.username }}', '{{ u.full_name_kh }}')"
+                                title="កំណត់លេខសម្ងាត់ឡើងវិញ (Reset to 123456)">
+                            <i class="fa-solid fa-rotate-left"></i>
+                            <span>Reset</span>
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Reset Password Modal -->
+<div class="modal" id="resetModal" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.6); z-index:1000; align-items:center; justify-content:center;">
+    <div style="background:#ffffff; border-radius:16px; width:100%; max-width:440px; padding:28px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.25); border:1px solid #e2e8f0;">
+        <div style="text-align:center; margin-bottom:20px;">
+            <div style="width:54px; height:54px; background:#fef3c7; color:#d97706; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 12px; font-size:1.5rem;">
+                <i class="fa-solid fa-key"></i>
+            </div>
+            <h3 style="font-size:1.2rem; font-weight:700; color:#0f172a; margin-bottom:6px;">កំណត់លេខសម្ងាត់ឡើងវិញ</h3>
+            <p style="font-size:0.88rem; color:#64748b;">តើអ្នកពិតជាចង់ Reset លេខសម្ងាត់សម្រាប់គណនីនេះទៅជា <strong>123456</strong> មែនទេ?</p>
+        </div>
+
+        <div style="background:#f8fafc; border-radius:10px; padding:14px 16px; border:1px solid #e2e8f0; margin-bottom:24px; font-size:0.88rem;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                <span style="color:#64748b;">Username:</span>
+                <strong id="resetTargetUsername" style="font-family:monospace;"></strong>
+            </div>
+            <div style="display:flex; justify-content:space-between;">
+                <span style="color:#64748b;">ឈ្មោះពេញ:</span>
+                <strong id="resetTargetName"></strong>
+            </div>
+        </div>
+
+        <div style="display:flex; gap:12px;">
+            <button type="button" class="btn-secondary" style="flex:1; justify-content:center;" onclick="closeResetModal()">
+                បោះបង់
+            </button>
+            <button type="button" class="btn-primary" id="confirmResetBtn" style="flex:1; justify-content:center; background:#2563eb;" onclick="executeResetPassword()">
+                <i class="fa-solid fa-check"></i>
+                <span>យល់ព្រម Reset</span>
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Search and Filter Logic
+    const searchInput = document.getElementById('userSearchInput');
+    const roleFilter = document.getElementById('roleFilterSelect');
+    const rows = document.querySelectorAll('.user-row');
+    const visibleCount = document.getElementById('visibleCount');
+
+    function filterUsers() {
+        const query = (searchInput.value || '').toLowerCase().trim();
+        const role = roleFilter.value;
+        let count = 0;
+
+        rows.forEach(row => {
+            const rowRole = row.getAttribute('data-role');
+            const rowSearch = (row.getAttribute('data-search') || '').toLowerCase();
+
+            const matchQuery = !query || rowSearch.includes(query);
+            const matchRole = role === 'all' || rowRole === role;
+
+            if (matchQuery && matchRole) {
+                row.style.display = '';
+                count++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        if (visibleCount) {
+            visibleCount.textContent = count;
+        }
+    }
+
+    if (searchInput) searchInput.addEventListener('input', filterUsers);
+    if (roleFilter) roleFilter.addEventListener('change', filterUsers);
+
+    // Reset Password Modal
+    let targetUserId = null;
+    const resetModal = document.getElementById('resetModal');
+    const resetUsername = document.getElementById('resetTargetUsername');
+    const resetName = document.getElementById('resetTargetName');
+
+    function openResetModal(userId, username, fullName) {
+        targetUserId = userId;
+        resetUsername.textContent = username;
+        resetName.textContent = fullName;
+        resetModal.style.display = 'flex';
+    }
+
+    function closeResetModal() {
+        resetModal.style.display = 'none';
+        targetUserId = null;
+    }
+
+    async function executeResetPassword() {
+        if (!targetUserId) return;
+        const btn = document.getElementById('confirmResetBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> កំពុងដំណើរការ...';
+
+        try {
+            const res = await fetch(`/users/reset-password/${targetUserId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const data = await res.json();
+            if (data.success) {
+                if (window.showToast) {
+                    showToast('ជោគជ័យ!', data.message || 'បានកំណត់លេខសម្ងាត់ឡើងវិញ!', 'success');
+                } else {
+                    alert(data.message || 'បានកំណត់លេខសម្ងាត់ឡើងវិញជោគជ័យ!');
+                }
+                setTimeout(() => window.location.reload(), 800);
+            } else {
+                alert(data.message || 'មានបញ្ហាក្នុងការកំណត់លេខសម្ងាត់');
+            }
+        } catch (e) {
+            alert('កំហុសប្រព័ន្ធ៖ មិនអាចភ្ជាប់ទៅកាន់ Server បានទេ');
+        } finally {
+            closeResetModal();
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-check"></i> <span>យល់ព្រម Reset</span>';
+        }
+    }
+</script>
+{% endblock %}

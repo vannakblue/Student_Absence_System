@@ -1,0 +1,354 @@
+{% extends "base.html" %}
+
+{% block title %}គ្រប់គ្រងសិស្សានុសិស្ស{% endblock %}
+
+{% block content %}
+<div class="students-page">
+    <div class="page-header-row">
+        <div>
+            <h1 class="page-title"><i class="fa-solid fa-users text-primary"></i> បញ្ជីសិស្សានុសិស្ស</h1>
+            <p class="page-subtitle">គ្រប់គ្រងព័ត៌មានសិស្ស ថ្នាក់រៀន និងទំនាក់ទំនងអាណាព្យាបាល</p>
+        </div>
+        <div class="header-actions">
+            <button class="btn btn-outline" onclick="openClassModal()">
+                <i class="fa-solid fa-folder-plus text-primary"></i> បង្កើតថ្នាក់រៀនថ្មី
+            </button>
+            <button class="btn btn-primary" onclick="openStudentModal()">
+                <i class="fa-solid fa-user-plus"></i> បន្ថែមសិស្សថ្មី
+            </button>
+        </div>
+    </div>
+
+    <!-- Filter & Search Controls -->
+    <div class="card mb-3 p-3">
+        <div class="d-flex justify-between align-center flex-wrap gap-2">
+            <div class="d-flex align-center gap-2 flex-wrap">
+                <div class="search-box">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="studentSearchInput" class="form-control" placeholder="ស្វែងរកតាមឈ្មោះ ឬអត្តលេខ...">
+                </div>
+                <div class="filter-group-inline">
+                    <select id="classFilterSelect" class="form-control" onchange="filterByClass(this.value)">
+                        <option value="">-- បង្ហាញគ្រប់ថ្នាក់រៀនទាំងអស់ --</option>
+                        {% for c in classes %}
+                        <option value="{{ c.id }}" {% if c.id == selected_class_id %}selected{% endif %}>
+                            {{ c.class_name }} ({{ c.student_count }} នាក់)
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="text-muted small">
+                សរុបសិស្ស៖ <strong class="text-primary">{{ students|length }}</strong> នាក់
+            </div>
+        </div>
+    </div>
+
+    <!-- Students Table -->
+    <div class="card">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover" id="studentsTable">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;">ល.រ</th>
+                            <th style="width: 120px;">អត្តលេខ</th>
+                            <th style="width: 220px;">គោត្តនាម-នាម</th>
+                            <th style="width: 70px;">ភេទ</th>
+                            <th style="width: 120px;">ថ្នាក់រៀន</th>
+                            <th style="width: 120px;">ថ្ងៃខែឆ្នាំកំណើត</th>
+                            <th style="width: 160px;">អាណាព្យាបាល</th>
+                            <th style="width: 140px;">លេខទូរស័ព្ទ</th>
+                            <th style="width: 100px;" class="text-center">សកម្មភាព</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for s in students %}
+                        <tr data-student-row="{{ s.student_code }} {{ s.full_name_kh }} {{ s.full_name_en or '' }} {{ s.class_name }}">
+                            <td class="text-center">{{ loop.index }}</td>
+                            <td><span class="badge badge-light fw-bold">{{ s.student_code }}</span></td>
+                            <td>
+                                <div class="fw-bold">{{ s.full_name_kh }}</div>
+                                {% if s.full_name_en %}
+                                <small class="text-muted">{{ s.full_name_en }}</small>
+                                {% endif %}
+                            </td>
+                            <td>{{ 'ប្រុស' if s.gender == 'M' else 'ស្រី' }}</td>
+                            <td><span class="badge badge-primary">{{ s.class_name }}</span></td>
+                            <td>{{ s.dob or '—' }}</td>
+                            <td>{{ s.parent_name or '—' }}</td>
+                            <td>
+                                {% if s.parent_phone %}
+                                    <small><i class="fa-solid fa-phone text-muted"></i> {{ s.parent_phone }}</small>
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <button class="btn-icon text-primary" title="កែប្រែ" onclick='editStudent({{ s|tojson }})'>
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                </button>
+                                <button class="btn-icon text-danger" title="លុប" onclick="deleteStudent({{ s.id }}, '{{ s.full_name_kh }}')">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Student Modal Form -->
+<div class="modal-backdrop" id="studentModal">
+    <div class="modal-dialog">
+        <div class="modal-header">
+            <h3 class="modal-title" id="studentModalTitle">បន្ថែមសិស្សថ្មី</h3>
+            <button class="modal-close" onclick="closeStudentModal()">&times;</button>
+        </div>
+        <form id="studentForm" onsubmit="handleStudentSubmit(event)">
+            <input type="hidden" id="studentId" value="">
+            <div class="modal-body">
+                <div class="grid-2-col">
+                    <div class="form-group">
+                        <label class="form-label">អត្តលេខសិស្ស *</label>
+                        <input type="text" id="studentCode" class="form-control" placeholder="ឧ. STU07-001" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">ថ្នាក់រៀន *</label>
+                        <select id="studentClassId" class="form-control" required>
+                            {% for c in classes %}
+                            <option value="{{ c.id }}">{{ c.class_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid-2-col">
+                    <div class="form-group">
+                        <label class="form-label">គោត្តនាម និងនាម (ខ្មែរ) *</label>
+                        <input type="text" id="studentNameKh" class="form-control" placeholder="ឧ. សុខ ពិសិដ្ឋ" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">ឈ្មោះឡាតាំង</label>
+                        <input type="text" id="studentNameEn" class="form-control" placeholder="ឧ. Sok Piseth">
+                    </div>
+                </div>
+
+                <div class="grid-2-col">
+                    <div class="form-group">
+                        <label class="form-label">ភេទ *</label>
+                        <select id="studentGender" class="form-control" required>
+                            <option value="M">ប្រុស (M)</option>
+                            <option value="F">ស្រី (F)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">ថ្ងៃខែឆ្នាំកំណើត</label>
+                        <input type="date" id="studentDob" class="form-control">
+                    </div>
+                </div>
+
+                <div class="grid-2-col">
+                    <div class="form-group">
+                        <label class="form-label">ឈ្មោះអាណាព្យាបាល</label>
+                        <input type="text" id="studentParentName" class="form-control" placeholder="ឧ. សុខ សារឿន">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">លេខទូរស័ព្ទអាណាព្យាបាល</label>
+                        <input type="text" id="studentParentPhone" class="form-control" placeholder="012 345 678">
+                    </div>
+                </div>
+
+                <div class="form-group mb-2">
+                    <label class="form-label"><i class="fa-brands fa-telegram text-info"></i> Telegram អាណាព្យាបាល (Chat ID ឬ @username)</label>
+                    <input type="text" id="studentParentTelegram" class="form-control" placeholder="ឧ. 123456789 ឬ @parent_username">
+                    <small class="text-muted">សម្រាប់ទទួលដំណឹងអវត្តមានកូនតាមម៉ោងសិក្សា</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeStudentModal()">បោះបង់</button>
+                <button type="submit" class="btn btn-primary">រក្សាទុក</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Class Modal Form -->
+<div class="modal-backdrop" id="classModal">
+    <div class="modal-dialog">
+        <div class="modal-header">
+            <h3 class="modal-title">បង្កើតថ្នាក់រៀនថ្មី</h3>
+            <button class="modal-close" onclick="closeClassModal()">&times;</button>
+        </div>
+        <form id="classForm" onsubmit="handleClassSubmit(event)">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">ឈ្មោះថ្នាក់រៀន *</label>
+                    <input type="text" id="className" class="form-control" placeholder="ឧ. ថ្នាក់ ៩ក, ១១វិទ្យាសាស្ត្រ" required>
+                </div>
+                <div class="grid-2-col">
+                    <div class="form-group">
+                        <label class="form-label">កម្រិតថ្នាក់ (Grade) *</label>
+                        <input type="number" id="classGrade" class="form-control" min="1" max="12" value="7" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">វេនសិក្សា *</label>
+                        <select id="classShift" class="form-control">
+                            <option value="Morning">ពេលព្រឹក (Morning)</option>
+                            <option value="Afternoon">ពេលរសៀល (Afternoon)</option>
+                            <option value="FullDay">ពេញមួយថ្ងៃ (Full Day)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">លេខបន្ទប់សិក្សា</label>
+                    <input type="text" id="classRoom" class="form-control" placeholder="ឧ. B-105">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeClassModal()">បោះបង់</button>
+                <button type="submit" class="btn btn-primary">បង្កើតថ្នាក់រៀន</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    document.getElementById('studentSearchInput')?.addEventListener('input', function(e) {
+        const term = e.target.value.toLowerCase().trim();
+        document.querySelectorAll('#studentsTable tbody tr[data-student-row]').forEach(row => {
+            const text = row.getAttribute('data-student-row').toLowerCase();
+            row.style.display = text.includes(term) ? '' : 'none';
+        });
+    });
+
+    function filterByClass(classId) {
+        if (classId) {
+            window.location.href = `/students?class_id=${classId}`;
+        } else {
+            window.location.href = `/students`;
+        }
+    }
+
+    function openStudentModal() {
+        document.getElementById('studentModalTitle').innerText = 'បន្ថែមសិស្សថ្មី';
+        document.getElementById('studentId').value = '';
+        document.getElementById('studentCode').value = '';
+        document.getElementById('studentNameKh').value = '';
+        document.getElementById('studentNameEn').value = '';
+        document.getElementById('studentGender').value = 'M';
+        document.getElementById('studentDob').value = '';
+        document.getElementById('studentParentName').value = '';
+        document.getElementById('studentParentPhone').value = '';
+        document.getElementById('studentParentTelegram').value = '';
+        document.getElementById('studentModal').classList.add('show');
+    }
+
+    function closeStudentModal() {
+        document.getElementById('studentModal').classList.remove('show');
+    }
+
+    function openClassModal() {
+        document.getElementById('classModal').classList.add('show');
+    }
+
+    function closeClassModal() {
+        document.getElementById('classModal').classList.remove('show');
+    }
+
+    function editStudent(s) {
+        document.getElementById('studentModalTitle').innerText = 'កែប្រែព័ត៌មានសិស្ស';
+        document.getElementById('studentId').value = s.id;
+        document.getElementById('studentCode').value = s.student_code;
+        document.getElementById('studentNameKh').value = s.full_name_kh;
+        document.getElementById('studentNameEn').value = s.full_name_en || '';
+        document.getElementById('studentGender').value = s.gender;
+        document.getElementById('studentClassId').value = s.class_id;
+        document.getElementById('studentDob').value = s.dob || '';
+        document.getElementById('studentParentName').value = s.parent_name || '';
+        document.getElementById('studentParentPhone').value = s.parent_phone || '';
+        document.getElementById('studentParentTelegram').value = s.parent_telegram || '';
+        document.getElementById('studentModal').classList.add('show');
+    }
+
+    function handleStudentSubmit(e) {
+        e.preventDefault();
+        const sid = document.getElementById('studentId').value;
+        const payload = {
+            student_code: document.getElementById('studentCode').value.trim(),
+            full_name_kh: document.getElementById('studentNameKh').value.trim(),
+            full_name_en: document.getElementById('studentNameEn').value.trim(),
+            gender: document.getElementById('studentGender').value,
+            class_id: parseInt(document.getElementById('studentClassId').value),
+            dob: document.getElementById('studentDob').value,
+            parent_name: document.getElementById('studentParentName').value.trim(),
+            parent_phone: document.getElementById('studentParentPhone').value.trim(),
+            parent_telegram: document.getElementById('studentParentTelegram').value.trim()
+        };
+
+        const url = sid ? `/api/students/${sid}` : '/api/students';
+        const method = sid ? 'PUT' : 'POST';
+
+        fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                showToast(data.message, 'success');
+                closeStudentModal();
+                setTimeout(() => window.location.reload(), 800);
+            } else {
+                showToast(data.message, 'danger');
+            }
+        });
+    }
+
+    function deleteStudent(sid, name) {
+        if (!confirm(`តើលោកអ្នកពិតជាចង់លុបសិស្ស "${name}" មែនឬទេ?`)) return;
+        fetch(`/api/students/${sid}`, { method: 'DELETE' })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                showToast(data.message, 'success');
+                setTimeout(() => window.location.reload(), 800);
+            } else {
+                showToast(data.message, 'danger');
+            }
+        });
+    }
+
+    function handleClassSubmit(e) {
+        e.preventDefault();
+        const payload = {
+            class_name: document.getElementById('className').value.trim(),
+            grade_level: parseInt(document.getElementById('classGrade').value),
+            shift: document.getElementById('classShift').value,
+            room_number: document.getElementById('classRoom').value.trim()
+        };
+
+        fetch('/api/classes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                showToast(data.message, 'success');
+                closeClassModal();
+                setTimeout(() => window.location.reload(), 800);
+            } else {
+                showToast(data.message, 'danger');
+            }
+        });
+    }
+</script>
+{% endblock %}

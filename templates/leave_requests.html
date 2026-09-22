@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+
+{% block title %}ពាក្យសុំច្បាប់ (Leave Requests){% endblock %}
+
+{% block content %}
+<div class="leave-requests-page">
+    <div class="page-header-row">
+        <div>
+            <h1 class="page-title"><i class="fa-solid fa-calendar-minus text-primary"></i> ពាក្យសុំច្បាប់ (Leave Requests)</h1>
+            <p class="page-subtitle">កត់ត្រា និងអនុម័តច្បាប់ឈប់សម្រាករបស់គ្រូបង្រៀន និងសិស្សានុសិស្ស</p>
+        </div>
+        <div class="header-actions">
+            <button class="btn btn-primary" onclick="openLeaveModal()">
+                <i class="fa-solid fa-plus"></i> កត់ត្រាច្បាប់ថ្មី
+            </button>
+        </div>
+    </div>
+
+    <!-- Table of Leave Requests -->
+    <div class="card">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;">ល.រ</th>
+                            <th style="width: 120px;">ប្រភេទ</th>
+                            <th style="width: 220px;">ឈ្មោះ / អត្តលេខ</th>
+                            <th style="width: 130px;">កាលបរិច្ឆេទចាប់ផ្ដើម</th>
+                            <th style="width: 130px;">កាលបរិច្ឆេទបញ្ចប់</th>
+                            <th style="width: 240px;">មូលហេតុសុំច្បាប់</th>
+                            <th style="width: 130px;">អ្នកអនុម័ត</th>
+                            <th style="width: 100px;">ស្ថានភាព</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if requests %}
+                            {% for r in requests %}
+                            <tr>
+                                <td class="text-center">{{ loop.index }}</td>
+                                <td>
+                                    {% if r.person_type == 'TEACHER' %}
+                                        <span class="badge badge-primary"><i class="fa-solid fa-chalkboard-user"></i> គ្រូបង្រៀន</span>
+                                    {% else %}
+                                        <span class="badge badge-info"><i class="fa-solid fa-user-graduate"></i> សិស្ស</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="fw-bold">{{ r.person_name_kh }}</div>
+                                    <small class="text-muted">{{ r.person_code }}</small>
+                                </td>
+                                <td>{{ r.start_date }}</td>
+                                <td>{{ r.end_date }}</td>
+                                <td>{{ r.reason }}</td>
+                                <td>{{ r.approved_by or 'នាយកសាលា' }}</td>
+                                <td>
+                                    <span class="badge badge-success"><i class="fa-solid fa-circle-check"></i> បានអនុម័ត</span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="8" class="text-center py-4">
+                                    <div class="empty-state">
+                                        <i class="fa-solid fa-inbox text-muted"></i>
+                                        <p>មិនទាន់មានពាក្យសុំច្បាប់នៅឡើយទេ</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Leave Modal -->
+<div class="modal-backdrop" id="leaveModal">
+    <div class="modal-dialog">
+        <div class="modal-header">
+            <h3 class="modal-title">កត់ត្រាពាក្យសុំច្បាប់ថ្មី</h3>
+            <button class="modal-close" onclick="closeLeaveModal()">&times;</button>
+        </div>
+        <form id="leaveForm" onsubmit="handleLeaveSubmit(event)">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">ប្រភេទបុគ្គលិក/សិស្ស *</label>
+                    <select id="leavePersonType" class="form-control" onchange="togglePersonDropdown(this.value)">
+                        <option value="TEACHER">គ្រូបង្រៀន (Teacher)</option>
+                        <option value="STUDENT">សិស្សានុសិស្ស (Student)</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="teacherSelectGroup">
+                    <label class="form-label">ជ្រើសរើសគ្រូបង្រៀន *</label>
+                    <select id="leaveTeacherId" class="form-control">
+                        {% for t in teachers %}
+                        <option value="{{ t.id }}">{{ t.full_name_kh }} ({{ t.subject }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group" id="studentSelectGroup" style="display: none;">
+                    <label class="form-label">ជ្រើសរើសសិស្ស *</label>
+                    <select id="leaveStudentId" class="form-control">
+                        {% for s in students %}
+                        <option value="{{ s.id }}">{{ s.full_name_kh }} - {{ s.student_code }} ({{ s.class_name }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="grid-2-col">
+                    <div class="form-group">
+                        <label class="form-label">កាលបរិច្ឆេទចាប់ផ្ដើម *</label>
+                        <input type="date" id="leaveStartDate" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">កាលបរិច្ឆេទបញ្ចប់ *</label>
+                        <input type="date" id="leaveEndDate" class="form-control" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">មូលហេតុសុំច្បាប់ *</label>
+                    <textarea id="leaveReason" class="form-control" rows="3" placeholder="បញ្ជាក់មូលហេតុ (ឧ. ឈឺ មានធុរៈគ្រួសារ...)" required></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">អ្នកអនុម័ត</label>
+                    <input type="text" id="leaveApprovedBy" class="form-control" value="នាយកសាលា">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeLeaveModal()">បោះបង់</button>
+                <button type="submit" class="btn btn-primary">រក្សាទុកច្បាប់</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    function openLeaveModal() {
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('leaveStartDate').value = today;
+        document.getElementById('leaveEndDate').value = today;
+        document.getElementById('leaveReason').value = '';
+        document.getElementById('leaveModal').classList.add('show');
+    }
+
+    function closeLeaveModal() {
+        document.getElementById('leaveModal').classList.remove('show');
+    }
+
+    function togglePersonDropdown(type) {
+        if (type === 'TEACHER') {
+            document.getElementById('teacherSelectGroup').style.display = '';
+            document.getElementById('studentSelectGroup').style.display = 'none';
+        } else {
+            document.getElementById('teacherSelectGroup').style.display = 'none';
+            document.getElementById('studentSelectGroup').style.display = '';
+        }
+    }
+
+    function handleLeaveSubmit(e) {
+        e.preventDefault();
+        const ptype = document.getElementById('leavePersonType').value;
+        const pid = ptype === 'TEACHER' 
+            ? document.getElementById('leaveTeacherId').value 
+            : document.getElementById('leaveStudentId').value;
+
+        const payload = {
+            person_type: ptype,
+            person_id: parseInt(pid),
+            start_date: document.getElementById('leaveStartDate').value,
+            end_date: document.getElementById('leaveEndDate').value,
+            reason: document.getElementById('leaveReason').value.trim(),
+            approved_by: document.getElementById('leaveApprovedBy').value.trim()
+        };
+
+        fetch('/api/leave-requests', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                showToast(data.message, 'success');
+                closeLeaveModal();
+                setTimeout(() => window.location.reload(), 800);
+            } else {
+                showToast(data.message, 'danger');
+            }
+        });
+    }
+</script>
+{% endblock %}

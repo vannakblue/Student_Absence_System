@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ចូលប្រើប្រាស់ប្រព័ន្ធ (Login) | {{ global_school_name_kh }}</title>
+    
+    <!-- Google Fonts: Kantumruy Pro & Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Kantumruy+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --primary-gradient: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+            --accent: #8b5cf6;
+            --dark: #0f172a;
+            --text-muted: #64748b;
+            --bg-gradient: linear-gradient(135deg, #0b0f19 0%, #1e1b4b 50%, #0f172a 100%);
+            --card-bg: rgba(255, 255, 255, 0.98);
+            --radius-lg: 20px;
+            --radius-md: 12px;
+            --shadow-card: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Kantumruy Pro', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-gradient);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: #1e293b;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* Decorative Background Orbs */
+        .bg-orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            z-index: 0;
+            pointer-events: none;
+            opacity: 0.45;
+        }
+        .bg-orb-1 {
+            width: 380px;
+            height: 380px;
+            background: #3b82f6;
+            top: -60px;
+            right: -60px;
+        }
+        .bg-orb-2 {
+            width: 320px;
+            height: 320px;
+            background: #8b5cf6;
+            bottom: -50px;
+            left: -50px;
+        }
+
+        .login-wrapper {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 460px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /* School Branding Header */
+        .school-brand {
+            text-align: center;
+            color: #ffffff;
+        }
+        .brand-icon-wrapper {
+            width: 68px;
+            height: 68px;
+            background: rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            color: #60a5fa;
+            margin: 0 auto 14px;
+            box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.4);
+        }
+        .school-brand h1 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: -0.01em;
+            margin-bottom: 4px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        .school-brand p {
+            font-size: 0.88rem;
+            color: #94a3b8;
+        }
+
+        /* Glassmorphic Login Card */
+        .login-card {
+            background: var(--card-bg);
+            border-radius: var(--radius-lg);
+            padding: 36px 32px;
+            box-shadow: var(--shadow-card);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(16px);
+        }
+
+        .card-header {
+            margin-bottom: 24px;
+            text-align: center;
+        }
+        .card-header h2 {
+            font-size: 1.35rem;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 6px;
+        }
+        .card-header p {
+            font-size: 0.88rem;
+            color: var(--text-muted);
+        }
+
+        /* Alerts */
+        .alert {
+            padding: 12px 16px;
+            border-radius: var(--radius-md);
+            font-size: 0.88rem;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            line-height: 1.4;
+        }
+        .alert-danger {
+            background-color: #fef2f2;
+            color: #b91c1c;
+            border: 1px solid #fecaca;
+        }
+        .alert-success {
+            background-color: #f0fdf4;
+            color: #15803d;
+            border: 1px solid #bbf7d0;
+        }
+        .alert-info {
+            background-color: #eff6ff;
+            color: #1d4ed8;
+            border: 1px solid #bfdbfe;
+        }
+
+        /* Form Controls */
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-label {
+            display: block;
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: #334155;
+            margin-bottom: 8px;
+        }
+        .input-group {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        .input-icon {
+            position: absolute;
+            left: 14px;
+            color: #94a3b8;
+            font-size: 1rem;
+            pointer-events: none;
+            transition: color 0.2s;
+        }
+        .form-input {
+            width: 100%;
+            height: 48px;
+            padding: 0 44px 0 42px;
+            font-family: inherit;
+            font-size: 0.95rem;
+            color: #0f172a;
+            background: #f8fafc;
+            border: 1.5px solid #e2e8f0;
+            border-radius: var(--radius-md);
+            outline: none;
+            transition: all 0.2s ease;
+        }
+        .form-input:focus {
+            background: #ffffff;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+        }
+        .form-input:focus + .input-icon {
+            color: #2563eb;
+        }
+
+        .toggle-password {
+            position: absolute;
+            right: 12px;
+            background: transparent;
+            border: none;
+            color: #94a3b8;
+            cursor: pointer;
+            padding: 6px;
+            font-size: 1rem;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.2s;
+        }
+        .toggle-password:hover {
+            color: #334155;
+        }
+
+        /* Remember Row */
+        .form-options {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+            font-size: 0.85rem;
+        }
+        .remember-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #475569;
+            cursor: pointer;
+            user-select: none;
+        }
+        .remember-label input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            accent-color: #2563eb;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        /* Submit Button */
+        .btn-submit {
+            width: 100%;
+            height: 50px;
+            background: var(--primary-gradient);
+            color: #ffffff;
+            border: none;
+            border-radius: var(--radius-md);
+            font-family: inherit;
+            font-size: 1rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            cursor: pointer;
+            box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+            transition: all 0.2s ease;
+        }
+        .btn-submit:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.45);
+        }
+        .btn-submit:active {
+            transform: translateY(1px);
+        }
+
+        /* Quick Account Helper Pills */
+        .quick-accounts {
+            margin-top: 24px;
+            padding-top: 20px;
+            border-top: 1px dashed #e2e8f0;
+        }
+        .quick-accounts-title {
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #94a3b8;
+            font-weight: 600;
+            margin-bottom: 12px;
+            text-align: center;
+        }
+        .account-chips {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .account-chip {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            padding: 9px 12px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.82rem;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            text-align: left;
+        }
+        .account-chip:hover {
+            background: #eff6ff;
+            border-color: #bfdbfe;
+            transform: translateX(2px);
+        }
+        .chip-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .chip-role {
+            font-weight: 600;
+            color: #1e293b;
+        }
+        .chip-sub {
+            color: #64748b;
+            font-size: 0.75rem;
+        }
+        .chip-btn {
+            background: #e0e7ff;
+            color: #4338ca;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 0.72rem;
+            font-weight: 600;
+        }
+
+        .footer-note {
+            text-align: center;
+            color: #64748b;
+            font-size: 0.8rem;
+            line-height: 1.5;
+            margin-top: 16px;
+        }
+        .footer-note strong {
+            color: #e2e8f0;
+        }
+    </style>
+</head>
+<body>
+    <!-- Background glowing orbs -->
+    <div class="bg-orb bg-orb-1"></div>
+    <div class="bg-orb bg-orb-2"></div>
+
+    <div class="login-wrapper">
+        <!-- School Branding -->
+        <div class="school-brand">
+            <div class="brand-icon-wrapper">
+                <i class="fa-solid fa-graduation-cap"></i>
+            </div>
+            <h1>{{ global_school_name_kh }}</h1>
+            <p>ប្រព័ន្ធគ្រប់គ្រងអវត្តមានសិស្ស និងគ្រូបង្រៀន</p>
+        </div>
+
+        <!-- Login Form Card -->
+        <div class="login-card">
+            <div class="card-header">
+                <h2>ចូលប្រើប្រាស់គណនី</h2>
+                <p>សូមបញ្ចូលឈ្មោះគណនី ឬអត្តលេខគ្រូដើម្បីបន្ត</p>
+            </div>
+
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category if category != 'error' else 'danger' }}">
+                            <i class="fa-solid fa-circle-exclamation"></i>
+                            <span>{{ message }}</span>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            {% if error %}
+                <div class="alert alert-danger">
+                    <i class="fa-solid fa-circle-exclamation"></i>
+                    <span>{{ error }}</span>
+                </div>
+            {% endif %}
+
+            <form method="POST" action="{{ url_for('login', next=request.args.get('next')) }}">
+                <!-- Username -->
+                <div class="form-group">
+                    <label for="usernameInput" class="form-label">ឈ្មោះគណនី ឬ អត្តលេខគ្រូ (Username / ID)</label>
+                    <div class="input-group">
+                        <input type="text" 
+                               id="usernameInput" 
+                               name="username" 
+                               class="form-input" 
+                               placeholder="ឧ. admin ឬ 2890800096"
+                               value="{{ username or '' }}"
+                               required 
+                               autofocus
+                               autocomplete="username">
+                        <i class="fa-solid fa-user input-icon"></i>
+                    </div>
+                </div>
+
+                <!-- Password -->
+                <div class="form-group">
+                    <label for="passwordInput" class="form-label">លេខសម្ងាត់ (Password)</label>
+                    <div class="input-group">
+                        <input type="password" 
+                               id="passwordInput" 
+                               name="password" 
+                               class="form-input" 
+                               placeholder="បញ្ចូលលេខសម្ងាត់របស់អ្នក"
+                               required
+                               autocomplete="current-password">
+                        <i class="fa-solid fa-lock input-icon"></i>
+                        <button type="button" class="toggle-password" id="togglePasswordBtn" title="បង្ហាញ/លាក់លេខសម្ងាត់">
+                            <i class="fa-solid fa-eye" id="togglePasswordIcon"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Options -->
+                <div class="form-options">
+                    <label class="remember-label">
+                        <input type="checkbox" name="remember" value="1" checked>
+                        <span>ចងចាំការចូលប្រើលើឧបករណ៍នេះ</span>
+                    </label>
+                </div>
+
+                <!-- Submit -->
+                <button type="submit" class="btn-submit" id="submitBtn">
+                    <i class="fa-solid fa-arrow-right-to-bracket"></i>
+                    <span>ចូលប្រើប្រាស់ប្រព័ន្ធ</span>
+                </button>
+            </form>
+
+            <!-- Quick Account Chips for Easy Handover / Testing -->
+            <div class="quick-accounts">
+                <div class="quick-accounts-title">ចុចដើម្បីបំពេញគណនីគំរូដោយស្វ័យប្រវត្តិ (Quick Fill)</div>
+                <div class="account-chips">
+                    <div class="account-chip" onclick="fillCredentials('admin', 'admin123')">
+                        <div class="chip-left">
+                            <i class="fa-solid fa-shield-halved" style="color:#2563eb;"></i>
+                            <div>
+                                <div class="chip-role">គណនី Admin (នាយកសាលា/រដ្ឋបាល)</div>
+                                <div class="chip-sub">Username: admin • Password: admin123</div>
+                            </div>
+                        </div>
+                        <span class="chip-btn">បំពេញភ្លាម</span>
+                    </div>
+
+                    <div class="account-chip" onclick="fillCredentials('2890800096', '123456')">
+                        <div class="chip-left">
+                            <i class="fa-solid fa-chalkboard-user" style="color:#10b981;"></i>
+                            <div>
+                                <div class="chip-role">គណនីគ្រូបង្រៀន (ឧ. លោកគ្រូ កែម សុង)</div>
+                                <div class="chip-sub">Username: 2890800096 • Password: 123456</div>
+                            </div>
+                        </div>
+                        <span class="chip-btn">បំពេញភ្លាម</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer-note">
+            គ្រូបង្រៀនសូមប្រើប្រាស់ <strong>អត្តលេខមន្ត្រីរាជការផ្ទាល់ខ្លួន</strong> ជា Username<br>
+            និងលេខសម្ងាត់លំនាំដើម <strong>123456</strong>។
+        </div>
+    </div>
+
+    <script>
+        // Toggle Password Visibility
+        const toggleBtn = document.getElementById('togglePasswordBtn');
+        const pwdInput = document.getElementById('passwordInput');
+        const pwdIcon = document.getElementById('togglePasswordIcon');
+
+        if (toggleBtn && pwdInput) {
+            toggleBtn.addEventListener('click', function () {
+                const isPassword = pwdInput.getAttribute('type') === 'password';
+                pwdInput.setAttribute('type', isPassword ? 'text' : 'password');
+                pwdIcon.className = isPassword ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye';
+            });
+        }
+
+        // Quick Fill Helper
+        function fillCredentials(u, p) {
+            const uInput = document.getElementById('usernameInput');
+            const pInput = document.getElementById('passwordInput');
+            if (uInput && pInput) {
+                uInput.value = u;
+                pInput.value = p;
+                pInput.focus();
+            }
+        }
+    </script>
+</body>
+</html>

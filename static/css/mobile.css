@@ -1,0 +1,610 @@
+/* ==========================================================================
+   Teacher Mobile App & Web Portal Stylesheet
+   Mobile-First, Ultra-Aesthetic Design System
+   Fonts: Kantumruy Pro & Inter
+   ========================================================================== */
+
+:root {
+    --m-primary: #2563eb;
+    --m-primary-dark: #1d4ed8;
+    --m-primary-gradient: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+    --m-success: #10b981;
+    --m-success-light: #d1fae5;
+    --m-warning: #f59e0b;
+    --m-warning-light: #fef3c7;
+    --m-danger: #ef4444;
+    --m-danger-light: #fee2e2;
+    --m-late: #64748b;
+    --m-late-light: #f1f5f9;
+
+    --m-bg: #f8fafc;
+    --m-surface: #ffffff;
+    --m-text-main: #0f172a;
+    --m-text-muted: #64748b;
+    --m-border: #e2e8f0;
+
+    --m-shadow-sm: 0 2px 4px rgba(15, 23, 42, 0.05);
+    --m-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+    --m-shadow-lg: 0 10px 25px -5px rgba(15, 23, 42, 0.15);
+    --m-radius: 16px;
+    --m-radius-sm: 10px;
+}
+
+body.mobile-portal-body {
+    background-color: #0f172a;
+    font-family: 'Kantumruy Pro', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    color: var(--m-text-main);
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    min-height: 100vh;
+}
+
+/* Mobile App Container */
+.mobile-app-container {
+    width: 100%;
+    max-width: 480px;
+    background-color: var(--m-bg);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    box-shadow: 0 0 50px rgba(0, 0, 0, 0.4);
+    padding-bottom: 80px; /* Space for bottom nav */
+}
+
+/* Mobile App Header */
+.mobile-header {
+    background: var(--m-primary-gradient);
+    color: #ffffff;
+    padding: 20px 20px 24px;
+    border-bottom-left-radius: 24px;
+    border-bottom-right-radius: 24px;
+    box-shadow: var(--m-shadow);
+}
+
+.mobile-top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.mobile-school-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    opacity: 0.95;
+}
+
+.mobile-header-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.mobile-icon-btn {
+    width: 36px;
+    height: 36px;
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    border-radius: 50%;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.mobile-icon-btn:active {
+    transform: scale(0.92);
+    background: rgba(255, 255, 255, 0.35);
+}
+
+/* Teacher Switcher Card */
+.teacher-profile-card {
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: var(--m-radius);
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+}
+
+.teacher-info-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.teacher-avatar {
+    width: 46px;
+    height: 46px;
+    background: #ffffff;
+    color: var(--m-primary);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    font-weight: bold;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+}
+
+.teacher-name-group h3 {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 700;
+}
+
+.teacher-name-group p {
+    margin: 2px 0 0;
+    font-size: 0.82rem;
+    opacity: 0.85;
+}
+
+/* Mobile Content Area */
+.mobile-content {
+    padding: 20px 16px;
+    flex: 1;
+}
+
+/* Section Title */
+.section-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+}
+
+.section-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--m-text-main);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Class Schedule Cards (Today's Classes) */
+.today-schedule-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.schedule-card {
+    background: var(--m-surface);
+    border-radius: var(--m-radius);
+    padding: 16px;
+    border: 1px solid var(--m-border);
+    box-shadow: var(--m-shadow-sm);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: all 0.2s ease;
+}
+
+.schedule-card:active {
+    transform: scale(0.98);
+}
+
+.schedule-period-badge {
+    background: var(--m-primary-gradient);
+    color: #fff;
+    width: 48px;
+    height: 48px;
+    border-radius: var(--m-radius-sm);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    line-height: 1.1;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+}
+
+.schedule-period-badge span {
+    font-size: 1.25rem;
+}
+
+.schedule-details {
+    flex: 1;
+    margin: 0 14px;
+}
+
+.schedule-class-name {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--m-text-main);
+}
+
+.schedule-subject-name {
+    font-size: 0.88rem;
+    color: var(--m-primary);
+    font-weight: 600;
+}
+
+.schedule-student-count {
+    font-size: 0.78rem;
+    color: var(--m-text-muted);
+}
+
+.btn-take-attendance {
+    background: var(--m-success);
+    color: #ffffff;
+    border: none;
+    border-radius: 20px;
+    padding: 8px 14px;
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    text-decoration: none;
+    box-shadow: 0 3px 8px rgba(16, 185, 129, 0.3);
+}
+
+/* Quick Actions Grid */
+.quick-action-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.action-tile {
+    background: var(--m-surface);
+    border: 1px solid var(--m-border);
+    border-radius: var(--m-radius);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    text-decoration: none;
+    color: var(--m-text-main);
+    box-shadow: var(--m-shadow-sm);
+    transition: all 0.2s ease;
+}
+
+.action-tile:active {
+    transform: scale(0.96);
+    background: #f1f5f9;
+}
+
+.action-tile-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    margin-bottom: 10px;
+}
+
+.action-tile-icon.blue { background: #eff6ff; color: #2563eb; }
+.action-tile-icon.amber { background: #fef3c7; color: #d97706; }
+.action-tile-icon.purple { background: #f5f3ff; color: #7c3aed; }
+.action-tile-icon.teal { background: #f0fdfa; color: #0d9488; }
+
+.action-tile h4 {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+
+.action-tile span {
+    font-size: 0.75rem;
+    color: var(--m-text-muted);
+    margin-top: 4px;
+}
+
+/* ==========================================================================
+   Mobile Touch Attendance Roster Screen
+   ========================================================================== */
+.attendance-roster-header {
+    background: #ffffff;
+    padding: 16px;
+    border-bottom: 1px solid var(--m-border);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    box-shadow: var(--m-shadow-sm);
+}
+
+.roster-quick-tools {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 12px;
+    gap: 10px;
+}
+
+.search-input-mobile {
+    flex: 1;
+    position: relative;
+}
+
+.search-input-mobile input {
+    width: 100%;
+    padding: 8px 12px 8px 34px;
+    border-radius: 20px;
+    border: 1px solid var(--m-border);
+    font-family: inherit;
+    font-size: 0.85rem;
+    box-sizing: border-box;
+}
+
+.search-input-mobile i {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--m-text-muted);
+    font-size: 14px;
+}
+
+.btn-mark-all-pill {
+    background: #ecfdf5;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+    border-radius: 20px;
+    padding: 7px 14px;
+    font-family: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+/* Student Cards List */
+.student-cards-list {
+    padding: 14px 16px 100px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.student-card {
+    background: var(--m-surface);
+    border-radius: var(--m-radius);
+    padding: 14px;
+    border: 1px solid var(--m-border);
+    box-shadow: var(--m-shadow-sm);
+    transition: all 0.2s ease;
+}
+
+.student-card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.student-identity {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.student-num {
+    width: 28px;
+    height: 28px;
+    background: #f1f5f9;
+    border-radius: 50%;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--m-text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.student-name-kh {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--m-text-main);
+}
+
+.student-code-badge {
+    font-size: 0.75rem;
+    color: var(--m-text-muted);
+}
+
+.student-gender-pill {
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-weight: 600;
+}
+
+.gender-m { background: #eff6ff; color: #1e40af; }
+.gender-f { background: #fdf2f8; color: #9d174d; }
+
+/* 4 Big Touch Attendance Toggle Buttons */
+.mobile-status-selector {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+}
+
+.touch-btn {
+    border: 1px solid var(--m-border);
+    background: #f8fafc;
+    border-radius: var(--m-radius-sm);
+    padding: 10px 4px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    font-family: inherit;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--m-text-muted);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
+}
+
+.touch-btn i {
+    font-size: 16px;
+}
+
+.touch-btn:active {
+    transform: scale(0.94);
+}
+
+/* Touch Active States */
+.touch-btn.btn-present.active {
+    background: var(--m-success);
+    color: #fff;
+    border-color: var(--m-success);
+    box-shadow: 0 3px 8px rgba(16, 185, 129, 0.35);
+}
+
+.touch-btn.btn-permission.active {
+    background: var(--m-warning);
+    color: #fff;
+    border-color: var(--m-warning);
+    box-shadow: 0 3px 8px rgba(245, 158, 11, 0.35);
+}
+
+.touch-btn.btn-absent.active {
+    background: var(--m-danger);
+    color: #fff;
+    border-color: var(--m-danger);
+    box-shadow: 0 3px 8px rgba(239, 68, 68, 0.35);
+}
+
+.touch-btn.btn-late.active {
+    background: var(--m-late);
+    color: #fff;
+    border-color: var(--m-late);
+    box-shadow: 0 3px 8px rgba(100, 116, 139, 0.35);
+}
+
+/* Inline Reason Input when not present */
+.student-reason-drawer {
+    margin-top: 10px;
+    display: none;
+}
+
+.student-reason-drawer.show {
+    display: block;
+}
+
+.student-reason-drawer input {
+    width: 100%;
+    padding: 7px 12px;
+    border-radius: var(--m-radius-sm);
+    border: 1px dashed var(--m-warning);
+    background: var(--m-warning-light);
+    font-family: inherit;
+    font-size: 0.85rem;
+    box-sizing: border-box;
+}
+
+/* Floating Sticky Bottom Save Bar */
+.floating-save-bar {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 480px;
+    background: #ffffff;
+    border-top: 1px solid var(--m-border);
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.08);
+    z-index: 100;
+    box-sizing: border-box;
+}
+
+.save-bar-stats {
+    display: flex;
+    gap: 8px;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.btn-mobile-save-submit {
+    background: var(--m-primary-gradient);
+    color: #ffffff;
+    border: none;
+    border-radius: 24px;
+    padding: 11px 22px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-mobile-save-submit:active {
+    transform: scale(0.96);
+}
+
+/* Bottom App Navigation Bar */
+.mobile-bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 480px;
+    background: #ffffff;
+    border-top: 1px solid var(--m-border);
+    display: flex;
+    justify-content: space-around;
+    padding: 8px 0;
+    z-index: 90;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.nav-item-mobile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    text-decoration: none;
+    color: var(--m-text-muted);
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 12px;
+    transition: all 0.2s ease;
+}
+
+.nav-item-mobile i {
+    font-size: 18px;
+}
+
+.nav-item-mobile.active {
+    color: var(--m-primary);
+}
+
+.nav-item-mobile.active i {
+    transform: translateY(-2px);
+}

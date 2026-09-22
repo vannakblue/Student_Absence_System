@@ -1,0 +1,383 @@
+{% extends "base.html" %}
+
+{% block title %}ស្រង់វត្តមានគ្រូបង្រៀន{% endblock %}
+
+{% block content %}
+<div class="attendance-page">
+    <div class="page-header-row">
+        <div>
+            <h1 class="page-title"><i class="fa-solid fa-clipboard-user text-primary"></i> ស្រង់វត្តមានគ្រូបង្រៀន</h1>
+            <p class="page-subtitle">ផ្ទៀងផ្ទាត់ស្វ័យប្រវត្តិតាមកាលវិភាគបង្រៀន និងកត់ត្រាវត្តមានគ្រូប្រចាំថ្ងៃ</p>
+        </div>
+        <div class="header-actions">
+            <button type="button" class="btn btn-primary" onclick="triggerReconcileNow()" id="btnReconcileTop">
+                <i class="fa-solid fa-arrows-rotate"></i> ផ្ទៀងផ្ទាត់វត្តមានស្វ័យប្រវត្តិ (Reconcile)
+            </button>
+            <a href="{{ url_for('timetable_page') }}" class="btn btn-outline">
+                <i class="fa-solid fa-calendar-days"></i> មើលកាលវិភាគ
+            </a>
+        </div>
+    </div>
+
+    <!-- Rule Notification Banner -->
+    <div class="alert alert-info d-flex align-center gap-3 mb-3" style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:12px; padding:14px 18px; color:#1e40af;">
+        <i class="fa-solid fa-circle-info" style="font-size:24px; color:#2563eb;"></i>
+        <div>
+            <strong style="font-size:0.95rem;">គោលការណ៍ស្រង់វត្តមានគ្រូបង្រៀនតាមម៉ោងសិក្សា៖</strong>
+            <div style="font-size:0.88rem; margin-top:2px;">
+                ការស្រង់វត្តមានសិស្សគឺផ្អែកទាំងស្រុងលើកាលវិភាគរួម។ គ្រូបង្រៀនដែលបានស្រង់វត្តមានសិស្សតាមម៉ោងរបស់ខ្លួន នឹងទទួលបាន <strong>«វត្តមាន (PRESENT)»</strong>។ គ្រូដែល <strong>ខកខានមិនបានស្រង់វត្តមានសិស្ស (ទោះភ្លេចក៏ដោយ) ត្រូវចាត់ទុកថា «អវត្តមាន (ABSENT)»</strong> ដោយស្វ័យប្រវត្តិ។
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation Tabs for Teacher Attendance -->
+    <div class="d-flex justify-between align-center flex-wrap gap-2 mb-3">
+        <div class="btn-group" style="display:inline-flex; background:#e2e8f0; border-radius:10px; padding:4px;">
+            <button type="button" class="btn btn-sm btn-primary tab-btn" id="tabBtnAccountability" onclick="switchTeacherTab('accountability')">
+                <i class="fa-solid fa-list-check"></i> ផ្ទៀងផ្ទាត់តាមកាលវិភាគ (Accountability: {{ accountability_slots|length }} ម៉ោង)
+            </button>
+            <button type="button" class="btn btn-sm btn-outline tab-btn" id="tabBtnRoster" onclick="switchTeacherTab('roster')">
+                <i class="fa-solid fa-users"></i> តារាងគ្រូទាំងអស់ (Roster: {{ all_teachers|length }} នាក់)
+            </button>
+        </div>
+
+        {% if unmarked_count > 0 %}
+        <span class="badge badge-danger p-2" style="font-size:0.85rem;">
+            <i class="fa-solid fa-triangle-exclamation"></i> មាន {{ unmarked_count }} ម៉ោងខកខានមិនបានស្រង់វត្តមានសិស្ស
+        </span>
+        {% else %}
+        <span class="badge badge-success p-2" style="font-size:0.85rem;">
+            <i class="fa-solid fa-circle-check"></i> គ្រប់ម៉ោងបង្រៀនទាំងអស់ត្រូវបានស្រង់វត្តមានរួចរាល់
+        </span>
+        {% endif %}
+    </div>
+
+    <!-- TAB 1: TIMETABLE ACCOUNTABILITY VIEW -->
+    <div id="sectionAccountability">
+        <!-- Date & Shift Filter Bar -->
+        <div class="filter-bar card mb-3">
+            <form method="GET" action="{{ url_for('teacher_attendance_page') }}" class="filter-form" id="teacherAccFilterForm">
+                <div class="filter-group">
+                    <label><i class="fa-regular fa-calendar"></i> កាលបរិច្ឆេទ</label>
+                    <input type="date" name="date" class="form-control" value="{{ date }}" onchange="document.getElementById('teacherAccFilterForm').submit()">
+                </div>
+                <div class="filter-group">
+                    <label><i class="fa-solid fa-sun"></i> វេនសិក្សា</label>
+                    <select name="shift" class="form-control" onchange="document.getElementById('teacherAccFilterForm').submit()">
+                        <option value="All" {% if shift == 'All' %}selected{% endif %}>ពេញមួយថ្ងៃ (All Day)</option>
+                        <option value="Morning" {% if shift == 'Morning' %}selected{% endif %}>ពេលព្រឹក (Morning - ម៉ោង ១-៤)</option>
+                        <option value="Afternoon" {% if shift == 'Afternoon' %}selected{% endif %}>ពេលរសៀល (Afternoon - ម៉ោង ៥-៨)</option>
+                    </select>
+                </div>
+                <div class="filter-stats-summary">
+                    <button type="button" class="btn btn-outline btn-sm" onclick="triggerReconcileNow()">
+                        <i class="fa-solid fa-arrows-rotate text-primary"></i> ផ្ទៀងផ្ទាត់ឡើងវិញ
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Accountability Slots Table -->
+        <div class="card">
+            <div class="card-header d-flex justify-between align-center">
+                <h3 class="card-title">
+                    <i class="fa-solid fa-calendar-check text-primary"></i>
+                    <span>តារាងម៉ោងបង្រៀន និងវត្តមានគ្រូប្រចាំថ្ងៃ ({{ date }})</span>
+                </h3>
+                <span class="text-muted small">សរុប {{ accountability_slots|length }} ម៉ោងបង្រៀន</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr class="table-primary">
+                                <th style="width: 50px;">ល.រ</th>
+                                <th style="width: 110px;">ម៉ោង / វេន</th>
+                                <th style="width: 100px;">ថ្នាក់រៀន</th>
+                                <th style="width: 150px;">មុខវិជ្ជា</th>
+                                <th style="width: 220px;">គ្រូបង្រៀនទទួលបន្ទុក</th>
+                                <th style="width: 200px;">ការស្រង់វត្តមានសិស្ស</th>
+                                <th style="width: 140px;">វត្តមានគ្រូ</th>
+                                <th>សេចក្តីលម្អិត / មូលហេតុ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for s in accountability_slots %}
+                            <tr class="{% if not s.is_marked and s.teacher_status == 'ABSENT' %}table-warning{% endif %}">
+                                <td class="text-center">{{ loop.index }}</td>
+                                <td>
+                                    <strong>ម៉ោងទី {{ s.period_num }}</strong>
+                                    <div class="text-muted small">{{ 'ព្រឹក' if s.shift == 'Morning' else 'រសៀល' }}</div>
+                                </td>
+                                <td>
+                                    <span class="badge badge-light fw-bold" style="font-size:0.9rem;">ថ្នាក់ទី {{ s.class_code }}</span>
+                                </td>
+                                <td>
+                                    <span class="badge badge-primary">{{ s.subject_name or s.subject_code }}</span>
+                                </td>
+                                <td>
+                                    <div class="fw-bold">{{ s.teacher_full_name or s.teacher_name }}</div>
+                                    <div class="text-muted small"><i class="fa-solid fa-id-badge"></i> {{ s.t_code or s.teacher_code }}</div>
+                                </td>
+                                <td>
+                                    {% if s.is_marked %}
+                                        <span class="badge badge-success" style="font-size:0.85rem; padding:6px 10px;">
+                                            <i class="fa-solid fa-circle-check"></i> បានស្រង់រួច ({{ s.student_attendance_count }} នាក់)
+                                        </span>
+                                    {% else %}
+                                        <span class="badge badge-danger" style="font-size:0.85rem; padding:6px 10px;">
+                                            <i class="fa-solid fa-circle-xmark"></i> មិនទាន់ស្រង់វត្តមាន
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if s.teacher_status == 'PRESENT' %}
+                                        <span class="badge badge-success" style="font-size:0.9rem; font-weight:700;">
+                                            <i class="fa-solid fa-check"></i> វត្តមាន
+                                        </span>
+                                    {% elif s.teacher_status == 'PERMISSION' %}
+                                        <span class="badge badge-warning" style="font-size:0.9rem; font-weight:700;">
+                                            <i class="fa-solid fa-envelope-open-text"></i> ច្បាប់
+                                        </span>
+                                    {% else %}
+                                        <span class="badge badge-danger" style="font-size:0.9rem; font-weight:700;">
+                                            <i class="fa-solid fa-xmark"></i> អវត្តមាន
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <small class="text-muted">{{ s.status_reason }}</small>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="8" class="text-center py-4 text-muted">
+                                    <i class="fa-solid fa-calendar-xmark" style="font-size:32px; margin-bottom:8px; display:block;"></i>
+                                    មិនមានកាលវិភាគបង្រៀនសម្រាប់កាលបរិច្ឆេទនេះទេ (ថ្ងៃអាទិត្យ ឬថ្ងៃឈប់សម្រាក)
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 2: MANUAL TEACHER ATTENDANCE ROSTER -->
+    <div id="sectionRoster" style="display:none;">
+        <div class="card mb-3">
+            <div class="card-header d-flex justify-between align-center">
+                <div class="card-title">
+                    <i class="fa-solid fa-user-pen text-primary"></i>
+                    <span>តារាងកត់ត្រាវត្តមានគ្រូបង្រៀនដោយផ្ទាល់</span>
+                </div>
+                <div class="header-actions">
+                    <button type="button" class="btn btn-outline btn-sm" id="btnMarkAllTeacherPresent">
+                        <i class="fa-solid fa-check-double text-success"></i> វត្តមានទាំងអស់
+                    </button>
+                    <button type="button" class="btn btn-primary btn-sm" onclick="saveTeacherAttendanceDirect()">
+                        <i class="fa-solid fa-floppy-disk"></i> រក្សាទុកទិន្នន័យ
+                    </button>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover attendance-table" id="teacherAttendanceTable">
+                        <thead>
+                            <tr>
+                                <th style="width: 50px;">ល.រ</th>
+                                <th style="width: 220px;">គ្រូបង្រៀន</th>
+                                <th style="width: 140px;">មុខវិជ្ជាឯកទេស</th>
+                                <th style="width: 320px;">ស្ថានភាពវត្តមាន</th>
+                                <th style="width: 200px;">មូលហេតុ (ប្រសិនបើអវត្តមាន/ច្បាប់)</th>
+                                <th style="width: 200px;">គ្រូបង្រៀនជំនួស</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for t in attendance_list %}
+                            <tr data-teacher-id="{{ t.teacher_id }}">
+                                <td class="text-center">{{ loop.index }}</td>
+                                <td>
+                                    <div class="fw-bold">{{ t.full_name_kh }}</div>
+                                    <div class="text-muted small"><i class="fa-solid fa-id-badge"></i> {{ t.teacher_code }}</div>
+                                </td>
+                                <td>
+                                    <span class="badge badge-light">{{ t.subject }}</span>
+                                </td>
+                                <td>
+                                    <div class="status-btn-group">
+                                        <label class="status-btn status-present {% if t.status == 'PRESENT' %}active{% endif %}">
+                                            <input type="radio" name="status_{{ t.teacher_id }}" value="PRESENT" {% if t.status == 'PRESENT' %}checked{% endif %}>
+                                            <i class="fa-solid fa-circle-check"></i> វត្តមាន
+                                        </label>
+                                        <label class="status-btn status-permission {% if t.status == 'PERMISSION' %}active{% endif %}">
+                                            <input type="radio" name="status_{{ t.teacher_id }}" value="PERMISSION" {% if t.status == 'PERMISSION' %}checked{% endif %}>
+                                            <i class="fa-solid fa-envelope-open-text"></i> ច្បាប់
+                                        </label>
+                                        <label class="status-btn status-absent {% if t.status == 'ABSENT' %}active{% endif %}">
+                                            <input type="radio" name="status_{{ t.teacher_id }}" value="ABSENT" {% if t.status == 'ABSENT' %}checked{% endif %}>
+                                            <i class="fa-solid fa-circle-xmark"></i> ឥតច្បាប់
+                                        </label>
+                                        <label class="status-btn status-late {% if t.status == 'LATE' %}active{% endif %}">
+                                            <input type="radio" name="status_{{ t.teacher_id }}" value="LATE" {% if t.status == 'LATE' %}checked{% endif %}>
+                                            <i class="fa-solid fa-clock"></i> យឺត
+                                        </label>
+                                    </div>
+                                </td>
+                                <td>
+                                    <input type="text" class="form-control form-control-sm teacher-reason" 
+                                           placeholder="មូលហេតុ..." value="{{ t.reason or '' }}">
+                                </td>
+                                <td>
+                                    <select class="form-control form-control-sm teacher-substitute">
+                                        <option value="">-- គ្មានគ្រូជំនួស --</option>
+                                        {% for sub in all_teachers %}
+                                            {% if sub.id != t.teacher_id %}
+                                            <option value="{{ sub.id }}" {% if t.substitute_teacher_id == sub.id %}selected{% endif %}>
+                                                {{ sub.full_name_kh }} ({{ sub.subject }})
+                                            </option>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </select>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card-footer d-flex justify-between align-center">
+                <span class="text-muted small"><i class="fa-solid fa-shield-halved"></i> ទិន្នន័យត្រូវបានរក្សាទុកក្នុង SQLite Database និងត្រៀម Sync ទៅ Google Sheets</span>
+                <button type="button" class="btn btn-primary" onclick="saveTeacherAttendanceDirect()">
+                    <i class="fa-solid fa-floppy-disk"></i> រក្សាទុកទិន្នន័យឥឡូវនេះ
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    function switchTeacherTab(tab) {
+        const secAcc = document.getElementById('sectionAccountability');
+        const secRos = document.getElementById('sectionRoster');
+        const btnAcc = document.getElementById('tabBtnAccountability');
+        const btnRos = document.getElementById('tabBtnRoster');
+
+        if (tab === 'accountability') {
+            secAcc.style.display = 'block';
+            secRos.style.display = 'none';
+            btnAcc.classList.remove('btn-outline');
+            btnAcc.classList.add('btn-primary');
+            btnRos.classList.remove('btn-primary');
+            btnRos.classList.add('btn-outline');
+        } else {
+            secAcc.style.display = 'none';
+            secRos.style.display = 'block';
+            btnRos.classList.remove('btn-outline');
+            btnRos.classList.add('btn-primary');
+            btnAcc.classList.remove('btn-primary');
+            btnAcc.classList.add('btn-outline');
+        }
+    }
+
+    function triggerReconcileNow() {
+        const btn = document.getElementById('btnReconcileTop');
+        const origText = btn.innerHTML;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> កំពុងផ្ទៀងផ្ទាត់...';
+        btn.disabled = true;
+
+        fetch('/api/teacher-attendance/reconcile', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ date: "{{ date }}" })
+        })
+        .then(res => res.json())
+        .then(data => {
+            btn.innerHTML = origText;
+            btn.disabled = false;
+            if (data.success) {
+                showToast(data.message, 'success');
+                setTimeout(() => window.location.reload(), 700);
+            } else {
+                showToast(data.message, 'danger');
+            }
+        })
+        .catch(err => {
+            btn.innerHTML = origText;
+            btn.disabled = false;
+            showToast('កំហុសក្នុងការផ្ទៀងផ្ទាត់៖ ' + err, 'danger');
+        });
+    }
+
+    // Radio toggle highlight for manual roster
+    document.querySelectorAll('.attendance-table input[type="radio"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            const group = this.closest('.status-btn-group');
+            group.querySelectorAll('.status-btn').forEach(btn => btn.classList.remove('active'));
+            this.closest('.status-btn').classList.add('active');
+        });
+    });
+
+    // Mark all present
+    document.getElementById('btnMarkAllTeacherPresent')?.addEventListener('click', function() {
+        document.querySelectorAll('.attendance-table tr[data-teacher-id]').forEach(row => {
+            const presentBtn = row.querySelector('.status-present input[type="radio"]');
+            if (presentBtn) {
+                presentBtn.checked = true;
+                const group = presentBtn.closest('.status-btn-group');
+                group.querySelectorAll('.status-btn').forEach(btn => btn.classList.remove('active'));
+                presentBtn.closest('.status-btn').classList.add('active');
+            }
+        });
+        showToast('បានជ្រើសរើស "វត្តមានទាំងអស់" សម្រាប់គ្រូបង្រៀន', 'info');
+    });
+
+    function saveTeacherAttendanceDirect() {
+        const rows = document.querySelectorAll('#teacherAttendanceTable tbody tr[data-teacher-id]');
+        const records = [];
+        const dateStr = "{{ date }}";
+        const shift = "{{ shift }}";
+        const period = "{{ period }}";
+
+        rows.forEach(row => {
+            const teacherId = parseInt(row.getAttribute('data-teacher-id'));
+            const selectedStatus = row.querySelector('input[type="radio"]:checked')?.value || 'PRESENT';
+            const reason = row.querySelector('.teacher-reason')?.value.trim() || '';
+            const substituteId = row.querySelector('.teacher-substitute')?.value || null;
+
+            records.push({
+                teacher_id: teacherId,
+                status: selectedStatus,
+                reason: reason,
+                substitute_teacher_id: substituteId,
+                notes: ''
+            });
+        });
+
+        fetch('/api/teacher-attendance', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                date: dateStr,
+                shift: shift,
+                period: period,
+                records: records
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                showToast(data.message, 'success');
+            } else {
+                showToast(data.message, 'danger');
+            }
+        })
+        .catch(err => {
+            showToast('បរាជ័យក្នុងការរក្សាទុក៖ ' + err, 'danger');
+        });
+    }
+</script>
+{% endblock %}

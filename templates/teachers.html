@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+
+{% block title %}គ្រប់គ្រងគ្រូបង្រៀន{% endblock %}
+
+{% block content %}
+<div class="teachers-page">
+    <div class="page-header-row">
+        <div>
+            <h1 class="page-title"><i class="fa-solid fa-chalkboard-user text-primary"></i> បញ្ជីគ្រូបង្រៀន</h1>
+            <p class="page-subtitle">គ្រប់គ្រងព័ត៌មានគ្រូបង្រៀន មុខវិជ្ជាឯកទេស និងបន្ទុកម៉ោង</p>
+        </div>
+        <div class="header-actions">
+            <button class="btn btn-primary" onclick="openTeacherModal()">
+                <i class="fa-solid fa-user-plus"></i> បន្ថែមគ្រូបង្រៀនថ្មី
+            </button>
+        </div>
+    </div>
+
+    <!-- Search & Filter Card -->
+    <div class="card mb-3 p-3">
+        <div class="d-flex justify-between align-center flex-wrap gap-2">
+            <div class="search-box">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="teacherSearchInput" class="form-control" placeholder="ស្វែងរកតាមឈ្មោះ កូដ ឬមុខវិជ្ជា...">
+            </div>
+            <div class="text-muted small">
+                សរុបគ្រូបង្រៀន៖ <strong class="text-primary">{{ teachers|length }}</strong> នាក់
+            </div>
+        </div>
+    </div>
+
+    <!-- Teachers Table -->
+    <div class="card">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover" id="teachersTable">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;">ល.រ</th>
+                            <th style="width: 100px;">កូដគ្រូ</th>
+                            <th style="width: 220px;">គោត្តនាម-នាម</th>
+                            <th style="width: 70px;">ភេទ</th>
+                            <th style="width: 150px;">មុខវិជ្ជាឯកទេស</th>
+                            <th style="width: 140px;">លេខទូរស័ព្ទ</th>
+                            <th style="width: 110px;">បន្ទុកម៉ោង/សប្តាហ៍</th>
+                            <th style="width: 90px;">ស្ថានភាព</th>
+                            <th style="width: 110px;" class="text-center">សកម្មភាព</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for t in teachers %}
+                        <tr data-teacher-row="{{ t.teacher_code }} {{ t.full_name_kh }} {{ t.subject }}">
+                            <td class="text-center">{{ loop.index }}</td>
+                            <td><span class="badge badge-light fw-bold">{{ t.teacher_code }}</span></td>
+                            <td>
+                                <div class="fw-bold">{{ t.full_name_kh }}</div>
+                                {% if t.full_name_en %}
+                                <small class="text-muted">{{ t.full_name_en }}</small>
+                                {% endif %}
+                            </td>
+                            <td>{{ 'ប្រុស' if t.gender == 'M' else 'ស្រី' }}</td>
+                            <td><span class="badge badge-primary">{{ t.subject }}</span></td>
+                            <td>{{ t.phone or '—' }}</td>
+                            <td class="text-center">{{ t.total_hours_weekly }} ម៉ោង</td>
+                            <td>
+                                {% if t.status == 'Active' %}
+                                    <span class="badge badge-success">កំពុងបង្រៀន</span>
+                                {% else %}
+                                    <span class="badge badge-secondary">{{ t.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <button class="btn-icon text-primary" title="កែប្រែ" onclick='editTeacher({{ t|tojson }})'>
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                </button>
+                                <button class="btn-icon text-danger" title="លុប" onclick="deleteTeacher({{ t.id }}, '{{ t.full_name_kh }}')">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Teacher Modal Form -->
+<div class="modal-backdrop" id="teacherModal">
+    <div class="modal-dialog">
+        <div class="modal-header">
+            <h3 class="modal-title" id="teacherModalTitle">បន្ថែមគ្រូបង្រៀនថ្មី</h3>
+            <button class="modal-close" onclick="closeTeacherModal()">&times;</button>
+        </div>
+        <form id="teacherForm" onsubmit="handleTeacherSubmit(event)">
+            <input type="hidden" id="teacherId" value="">
+            <div class="modal-body">
+                <div class="grid-2-col">
+                    <div class="form-group">
+                        <label class="form-label">កូដសម្គាល់គ្រូ *</label>
+                        <input type="text" id="teacherCode" class="form-control" placeholder="ឧ. T011" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">ភេទ *</label>
+                        <select id="teacherGender" class="form-control" required>
+                            <option value="M">ប្រុស (M)</option>
+                            <option value="F">ស្រី (F)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid-2-col">
+                    <div class="form-group">
+                        <label class="form-label">គោត្តនាម-នាម (ភាសាខ្មែរ) *</label>
+                        <input type="text" id="teacherNameKh" class="form-control" placeholder="ឧ. ស៊ុន វណ្ណា" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">ឈ្មោះឡាតាំង</label>
+                        <input type="text" id="teacherNameEn" class="form-control" placeholder="ឧ. Sun Vanna">
+                    </div>
+                </div>
+
+                <div class="grid-2-col">
+                    <div class="form-group">
+                        <label class="form-label">មុខវិជ្ជាឯកទេស *</label>
+                        <input type="text" id="teacherSubject" class="form-control" placeholder="ឧ. គណិតវិទ្យា" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">បន្ទុកម៉ោងសប្តាហ៍</label>
+                        <input type="number" id="teacherHours" class="form-control" value="18">
+                    </div>
+                </div>
+
+                <div class="grid-2-col">
+                    <div class="form-group">
+                        <label class="form-label">លេខទូរស័ព្ទ</label>
+                        <input type="text" id="teacherPhone" class="form-control" placeholder="012 345 678">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">ស្ថានភាព</label>
+                        <select id="teacherStatus" class="form-control">
+                            <option value="Active">Active (កំពុងបង្រៀន)</option>
+                            <option value="OnLeave">OnLeave (សុំច្បាប់)</option>
+                            <option value="Inactive">Inactive (ឈប់)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeTeacherModal()">បោះបង់</button>
+                <button type="submit" class="btn btn-primary" id="btnSaveTeacher">រក្សាទុក</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Search filter
+    document.getElementById('teacherSearchInput')?.addEventListener('input', function(e) {
+        const term = e.target.value.toLowerCase().trim();
+        document.querySelectorAll('#teachersTable tbody tr[data-teacher-row]').forEach(row => {
+            const text = row.getAttribute('data-teacher-row').toLowerCase();
+            row.style.display = text.includes(term) ? '' : 'none';
+        });
+    });
+
+    function openTeacherModal() {
+        document.getElementById('teacherModalTitle').innerText = 'បន្ថែមគ្រូបង្រៀនថ្មី';
+        document.getElementById('teacherId').value = '';
+        document.getElementById('teacherCode').value = '';
+        document.getElementById('teacherNameKh').value = '';
+        document.getElementById('teacherNameEn').value = '';
+        document.getElementById('teacherGender').value = 'M';
+        document.getElementById('teacherSubject').value = '';
+        document.getElementById('teacherHours').value = '18';
+        document.getElementById('teacherPhone').value = '';
+        document.getElementById('teacherStatus').value = 'Active';
+        document.getElementById('teacherModal').classList.add('show');
+    }
+
+    function closeTeacherModal() {
+        document.getElementById('teacherModal').classList.remove('show');
+    }
+
+    function editTeacher(t) {
+        document.getElementById('teacherModalTitle').innerText = 'កែប្រែព័ត៌មានគ្រូបង្រៀន';
+        document.getElementById('teacherId').value = t.id;
+        document.getElementById('teacherCode').value = t.teacher_code;
+        document.getElementById('teacherNameKh').value = t.full_name_kh;
+        document.getElementById('teacherNameEn').value = t.full_name_en || '';
+        document.getElementById('teacherGender').value = t.gender;
+        document.getElementById('teacherSubject').value = t.subject;
+        document.getElementById('teacherHours').value = t.total_hours_weekly || 18;
+        document.getElementById('teacherPhone').value = t.phone || '';
+        document.getElementById('teacherStatus').value = t.status || 'Active';
+        document.getElementById('teacherModal').classList.add('show');
+    }
+
+    function handleTeacherSubmit(e) {
+        e.preventDefault();
+        const tid = document.getElementById('teacherId').value;
+        const payload = {
+            teacher_code: document.getElementById('teacherCode').value.trim(),
+            full_name_kh: document.getElementById('teacherNameKh').value.trim(),
+            full_name_en: document.getElementById('teacherNameEn').value.trim(),
+            gender: document.getElementById('teacherGender').value,
+            subject: document.getElementById('teacherSubject').value.trim(),
+            total_hours_weekly: parseInt(document.getElementById('teacherHours').value || 18),
+            phone: document.getElementById('teacherPhone').value.trim(),
+            status: document.getElementById('teacherStatus').value
+        };
+
+        const url = tid ? `/api/teachers/${tid}` : '/api/teachers';
+        const method = tid ? 'PUT' : 'POST';
+
+        fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                showToast(data.message, 'success');
+                closeTeacherModal();
+                setTimeout(() => window.location.reload(), 800);
+            } else {
+                showToast(data.message, 'danger');
+            }
+        })
+        .catch(err => showToast('កំហុស៖ ' + err, 'danger'));
+    }
+
+    function deleteTeacher(tid, name) {
+        if (!confirm(`តើលោកអ្នកពិតជាចង់លុបគ្រូបង្រៀន "${name}" មែនឬទេ?`)) return;
+        fetch(`/api/teachers/${tid}`, { method: 'DELETE' })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                showToast(data.message, 'success');
+                setTimeout(() => window.location.reload(), 800);
+            } else {
+                showToast(data.message, 'danger');
+            }
+        });
+    }
+</script>
+{% endblock %}

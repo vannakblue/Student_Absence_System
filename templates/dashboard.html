@@ -1,0 +1,354 @@
+{% extends "base.html" %}
+
+{% block title %}ផ្ទាំងព័ត៌មាន (Dashboard){% endblock %}
+
+{% block content %}
+<div class="dashboard-page">
+    <!-- Header Banner -->
+    <div class="page-header-row">
+        <div>
+            <h1 class="page-title">ផ្ទាំងព័ត៌មាន និងស្ថិតិអវត្តមាន</h1>
+            <p class="page-subtitle">ទិដ្ឋភាពទូទៅនៃវត្តមានគ្រូបង្រៀន និងសិស្សានុសិស្សប្រចាំថ្ងៃ</p>
+        </div>
+        <div class="header-actions">
+            <div class="input-group">
+                <span class="input-icon"><i class="fa-solid fa-calendar-day"></i></span>
+                <input type="date" id="dashboardDatePicker" class="form-control" value="{{ today }}">
+            </div>
+            <button type="button" onclick="openMobileQrModal()" class="btn btn-outline" style="border-color:#8b5cf6; color:#7c3aed;">
+                <i class="fa-solid fa-mobile-screen-button"></i> ប្រើលើទូរស័ព្ទ (Mobile QR)
+            </button>
+            <a href="{{ url_for('teacher_attendance_page') }}" class="btn btn-primary">
+                <i class="fa-solid fa-clipboard-user"></i> ស្រង់វត្តមានគ្រូ
+            </a>
+            <a href="{{ url_for('student_attendance_page') }}" class="btn btn-success">
+                <i class="fa-solid fa-user-check"></i> ស្រង់វត្តមានសិស្ស
+            </a>
+        </div>
+    </div>
+
+    <!-- 4 Stats Cards Grid -->
+    <div class="stats-grid">
+        <!-- Card 1: Teachers Overview -->
+        <div class="stat-card">
+            <div class="stat-icon-wrapper primary">
+                <i class="fa-solid fa-chalkboard-user"></i>
+            </div>
+            <div class="stat-content">
+                <span class="stat-label">គ្រូបង្រៀនសរុប</span>
+                <h3 class="stat-value">{{ stats.total_teachers }} <small>នាក់</small></h3>
+                <div class="stat-progress-label">
+                    <span>វត្តមានថ្ងៃនេះ: <strong>{{ stats.teachers.present }}</strong> នាក់</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 2: Students Overview -->
+        <div class="stat-card">
+            <div class="stat-icon-wrapper info">
+                <i class="fa-solid fa-user-graduate"></i>
+            </div>
+            <div class="stat-content">
+                <span class="stat-label">សិស្សានុសិស្សសរុប</span>
+                <h3 class="stat-value">{{ stats.total_students }} <small>នាក់</small></h3>
+                <div class="stat-progress-label">
+                    <span>ថ្នាក់រៀនសរុប: <strong>{{ stats.total_classes }}</strong> ថ្នាក់</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 3: Teachers Absent Today -->
+        <div class="stat-card border-warning">
+            <div class="stat-icon-wrapper warning">
+                <i class="fa-solid fa-person-circle-exclamation"></i>
+            </div>
+            <div class="stat-content">
+                <span class="stat-label">គ្រូអវត្តមានថ្ងៃនេះ</span>
+                <h3 class="stat-value text-warning">{{ stats.teachers.permission + stats.teachers.absent }} <small>នាក់</small></h3>
+                <div class="stat-breakdown">
+                    <span class="badge badge-warning">ច្បាប់: {{ stats.teachers.permission }}</span>
+                    <span class="badge badge-danger">ឥតច្បាប់: {{ stats.teachers.absent }}</span>
+                    <span class="badge badge-secondary">យឺត: {{ stats.teachers.late }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 4: Students Absent Today -->
+        <div class="stat-card border-danger">
+            <div class="stat-icon-wrapper danger">
+                <i class="fa-solid fa-user-xmark"></i>
+            </div>
+            <div class="stat-content">
+                <span class="stat-label">សិស្សអវត្តមានថ្ងៃនេះ</span>
+                <h3 class="stat-value text-danger">{{ stats.students.permission + stats.students.absent }} <small>នាក់</small></h3>
+                <div class="stat-breakdown">
+                    <span class="badge badge-warning">ច្បាប់: {{ stats.students.permission }}</span>
+                    <span class="badge badge-danger">ឥតច្បាប់: {{ stats.students.absent }}</span>
+                    <span class="badge badge-secondary">យឺត: {{ stats.students.late }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Tool Cards -->
+    <div class="quick-tools-banner">
+        <div class="tools-left">
+            <div class="tools-icon"><i class="fa-solid fa-bolt"></i></div>
+            <div>
+                <h4>មុខងាររហ័សប្រចាំថ្ងៃ (Daily Fast Actions)</h4>
+                <p>ស្រង់វត្តមានសិស្សតាមថ្នាក់ ឬវត្តមានគ្រូតាមវេន និង Export ជារបាយការណ៍ Excel ឬ Google Sheets ភ្លាមៗ</p>
+            </div>
+        </div>
+        <div class="tools-right">
+            <a href="{{ url_for('export_excel_students') }}" class="btn btn-outline">
+                <i class="fa-solid fa-file-excel text-success"></i> Export សិស្ស (.xlsx)
+            </a>
+            <a href="{{ url_for('export_excel_teachers') }}" class="btn btn-outline">
+                <i class="fa-solid fa-file-excel text-success"></i> Export គ្រូ (.xlsx)
+            </a>
+            <button onclick="triggerGoogleSheetsSync()" class="btn btn-accent" id="btnSyncNow">
+                <i class="fa-solid fa-cloud-arrow-up"></i> Sync ទៅ Google Sheets
+            </button>
+        </div>
+    </div>
+
+    <!-- Timetable Accountability & Missed Attendance Alert Widget -->
+    {% if stats.unmarked_slots_count > 0 %}
+    <div class="card mb-3 border-danger" style="background:#fff5f5; border-left:5px solid #ef4444;">
+        <div class="card-body p-3">
+            <div class="d-flex justify-between align-center flex-wrap gap-2">
+                <div class="d-flex align-center gap-3">
+                    <div style="width:44px; height:44px; border-radius:12px; background:#fee2e2; color:#dc2626; display:flex; align-items:center; justify-content:center; font-size:22px;">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+                    <div>
+                        <h4 style="margin:0; color:#991b1b; font-size:1rem; font-weight:700;">
+                            រកឃើញ {{ stats.unmarked_slots_count }} ម៉ោងបង្រៀនដែលខកខានមិនបានស្រង់វត្តមានសិស្ស (ប្រឈមនឹងអវត្តមានគ្រូ)
+                        </h4>
+                        <p style="margin:2px 0 0 0; color:#b91c1c; font-size:0.85rem;">
+                            តាមគោលការណ៍គ្រឹះស្ថានសិក្សា គ្រូបង្រៀនដែលខកខានមិនបានស្រង់វត្តមានសិស្សតាមម៉ោង ត្រូវបានប្រព័ន្ធកត់ត្រាជា «អវត្តមាន (ABSENT)» ដោយស្វ័យប្រវត្តិ។
+                        </p>
+                    </div>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('teacher_attendance_page') }}" class="btn btn-danger btn-sm">
+                        <i class="fa-solid fa-clipboard-check"></i> ពិនិត្យបញ្ជីម៉ោងខកខាន
+                    </a>
+                    <button type="button" class="btn btn-outline btn-sm" onclick="triggerReconcileDashboard()">
+                        <i class="fa-solid fa-arrows-rotate"></i> ផ្ទៀងផ្ទាត់ឡើងវិញ
+                    </button>
+                </div>
+            </div>
+
+            <!-- Preview Top 4 Unmarked Slots -->
+            <div class="mt-3" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:10px;">
+                {% for u in stats.unmarked_slots[:4] %}
+                <div style="background:#fff; border-radius:10px; padding:10px 12px; border:1px solid #fecaca; display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <div style="font-weight:700; font-size:0.9rem; color:#0f172a;">ថ្នាក់ទី {{ u.class_code }} (ម៉ោងទី {{ u.period_num }})</div>
+                        <div style="font-size:0.8rem; color:#64748b;">{{ u.teacher_name }} • {{ u.subject }}</div>
+                    </div>
+                    <span class="badge badge-danger" style="font-size:0.75rem;">អវត្តមាន</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 2 Column Layout for Today's Absences -->
+    <div class="grid-2-col">
+        <!-- Teachers Absence Table -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    <i class="fa-solid fa-user-clock text-warning"></i>
+                    <span>គ្រូបង្រៀនអវត្តមាន/មានច្បាប់ថ្ងៃនេះ</span>
+                </div>
+                <span class="badge badge-pill badge-warning">{{ stats.teachers.absent_list|length }} នាក់</span>
+            </div>
+            <div class="card-body p-0">
+                {% if stats.teachers.absent_list %}
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>កូដ/ឈ្មោះគ្រូ</th>
+                                <th>មុខវិជ្ជា</th>
+                                <th>ស្ថានភាព</th>
+                                <th>មូលហេតុ</th>
+                                <th>គ្រូជំនួស</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for t in stats.teachers.absent_list %}
+                            <tr>
+                                <td>
+                                    <div class="fw-bold">{{ t.full_name_kh }}</div>
+                                    <small class="text-muted">{{ t.teacher_code }}</small>
+                                </td>
+                                <td><span class="badge badge-light">{{ t.subject }}</span></td>
+                                <td>
+                                    {% if t.status == 'PERMISSION' %}
+                                        <span class="badge badge-warning">មានច្បាប់</span>
+                                    {% elif t.status == 'ABSENT' %}
+                                        <span class="badge badge-danger">ឥតច្បាប់</span>
+                                    {% elif t.status == 'LATE' %}
+                                        <span class="badge badge-secondary">មកយឺត</span>
+                                    {% endif %}
+                                </td>
+                                <td><small>{{ t.reason or '—' }}</small></td>
+                                <td>
+                                    {% if t.substitute_name %}
+                                        <span class="badge badge-info"><i class="fa-solid fa-user-plus"></i> {{ t.substitute_name }}</span>
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <i class="fa-solid fa-circle-check text-success"></i>
+                    <p>មិនមានគ្រូអវត្តមាននៅថ្ងៃនេះទេ (គ្រូទាំងអស់មានវត្តមាន)</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Students Absence Table -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    <i class="fa-solid fa-user-xmark text-danger"></i>
+                    <span>សិស្សានុសិស្សអវត្តមាន/មានច្បាប់ថ្ងៃនេះ</span>
+                </div>
+                <span class="badge badge-pill badge-danger">{{ stats.students.absent_list|length }} នាក់</span>
+            </div>
+            <div class="card-body p-0">
+                {% if stats.students.absent_list %}
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>អត្តលេខ/ឈ្មោះសិស្ស</th>
+                                <th>ថ្នាក់</th>
+                                <th>ភេទ</th>
+                                <th>ស្ថានភាព</th>
+                                <th>មូលហេតុ / អាណាព្យាបាល</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for s in stats.students.absent_list %}
+                            <tr>
+                                <td>
+                                    <div class="fw-bold">{{ s.full_name_kh }}</div>
+                                    <small class="text-muted">{{ s.student_code }}</small>
+                                </td>
+                                <td><span class="badge badge-primary">{{ s.class_name }}</span></td>
+                                <td>{{ 'ប្រុស' if s.gender == 'M' else 'ស្រី' }}</td>
+                                <td>
+                                    {% if s.status == 'PERMISSION' %}
+                                        <span class="badge badge-warning">មានច្បាប់</span>
+                                    {% elif s.status == 'ABSENT' %}
+                                        <span class="badge badge-danger">ឥតច្បាប់</span>
+                                    {% elif s.status == 'LATE' %}
+                                        <span class="badge badge-secondary">មកយឺត</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div><small>{{ s.reason or '—' }}</small></div>
+                                    {% if s.parent_phone %}
+                                    <small class="text-muted"><i class="fa-solid fa-phone"></i> {{ s.parent_phone }}</small>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <i class="fa-solid fa-circle-check text-success"></i>
+                    <p>មិនមានសិស្សអវត្តមាននៅថ្ងៃនេះទេ</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Mobile QR Modal -->
+<div class="modal-backdrop" id="mobileQrModal">
+    <div class="modal-dialog" style="max-width: 440px; text-align: center;">
+        <div class="modal-header">
+            <h3 class="modal-title"><i class="fa-solid fa-mobile-screen text-primary"></i> ប្រើប្រាស់លើទូរស័ព្ទដៃ</h3>
+            <button class="modal-close" onclick="closeMobileQrModal()">&times;</button>
+        </div>
+        <div class="modal-body p-4" style="text-align: center;">
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:16px; padding:16px; display:inline-block; margin-bottom:16px;">
+                <img src="/portal/qr" alt="QR Code" style="width: 200px; height: 200px; display: block; margin: 0 auto;">
+            </div>
+            <h4 style="font-weight:700; margin-bottom:6px;">Scan QR Code ដើម្បីបើក Teacher Portal</h4>
+            <p class="text-muted small mb-3">
+                យកទូរស័ព្ទដៃ iPhone ឬ Android បើកកាមេរ៉ា Scan រួចអាច <strong>Add to Home Screen</strong> ដើម្បីប្រើដូច Mobile App យ៉ាងរលូន!
+            </p>
+            <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; padding:10px; font-size:0.85rem; color:#1e40af; word-break:break-all;">
+                Link ផ្ទាល់៖ <a href="/portal" target="_blank" id="directPortalLink" style="font-weight:bold; color:#1d4ed8;">/portal</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    document.getElementById('dashboardDatePicker')?.addEventListener('change', function(e) {
+        const selectedDate = e.target.value;
+        window.location.href = `/?date=${selectedDate}`;
+    });
+
+    function openMobileQrModal() {
+        fetch('/api/portal/local-url')
+            .then(res => res.json())
+            .then(data => {
+                const linkEl = document.getElementById('directPortalLink');
+                if (linkEl && data.portal_url) {
+                    linkEl.href = data.portal_url;
+                    linkEl.innerText = data.portal_url;
+                }
+            })
+            .catch(() => {});
+        document.getElementById('mobileQrModal').classList.add('show');
+    }
+
+    function triggerReconcileDashboard() {
+        const dateStr = document.getElementById('dashboardDatePicker')?.value || '{{ today }}';
+        showToast('កំពុងផ្ទៀងផ្ទាត់វត្តមានគ្រូតាមកាលវិភាគ...', 'info');
+        fetch('/api/teacher-attendance/reconcile', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ date: dateStr })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                showToast(data.message, 'success');
+                setTimeout(() => window.location.reload(), 700);
+            } else {
+                showToast(data.message, 'danger');
+            }
+        })
+        .catch(err => {
+            showToast('កំហុស៖ ' + err, 'danger');
+        });
+    }
+
+    function closeMobileQrModal() {
+        document.getElementById('mobileQrModal').classList.remove('show');
+    }
+</script>
+{% endblock %}

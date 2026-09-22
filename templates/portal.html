@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Teacher Mobile Portal | {{ global_school_name_kh }}</title>
+
+    <!-- PWA & Mobile Metas -->
+    <meta name="theme-color" content="#2563eb">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+
+    <!-- Google Fonts & FontAwesome -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Kantumruy+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <!-- Mobile Stylesheet -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/mobile.css') }}">
+</head>
+<body class="mobile-portal-body">
+    <div class="mobile-app-container">
+        <!-- Mobile Header -->
+        <header class="mobile-header">
+            <div class="mobile-top-bar">
+                <div class="mobile-school-title">
+                    <i class="fa-solid fa-graduation-cap"></i>
+                    <span>{{ global_school_name_kh }}</span>
+                </div>
+                <div class="mobile-header-actions">
+                    {% if current_user and current_user.role == 'admin' %}
+                    <a href="{{ url_for('index') }}" class="mobile-icon-btn" title="ប្តូរទៅ Desktop Mode">
+                        <i class="fa-solid fa-desktop"></i>
+                    </a>
+                    {% endif %}
+                    <a href="{{ url_for('logout') }}" class="mobile-icon-btn" title="ចាកចេញ (Logout)" style="color:#fca5a5;">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Teacher Profile Card with Switcher -->
+            <div class="teacher-profile-card" {% if current_user and current_user.role == 'admin' %}onclick="openTeacherPickerModal()"{% endif %}>
+                <div class="teacher-info-left">
+                    <div class="teacher-avatar">
+                        <i class="fa-solid fa-user-tie"></i>
+                    </div>
+                    <div class="teacher-name-group">
+                        <h3 id="currentTeacherName">{{ current_teacher.full_name_kh }}</h3>
+                        <p id="currentTeacherSubject">
+                            {{ current_teacher.subject }} • កូដ: {{ current_teacher.teacher_code }}
+                        </p>
+                    </div>
+                </div>
+                {% if current_user and current_user.role == 'admin' %}
+                <div class="teacher-switch-icon" title="ប្តូរគ្រូ (Admin)">
+                    <i class="fa-solid fa-chevron-down" style="opacity: 0.7;"></i>
+                </div>
+                {% else %}
+                <div style="font-size:0.75rem; background:rgba(255,255,255,0.2); color:#ffffff; padding:3px 8px; border-radius:8px;">
+                    <i class="fa-solid fa-circle-check"></i> គណនីផ្ទាល់
+                </div>
+                {% endif %}
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="mobile-content">
+            <!-- Real-time Active Teaching Slot Banner -->
+            <div class="active-slot-banner" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: #fff; border-radius: 18px; padding: 16px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(37,99,235,0.25);">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.2); padding-bottom:10px; margin-bottom:12px;">
+                    <div>
+                        <span style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; opacity:0.85;">
+                            <i class="fa-regular fa-clock"></i> ពេលវេលាជាក់ស្តែង
+                        </span>
+                        <div id="liveClockDisplay" style="font-size:1.35rem; font-weight:700; letter-spacing:1px; line-height:1.2;">--:--:--</div>
+                    </div>
+                    <div style="text-align:right;">
+                        {% if active_slot_info and active_slot_info.period_info.has_active_period %}
+                            <span class="badge" style="background:rgba(255,255,255,0.25); color:#fff; font-size:0.78rem; padding:4px 10px; border-radius:12px; font-weight:600;">
+                                {{ active_slot_info.period_info.period.short_label }} ({{ active_slot_info.period_info.period.time_range }})
+                            </span>
+                            <div style="font-size:0.72rem; opacity:0.9; margin-top:3px;" id="periodCountdownLabel">
+                                {% if active_slot_info.period_info.phase == 'first_30' %}
+                                    <i class="fa-solid fa-circle-check text-success"></i> នៅសល់ <span id="first30Countdown">--:--</span> សម្រាប់កែប្រែ
+                                {% else %}
+                                    <i class="fa-solid fa-triangle-exclamation text-warning"></i> ចន្លោះបន្ថែម៖ នៅសល់ <span id="periodCountdown">--:--</span>
+                                {% endif %}
+                            </div>
+                        {% else %}
+                            <span class="badge" style="background:rgba(255,255,255,0.2); color:#e2e8f0; font-size:0.75rem; padding:4px 8px; border-radius:10px;">
+                                ក្រៅម៉ោងបង្រៀនផ្លូវការ
+                            </span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Teacher slot details -->
+                {% if active_slot_info and active_slot_info.has_slot %}
+                <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.12); border-radius:12px; padding:12px 14px;">
+                    <div>
+                        <div style="font-size:0.75rem; opacity:0.85;">ថ្នាក់បង្រៀនបច្ចុប្បន្ន (ចាក់សោស្វ័យប្រវត្តិ)</div>
+                        <div style="font-size:1.15rem; font-weight:700;">ថ្នាក់ទី {{ active_slot_info.slot.class_code }}</div>
+                        <div style="font-size:0.82rem; opacity:0.95;">
+                            {{ active_slot_info.slot.subject_name }}
+                            {% if active_slot_info.slot.class_room %} • បន្ទប់ {{ active_slot_info.slot.class_room }}{% endif %}
+                        </div>
+                    </div>
+                    <div>
+                        <a href="{{ url_for('portal_attendance_page') }}" 
+                           style="background:#10b981; color:#fff; padding:10px 16px; border-radius:12px; font-weight:700; text-decoration:none; font-size:0.9rem; display:inline-flex; align-items:center; gap:6px; box-shadow:0 3px 8px rgba(16,185,129,0.35);">
+                            <i class="fa-solid fa-clipboard-check"></i> ស្រង់វត្តមាន
+                        </a>
+                    </div>
+                </div>
+                {% elif active_slot_info and active_slot_info.period_info.has_active_period %}
+                <div style="background:rgba(255,255,255,0.12); border-radius:12px; padding:10px 14px; font-size:0.85rem; display:flex; align-items:center; gap:10px;">
+                    <i class="fa-solid fa-circle-info" style="font-size:1.2rem; opacity:0.8;"></i>
+                    <div>{{ active_slot_info.reason }}</div>
+                </div>
+                {% else %}
+                <div style="background:rgba(255,255,255,0.12); border-radius:12px; padding:10px 14px; font-size:0.85rem; display:flex; align-items:center; gap:10px;">
+                    <i class="fa-solid fa-mug-hot" style="font-size:1.2rem; opacity:0.8;"></i>
+                    <div>ពេលនេះស្ថិតនៅក្រៅម៉ោងបង្រៀនផ្លូវការ (ម៉ោងបង្រៀនគឺ ៧-១១ ព្រឹក និង ១-៥ រសៀល)។</div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Today's Schedule Section -->
+            <div class="section-title-row">
+                <h3 class="section-title">
+                    <i class="fa-solid fa-calendar-day text-primary"></i>
+                    <span>ម៉ោងបង្រៀនថ្ងៃនេះ ({{ today_info.name }})</span>
+                </h3>
+                <span class="badge badge-primary" style="background:#eff6ff; color:#2563eb; padding:3px 10px; border-radius:12px; font-weight:600; font-size:0.75rem;">
+                    {{ today_slots|length }} ម៉ោង
+                </span>
+            </div>
+
+            <!-- List of Today's Scheduled Classes -->
+            <div class="today-schedule-list" id="todayScheduleList">
+                {% if today_slots %}
+                    {% for s in today_slots %}
+                    {% set is_active = s.is_current_active %}
+                    <div class="schedule-card {% if is_active and s.can_take_attendance %}slot-card-active{% elif s.is_marked %}slot-marked-done{% else %}slot-unmarked-alert{% endif %} {% if not is_active and not (current_user and current_user.role == 'admin') %}slot-card-disabled{% endif %}" 
+                         style="display:flex; align-items:center; justify-content:space-between; padding:14px; background:{% if is_active %}#f0fdf4{% elif s.is_marked %}#f8fafc{% else %}#ffffff{% endif %}; border-radius:16px; margin-bottom:12px; border:{% if is_active %}2px solid #10b981{% elif s.is_marked %}1px solid #e2e8f0{% else %}1px solid #fed7aa{% endif %}; box-shadow:{% if is_active %}0 4px 14px rgba(16,185,129,0.2){% else %}0 2px 4px rgba(0,0,0,0.03){% endif %}; {% if not is_active and not (current_user and current_user.role == 'admin') %}opacity:0.85;{% endif %}">
+                        <div style="display:flex; align-items:center; gap:12px;">
+                            <div class="schedule-period-badge" style="background:{% if is_active %}#10b981{% elif s.is_marked %}#e2e8f0{% else %}#fff7ed{% endif %}; color:{% if is_active %}#ffffff{% elif s.is_marked %}#475569{% else %}#ea580c{% endif %}; width:52px; height:52px; border-radius:14px; display:flex; flex-direction:column; align-items:center; justify-content:center; font-weight:700; flex-shrink:0;">
+                                <small style="font-size:0.62rem; line-height:1; opacity:0.9;">ម៉ោងទី</small>
+                                <span style="font-size:1.15rem; line-height:1.1; font-weight:800;">{{ s.period_num if s.period_num <= 4 else s.period_num - 4 }}</span>
+                                <small style="font-size:0.62rem; line-height:1; opacity:0.85;">{{ 'ព្រឹក' if s.shift == 'Morning' else 'រសៀល' }}</small>
+                            </div>
+                            <div class="schedule-details">
+                                <div style="display:flex; align-items:center; gap:6px;">
+                                    <span class="schedule-class-name" style="font-weight:700; font-size:1.05rem;">ថ្នាក់ទី {{ s.class_code }}</span>
+                                    {% if is_active %}
+                                    <span class="badge" style="background:#10b981; color:#fff; font-size:0.68rem; padding:2px 6px; border-radius:6px; font-weight:700;">
+                                        <i class="fa-solid fa-bolt"></i> ត្រូវម៉ោង
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                <div class="schedule-subject-name" style="font-size:0.85rem; color:#475569;">
+                                    <i class="fa-solid fa-book-open text-primary"></i> {{ s.subject_name or s.subject_code }}
+                                </div>
+                                <div style="margin-top:3px; display:flex; align-items:center; gap:8px;">
+                                    <span style="font-size:0.75rem; color:#64748b;">
+                                        <i class="fa-regular fa-clock"></i> {{ s.time_range }}
+                                    </span>
+                                    {% if s.student_count %}
+                                    <span style="font-size:0.75rem; color:#64748b;">
+                                        <i class="fa-solid fa-users"></i> {{ s.student_count }} នាក់
+                                    </span>
+                                    {% endif %}
+                                    {% if s.room_number %}
+                                    <span style="font-size:0.75rem; color:#64748b;">
+                                        <i class="fa-solid fa-door-open"></i> {{ s.room_number }}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right Action / Status Area -->
+                        <div style="text-align:right;">
+                            {% if is_active %}
+                                {# CASE 1: ថ្នាក់ដែលត្រូវម៉ោង (Active Slot) #}
+                                {% if s.can_take_attendance %}
+                                    <div style="display:flex; flex-direction:column; align-items:flex-end; gap:5px;">
+                                        <span class="badge" style="background:#dcfce7; color:#15803d; font-size:0.72rem; padding:3px 8px; border-radius:6px; font-weight:700;">
+                                            🟢 ដល់ម៉ោងស្រង់
+                                        </span>
+                                        <a href="{{ url_for('portal_attendance_page') }}" 
+                                           class="btn-take-attendance" 
+                                           id="btnTakeAttendanceActive"
+                                           style="background:#10b981; color:#fff; padding:8px 14px; border-radius:10px; font-size:0.85rem; text-decoration:none; font-weight:700; display:inline-flex; align-items:center; gap:5px; box-shadow:0 2px 8px rgba(16,185,129,0.35);">
+                                            <i class="fa-solid fa-clipboard-check"></i> ស្រង់ឥឡូវនេះ
+                                        </a>
+                                    </div>
+                                {% elif s.can_edit_attendance %}
+                                    <div style="display:flex; flex-direction:column; align-items:flex-end; gap:5px;">
+                                        <span class="badge" style="background:#dcfce7; color:#15803d; font-size:0.72rem; padding:3px 8px; border-radius:6px; font-weight:600;">
+                                            <i class="fa-solid fa-circle-check"></i> បានស្រង់រួច
+                                        </span>
+                                        <a href="{{ url_for('portal_attendance_page') }}" 
+                                           id="btnEditAttendanceActive"
+                                           style="background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; padding:6px 12px; border-radius:8px; font-size:0.8rem; text-decoration:none; font-weight:600; display:inline-flex; align-items:center; gap:4px;">
+                                            <i class="fa-solid fa-pen-to-square"></i> កែប្រែវត្តមាន
+                                        </a>
+                                    </div>
+                                {% else %}
+                                    {# Active hour but locked (past 30 mins) #}
+                                    <div style="display:flex; flex-direction:column; align-items:flex-end; gap:5px;">
+                                        <span class="badge" style="background:#f1f5f9; color:#64748b; font-size:0.72rem; padding:3px 8px; border-radius:6px; font-weight:600;">
+                                            <i class="fa-solid fa-lock"></i> បានស្រង់រួច
+                                        </span>
+                                        <button type="button" disabled 
+                                                class="btn-slot-disabled"
+                                                style="background:#f1f5f9; color:#94a3b8; border:1px solid #e2e8f0; padding:6px 12px; border-radius:8px; font-size:0.78rem; font-weight:600; cursor:not-allowed; display:inline-flex; align-items:center; gap:4px;">
+                                            <i class="fa-solid fa-lock"></i> ចាក់សោ
+                                        </button>
+                                    </div>
+                                {% endif %}
+
+                            {% else %}
+                                {# CASE 2: ថ្នាក់មិនត្រូវម៉ោង (Non-active Slots) - DISABLED ទាំងអស់ #}
+                                {% if s.is_marked %}
+                                    {# ថ្នាក់ដែលបានស្រង់រួច (ហើយមិនមែនម៉ោងបច្ចុប្បន្ន) -> DISABLE #}
+                                    <div style="display:flex; flex-direction:column; align-items:flex-end; gap:5px;">
+                                        <span class="badge" style="background:#f1f5f9; color:#475569; border:1px solid #e2e8f0; font-size:0.72rem; padding:3px 8px; border-radius:6px; font-weight:600;">
+                                            <i class="fa-solid fa-circle-check text-success"></i> បានស្រង់រួច
+                                        </span>
+                                        <button type="button" disabled 
+                                                class="btn-slot-disabled"
+                                                style="background:#f8fafc; color:#94a3b8; border:1px solid #e2e8f0; padding:6px 12px; border-radius:8px; font-size:0.78rem; font-weight:600; cursor:not-allowed; display:inline-flex; align-items:center; gap:4px;">
+                                            <i class="fa-solid fa-lock"></i> ចាក់សោ
+                                        </button>
+                                    </div>
+                                {% elif s.timing_status == 'UPCOMING' %}
+                                    {# ថ្នាក់មិនទាន់បានស្រង់ និងមិនទាន់ដល់ម៉ោង -> DISABLE #}
+                                    <div style="display:flex; flex-direction:column; align-items:flex-end; gap:5px;">
+                                        <span class="badge" style="background:#f8fafc; color:#64748b; border:1px solid #e2e8f0; font-size:0.72rem; padding:3px 8px; border-radius:6px; font-weight:500;">
+                                            <i class="fa-regular fa-clock"></i> មិនទាន់ដល់ម៉ោង
+                                        </span>
+                                        <button type="button" disabled 
+                                                class="btn-slot-disabled"
+                                                style="background:#f8fafc; color:#94a3b8; border:1px solid #e2e8f0; padding:6px 12px; border-radius:8px; font-size:0.78rem; font-weight:600; cursor:not-allowed; display:inline-flex; align-items:center; gap:4px;">
+                                            <i class="fa-solid fa-ban"></i> មិនទាន់ដល់ម៉ោង
+                                        </button>
+                                    </div>
+                                {% else %}
+                                    {# ថ្នាក់មិនទាន់បានស្រង់ និងហួសម៉ោងបង្រៀន -> DISABLE #}
+                                    <div style="display:flex; flex-direction:column; align-items:flex-end; gap:5px;">
+                                        <span class="badge" style="background:#fef2f2; color:#b91c1c; border:1px solid #fecaca; font-size:0.72rem; padding:3px 8px; border-radius:6px; font-weight:600;">
+                                            <i class="fa-solid fa-triangle-exclamation"></i> មិនបានស្រង់
+                                        </span>
+                                        <button type="button" disabled 
+                                                class="btn-slot-disabled"
+                                                style="background:#fef2f2; color:#dc2626; border:1px solid #fecaca; padding:6px 12px; border-radius:8px; font-size:0.78rem; font-weight:600; cursor:not-allowed; display:inline-flex; align-items:center; gap:4px; opacity:0.85;">
+                                            <i class="fa-solid fa-lock"></i> ផុតម៉ោងស្រង់
+                                        </button>
+                                    </div>
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="card p-3 text-center" style="background:#fff; border-radius:16px; border:1px solid #e2e8f0; padding:24px 16px;">
+                        <i class="fa-solid fa-mug-hot" style="font-size:36px; color:#94a3b8; margin-bottom:10px;"></i>
+                        <h4 style="margin:0; font-size:1.05rem;">មិនមានកាលវិភាគបង្រៀននៅថ្ងៃនេះទេ</h4>
+                        <p style="color:#64748b; font-size:0.85rem; margin-top:6px;">
+                            លោកគ្រូ-អ្នកគ្រូ មិនមានកាលវិភាគបង្រៀននៅថ្ងៃនេះទេ (ប្រព័ន្ធអនុញ្ញាតឱ្យស្រង់វត្តមានបានតែថ្នាក់ដែលត្រូវម៉ោងបង្រៀនតាមកាលវិភាគប៉ុណ្ណោះ)។
+                        </p>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Quick Actions Section -->
+            <div class="section-title-row">
+                <h3 class="section-title">
+                    <i class="fa-solid fa-bolt text-warning"></i>
+                    <span>មុខងាររហ័ស</span>
+                </h3>
+            </div>
+
+            <div class="quick-action-grid">
+                {% if active_slot_info and active_slot_info.has_slot %}
+                <a href="{{ url_for('portal_attendance_page') }}" class="action-tile" style="border:1.5px solid #10b981; background:#f0fdf4;">
+                    <div class="action-tile-icon green" style="background:#10b981; color:#fff;">
+                        <i class="fa-solid fa-clipboard-check"></i>
+                    </div>
+                    <h4>ស្រង់វត្តមាន</h4>
+                    <span style="color:#059669; font-weight:600;">ថ្នាក់ទី {{ active_slot_info.slot.class_code }} (ត្រូវម៉ោង)</span>
+                </a>
+                {% else %}
+                <div class="action-tile" style="opacity:0.6; cursor:not-allowed; background:#f8fafc; border:1px dashed #cbd5e1;" onclick="alertNoActiveSlot()">
+                    <div class="action-tile-icon" style="background:#e2e8f0; color:#94a3b8;">
+                        <i class="fa-solid fa-ban"></i>
+                    </div>
+                    <h4>ស្រង់វត្តមាន</h4>
+                    <span style="color:#ef4444;"><i class="fa-solid fa-lock"></i> មិនទាន់ត្រូវម៉ោង</span>
+                </div>
+                {% endif %}
+
+                <a href="{{ url_for('timetable_page', view='teacher', teacher_id=current_teacher.id) }}" class="action-tile">
+                    <div class="action-tile-icon purple">
+                        <i class="fa-solid fa-calendar-week"></i>
+                    </div>
+                    <h4>កាលវិភាគពេញ</h4>
+                    <span>ចន្ទ ដល់ សៅរ៍</span>
+                </a>
+
+                <a href="javascript:void(0)" onclick="openPortalLeaveModal()" class="action-tile">
+                    <div class="action-tile-icon amber">
+                        <i class="fa-solid fa-envelope-open-text"></i>
+                    </div>
+                    <h4>សុំច្បាប់ផ្ទាល់ខ្លួន</h4>
+                    <span>ផ្ញើពាក្យសុំច្បាប់</span>
+                </a>
+
+                {% if not is_teacher %}
+                <a href="{{ url_for('teacher_attendance_page') }}" class="action-tile">
+                    <div class="action-tile-icon teal">
+                        <i class="fa-solid fa-clipboard-user"></i>
+                    </div>
+                    <h4>វត្តមានគ្រូ</h4>
+                    <span>ពិនិត្យវត្តមានគ្រូ</span>
+                </a>
+                {% else %}
+                <div class="action-tile" style="background:#f8fafc;">
+                    <div class="action-tile-icon teal" style="background:#e0f2fe; color:#0284c7;">
+                        <i class="fa-solid fa-id-badge"></i>
+                    </div>
+                    <h4>កូដគ្រូបង្រៀន</h4>
+                    <span style="color:#0369a1; font-weight:600;">{{ current_teacher.teacher_code }}</span>
+                </div>
+                {% endif %}
+            </div>
+        </main>
+
+        <!-- Bottom Mobile Navigation Bar -->
+        <nav class="mobile-bottom-nav">
+            <a href="{{ url_for('portal_page') }}" class="nav-item-mobile active">
+                <i class="fa-solid fa-house"></i>
+                <span>ទំព័រដើម</span>
+            </a>
+            <a href="javascript:void(0)" onclick="handleTakeAttendanceNav()" class="nav-item-mobile">
+                <i class="fa-solid fa-clipboard-check"></i>
+                <span>ស្រង់វត្តមាន</span>
+            </a>
+            <a href="{{ url_for('timetable_page', view='teacher', teacher_id=current_teacher.id) }}" class="nav-item-mobile">
+                <i class="fa-solid fa-calendar-days"></i>
+                <span>កាលវិភាគ</span>
+            </a>
+            {% if not is_teacher %}
+            <a href="{{ url_for('index') }}" class="nav-item-mobile">
+                <i class="fa-solid fa-gauge-high"></i>
+                <span>Dashboard</span>
+            </a>
+            {% endif %}
+        </nav>
+    </div>
+
+    <!-- Teacher Picker Modal -->
+    <div class="modal-backdrop" id="teacherPickerModal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); display:none; align-items:flex-end; z-index:1000;">
+        <div style="background:#fff; width:100%; max-width:480px; margin:0 auto; border-top-left-radius:24px; border-top-right-radius:24px; max-height:80vh; display:flex; flex-direction:column; overflow:hidden;">
+            <div style="padding:16px 20px; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+                <h4 style="margin:0; font-size:1.1rem; font-weight:700;">ជ្រើសរើសឈ្មោះលោកគ្រូ-អ្នកគ្រូ</h4>
+                <button onclick="closeTeacherPickerModal()" style="background:none; border:none; font-size:24px; color:#64748b; cursor:pointer;">&times;</button>
+            </div>
+            <div style="padding:12px 16px; border-bottom:1px solid #f1f5f9;">
+                <input type="text" id="teacherModalSearch" placeholder="ស្វែងរកតាមឈ្មោះ ឬកូដគ្រូ..." 
+                       style="width:100%; padding:10px 14px; border-radius:12px; border:1px solid #cbd5e1; font-family:inherit; box-sizing:border-box;">
+            </div>
+            <div style="overflow-y:auto; padding:10px 16px;" id="teacherListContainer">
+                {% for t in all_teachers %}
+                <div class="teacher-list-item" data-search="{{ t.full_name_kh }} {{ t.teacher_code }} {{ t.subject }}"
+                     onclick="selectTeacher({{ t.id }}, '{{ t.full_name_kh }}', '{{ t.subject }}')"
+                     style="padding:12px 10px; border-bottom:1px solid #f1f5f9; display:flex; align-items:center; justify-content:space-between; cursor:pointer;">
+                    <div>
+                        <div style="font-weight:700; font-size:1rem;">{{ t.full_name_kh }}</div>
+                        <div style="font-size:0.8rem; color:#64748b;">{{ t.subject }} • {{ t.teacher_code }}</div>
+                    </div>
+                    {% if t.id == current_teacher.id %}
+                    <i class="fa-solid fa-check text-primary"></i>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Class Picker Modal (For taking attendance of any class) -->
+    <div class="modal-backdrop" id="classPickerModal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); display:none; align-items:flex-end; z-index:1000;">
+        <div style="background:#fff; width:100%; max-width:480px; margin:0 auto; border-top-left-radius:24px; border-top-right-radius:24px; max-height:80vh; display:flex; flex-direction:column; overflow:hidden;">
+            <div style="padding:16px 20px; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+                <h4 style="margin:0; font-size:1.1rem; font-weight:700;">ជ្រើសរើសថ្នាក់រៀនដើម្បីស្រង់វត្តមាន</h4>
+                <button onclick="closeClassPickerModal()" style="background:none; border:none; font-size:24px; color:#64748b; cursor:pointer;">&times;</button>
+            </div>
+            <div style="overflow-y:auto; padding:16px; display:grid; grid-template-columns:repeat(3, 1fr); gap:10px;">
+                {% for c in all_classes %}
+                <a href="{{ url_for('portal_attendance_page', class_code=c.class_name.replace('ថ្នាក់ទី ', '').strip()) }}" 
+                   style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:12px; padding:14px 8px; text-align:center; text-decoration:none; color:#0f172a; font-weight:700;">
+                    <div>{{ c.class_name }}</div>
+                    <small style="color:#64748b; font-size:0.75rem; font-weight:normal;">{{ c.student_count }} នាក់</small>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Leave Request Modal -->
+    <div class="modal-backdrop" id="portalLeaveModal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); display:none; align-items:flex-end; z-index:1000;">
+        <div style="background:#fff; width:100%; max-width:480px; margin:0 auto; border-top-left-radius:24px; border-top-right-radius:24px; padding:20px; box-sizing:border-box;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+                <h4 style="margin:0; font-size:1.1rem; font-weight:700;">ពាក្យសុំច្បាប់ឈប់សម្រាក</h4>
+                <button onclick="closePortalLeaveModal()" style="background:none; border:none; font-size:24px; color:#64748b; cursor:pointer;">&times;</button>
+            </div>
+            <form onsubmit="submitPortalLeave(event)">
+                <input type="hidden" id="leaveTeacherId" value="{{ current_teacher.id }}">
+                <div style="margin-bottom:12px;">
+                    <label style="font-size:0.85rem; font-weight:600; display:block; margin-bottom:4px;">កាលបរិច្ឆេទ</label>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                        <input type="date" id="pLeaveStart" class="form-control" style="width:100%; padding:8px; border-radius:8px; border:1px solid #cbd5e1;" required>
+                        <input type="date" id="pLeaveEnd" class="form-control" style="width:100%; padding:8px; border-radius:8px; border:1px solid #cbd5e1;" required>
+                    </div>
+                </div>
+                <div style="margin-bottom:14px;">
+                    <label style="font-size:0.85rem; font-weight:600; display:block; margin-bottom:4px;">មូលហេតុសុំច្បាប់</label>
+                    <textarea id="pLeaveReason" rows="3" placeholder="បញ្ជាក់មូលហេតុ (ឧ. ឈឺ មានធុរៈ...)" 
+                              style="width:100%; padding:10px; border-radius:10px; border:1px solid #cbd5e1; font-family:inherit; box-sizing:border-box;" required></textarea>
+                </div>
+                <button type="submit" style="width:100%; background:#2563eb; color:#fff; border:none; border-radius:12px; padding:12px; font-weight:700; font-family:inherit; font-size:1rem; cursor:pointer;">
+                    ផ្ញើពាក្យសុំច្បាប់
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script>
+        // Setup Live Clock, Countdown, and Top-of-Hour Auto Refresh
+        let secRemainingFirst30 = parseInt("{{ active_slot_info.period_info.period.sec_remaining_first_30 if (active_slot_info and active_slot_info.period_info.period) else 0 }}") || 0;
+        let secRemainingPeriod = parseInt("{{ active_slot_info.period_info.period.sec_remaining_period if (active_slot_info and active_slot_info.period_info.period) else 0 }}") || 0;
+
+        function updateLiveClock() {
+            const now = new Date();
+            const pad = n => n < 10 ? '0' + n : n;
+            const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+            const clockEl = document.getElementById('liveClockDisplay');
+            if (clockEl) clockEl.innerText = timeStr;
+
+            // Update countdowns
+            if (secRemainingFirst30 > 0) {
+                secRemainingFirst30--;
+                const m = Math.floor(secRemainingFirst30 / 60);
+                const s = secRemainingFirst30 % 60;
+                const el = document.getElementById('first30Countdown');
+                if (el) el.innerText = `${pad(m)}:${pad(s)}`;
+            } else if (document.getElementById('first30Countdown')) {
+                // If first 30 just elapsed, reload to update UI state
+                setTimeout(() => window.location.reload(), 1000);
+            }
+
+            if (secRemainingPeriod > 0) {
+                secRemainingPeriod--;
+                const m = Math.floor(secRemainingPeriod / 60);
+                const s = secRemainingPeriod % 60;
+                const el = document.getElementById('periodCountdown');
+                if (el) el.innerText = `${pad(m)}:${pad(s)}`;
+            }
+        }
+
+        function scheduleNextHourRefresh() {
+            const now = new Date();
+            // Calculate milliseconds until the turn of the next hour (XX:00:00)
+            const msUntilNextHour = ((60 - now.getMinutes()) * 60 - now.getSeconds()) * 1000 - now.getMilliseconds();
+            console.log("Scheduling hourly auto-refresh in " + Math.round(msUntilNextHour/1000) + " seconds");
+            setTimeout(() => {
+                console.log("Hourly refresh triggered at top of the hour!");
+                window.location.reload();
+            }, Math.max(1500, msUntilNextHour + 500));
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            updateLiveClock();
+            setInterval(updateLiveClock, 1000);
+            scheduleNextHourRefresh();
+
+            {% if not is_teacher %}
+            const savedTid = localStorage.getItem('saved_teacher_id');
+            const urlParams = new URLSearchParams(window.location.search);
+            if (savedTid && !urlParams.has('teacher_id')) {
+                window.location.href = `/portal?teacher_id=${savedTid}`;
+            }
+            {% endif %}
+        });
+
+        function openTeacherPickerModal() {
+            {% if is_teacher %}
+            alert("លោកគ្រូ-អ្នកគ្រូ មិនអាចប្តូរគណនីគ្រូដទៃបានទេ!");
+            return;
+            {% endif %}
+            document.getElementById('teacherPickerModal').style.display = 'flex';
+        }
+        function closeTeacherPickerModal() {
+            document.getElementById('teacherPickerModal').style.display = 'none';
+        }
+
+        function alertNoActiveSlot() {
+            alert("លោកគ្រូ-អ្នកគ្រូ មិនមានម៉ោងបង្រៀននៅពេលនេះទេ! ប្រព័ន្ធអនុញ្ញាតឱ្យស្រង់វត្តមានបានតែថ្នាក់ដែលត្រូវម៉ោងបង្រៀនប៉ុណ្ណោះ។");
+        }
+
+        function handleTakeAttendanceNav() {
+            {% if active_slot_info and active_slot_info.has_slot %}
+                window.location.href = "{{ url_for('portal_attendance_page') }}";
+            {% else %}
+                alertNoActiveSlot();
+            {% endif %}
+        }
+
+        function openClassPickerModal() {
+            {% if is_teacher %}
+                {% if active_slot_info and active_slot_info.has_slot %}
+                    window.location.href = "{{ url_for('portal_attendance_page') }}";
+                {% else %}
+                    alertNoActiveSlot();
+                {% endif %}
+                return;
+            {% endif %}
+            document.getElementById('classPickerModal').style.display = 'flex';
+        }
+        function closeClassPickerModal() {
+            document.getElementById('classPickerModal').style.display = 'none';
+        }
+
+        function selectTeacher(tid, name, subject) {
+            localStorage.setItem('saved_teacher_id', tid);
+            window.location.href = `/portal?teacher_id=${tid}`;
+        }
+
+        // Search in teacher picker
+        document.getElementById('teacherModalSearch')?.addEventListener('input', function(e) {
+            const val = e.target.value.toLowerCase().trim();
+            document.querySelectorAll('#teacherListContainer .teacher-list-item').forEach(el => {
+                const searchTxt = el.getAttribute('data-search').toLowerCase();
+                el.style.display = searchTxt.includes(val) ? 'flex' : 'none';
+            });
+        });
+
+        function openPortalLeaveModal() {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('pLeaveStart').value = today;
+            document.getElementById('pLeaveEnd').value = today;
+            document.getElementById('pLeaveReason').value = '';
+            document.getElementById('portalLeaveModal').style.display = 'flex';
+        }
+        function closePortalLeaveModal() {
+            document.getElementById('portalLeaveModal').style.display = 'none';
+        }
+
+        function submitPortalLeave(e) {
+            e.preventDefault();
+            const tid = parseInt(document.getElementById('leaveTeacherId').value);
+            const start = document.getElementById('pLeaveStart').value;
+            const end = document.getElementById('pLeaveEnd').value;
+            const reason = document.getElementById('pLeaveReason').value.trim();
+
+            fetch('/api/leave-requests', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    person_type: 'TEACHER',
+                    person_id: tid,
+                    start_date: start,
+                    end_date: end,
+                    reason: reason,
+                    approved_by: 'នាយកសាលា'
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    alert('បានផ្ញើពាក្យសុំច្បាប់ដោយជោគជ័យ!');
+                    closePortalLeaveModal();
+                } else {
+                    alert(data.message);
+                }
+            });
+        }
+    </script>
+</body>
+</html>

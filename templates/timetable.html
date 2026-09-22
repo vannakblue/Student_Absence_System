@@ -1,0 +1,1033 @@
+{% extends "base.html" %}
+
+{% block title %}កាលវិភាគបង្រៀន (Timetable){% endblock %}
+
+{% block content %}
+<div class="timetable-page">
+    <div class="page-header-row no-print">
+        <div>
+            <h1 class="page-title"><i class="fa-solid fa-calendar-days text-primary"></i> កាលវិភាគបង្រៀន (Timetable)</h1>
+            <p class="page-subtitle">{{ global_school_name_kh }} | ឆ្នាំសិក្សា ២០២៦-២០២៧</p>
+        </div>
+        <div class="header-actions">
+            {% if current_user and current_user.role == 'admin' %}
+            <button type="button" class="btn btn-outline" onclick="openKkhsSyncModal()" style="border-color:#2563eb; color:#1d4ed8; background:#eff6ff; font-weight:600;">
+                <i class="fa-solid fa-rotate text-primary"></i> Sync ពី kkhs.web.app
+            </button>
+            <button type="button" class="btn btn-outline" onclick="openImportTimetableModal()" style="border-color:#10b981; color:#059669;">
+                <i class="fa-solid fa-file-excel text-success"></i> បញ្ចូលកាលវិភាគរួម (Import Timetable)
+            </button>
+            <a href="{{ url_for('export_timetable_excel') }}" class="btn btn-outline" title="ទាញយកកាលវិភាគរួមជា Excel">
+                <i class="fa-solid fa-download text-primary"></i> Export Excel
+            </a>
+            <button type="button" class="btn btn-outline" id="btnToggleEditMode" onclick="toggleTimetableEditMode()">
+                <i class="fa-solid fa-pen-to-square"></i> <span id="editModeLabel">បើកមុខងារកែប្រែ (Edit Mode)</span>
+            </button>
+            <a href="{{ url_for('teacher_attendance_page') }}" class="btn btn-primary">
+                <i class="fa-solid fa-clipboard-user"></i> ស្រង់វត្តមានតាមម៉ោង
+            </a>
+            {% endif %}
+            <button onclick="window.print()" class="btn btn-outline">
+                <i class="fa-solid fa-print text-primary"></i> បោះពុម្ព (Print)
+            </button>
+        </div>
+    </div>
+
+    <!-- Filter Control Card -->
+    <div class="card mb-3 p-3 no-print">
+        <div class="d-flex justify-between align-center flex-wrap gap-3">
+            {% if current_user and current_user.role == 'teacher' %}
+            <!-- Teacher View Isolation: Only show own timetable badge -->
+            <div class="d-flex align-center gap-2 flex-wrap">
+                <span class="badge badge-primary" style="font-size: 0.95rem; padding: 8px 16px; background: linear-gradient(135deg, #1e40af, #3b82f6);">
+                    <i class="fa-solid fa-user-tie"></i> កាលវិភាគបង្រៀនផ្ទាល់ខ្លួន៖ <strong>{{ current_entity.full_name_kh }}</strong> ({{ current_entity.subject }})
+                </span>
+                <span class="text-muted small">
+                    <i class="fa-solid fa-id-badge"></i> កូដគ្រូ៖ <code>{{ current_entity.teacher_code }}</code>
+                </span>
+            </div>
+            <div class="text-muted small">
+                <i class="fa-solid fa-lock text-success"></i> គណនីគ្រូបង្រៀនត្រូវបានកំណត់ឱ្យមើលឃើញតែកាលវិភាគផ្ទាល់ខ្លួនប៉ុណ្ណោះ
+            </div>
+            {% else %}
+            <!-- Admin View: Can switch between Class and Teacher -->
+            <div class="d-flex align-center gap-2 flex-wrap">
+                <!-- Toggle View Mode -->
+                <div class="btn-group" style="display: inline-flex; background: #e2e8f0; border-radius: 8px; padding: 3px;">
+                    <a href="{{ url_for('timetable_page', view='class', class_code=selected_class_code) }}" 
+                       class="btn btn-sm {% if view_type != 'teacher' %}btn-primary{% else %}btn-outline{% endif %}" style="padding: 6px 14px;">
+                        <i class="fa-solid fa-chalkboard"></i> តាមថ្នាក់រៀន (Class)
+                    </a>
+                    <a href="{{ url_for('timetable_page', view='teacher', teacher_id=selected_teacher_id) }}" 
+                       class="btn btn-sm {% if view_type == 'teacher' %}btn-primary{% else %}btn-outline{% endif %}" style="padding: 6px 14px;">
+                        <i class="fa-solid fa-user-tie"></i> តាមគ្រូបង្រៀន (Teacher)
+                    </a>
+                </div>
+
+                <!-- Class or Teacher Selector -->
+                {% if view_type == 'teacher' %}
+                <div class="filter-group-inline">
+                    <select class="form-control font-weight-bold" onchange="window.location.href='/timetable?view=teacher&teacher_id=' + this.value">
+                        {% for t in teachers %}
+                        <option value="{{ t.id }}" {% if t.id == selected_teacher_id %}selected{% endif %}>
+                            {{ t.full_name_kh }} ({{ t.subject }}) - {{ t.teacher_code }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% else %}
+                <div class="filter-group-inline">
+                    <select class="form-control font-weight-bold" onchange="window.location.href='/timetable?view=class&class_code=' + this.value">
+                        {% for c_code in timetable_classes %}
+                        <option value="{{ c_code }}" {% if c_code == selected_class_code %}selected{% endif %}>
+                            ថ្នាក់ទី {{ c_code }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="d-flex align-center gap-2">
+                <div class="text-muted small">
+                    {% if view_type == 'teacher' %}
+                        គ្រូបង្រៀន៖ <strong class="text-primary">{{ current_entity.full_name_kh }}</strong> ({{ current_entity.subject }})
+                    {% else %}
+                        ថ្នាក់រៀន៖ <strong class="text-primary">ថ្នាក់ទី {{ selected_class_code }}</strong>
+                    {% endif %}
+                </div>
+                {% if current_user and current_user.role == 'admin' %}
+                <span class="badge badge-info edit-mode-badge" id="editActiveBadge" style="display:none;">
+                    <i class="fa-solid fa-wrench"></i> មុខងារកែប្រែកំពុងដំណើរការ (ចុចលើប្រឡោះដើម្បីកែប្រែ)
+                </span>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Printable Schedule Card -->
+    <div class="card printable-card">
+        <!-- Print Header -->
+        <div class="print-header text-center mb-3">
+            <h2 class="fw-bold">{{ global_school_name_kh }}</h2>
+            <h4>កាលវិភាគបង្រៀន និងរៀនប្រចាំសប្តាហ៍</h4>
+            <p class="text-muted">
+                {% if view_type == 'teacher' %}
+                    គ្រូបង្រៀន៖ <strong>{{ current_entity.full_name_kh }}</strong> | មុខវិជ្ជា៖ <strong>{{ current_entity.subject }}</strong> | កូដ៖ <strong>{{ current_entity.teacher_code }}</strong>
+                {% else %}
+                    ថ្នាក់រៀន៖ <strong>ថ្នាក់ទី {{ selected_class_code }}</strong> | ឆ្នាំសិក្សា៖ <strong>២០២៦-២០២៧</strong>
+                    <br>
+                    <span style="font-size: 0.88rem; display: inline-block; margin-top: 4px;">
+                        គ្រូបន្ទុកថ្នាក់៖ <strong class="text-primary">{{ class_obj.homeroom_teacher_name if (class_obj and class_obj.homeroom_teacher_name) else 'មិនទាន់កំណត់' }}</strong>
+                        {% if class_obj and class_obj.telegram_chat_id %}
+                            | <i class="fa-brands fa-telegram text-info"></i> Telegram Group៖ <code>{{ class_obj.telegram_chat_id }}</code>
+                        {% endif %}
+                        {% if current_user and current_user.role == 'admin' and class_obj %}
+                            <button type="button" class="btn btn-sm btn-outline" style="margin-left: 8px; padding: 2px 8px; font-size: 0.78rem;" onclick="openHomeroomModal()">
+                                <i class="fa-solid fa-pen-to-square"></i> កែប្រែគ្រូបន្ទុក & Telegram
+                            </button>
+                        {% endif %}
+                    </span>
+                {% endif %}
+            </p>
+        </div>
+
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-bordered timetable-grid" id="mainTimetableGrid">
+                    <thead>
+                        <tr class="table-primary text-center">
+                            <th style="width: 100px;">ម៉ោងបង្រៀន</th>
+                            {% for d in days %}
+                            <th>{{ d.name }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Morning Shift Header -->
+                        <tr class="shift-divider-row">
+                            <td colspan="7" class="text-center fw-bold bg-light text-primary">
+                                <i class="fa-solid fa-sun text-warning"></i> វេនពេលព្រឹក (MORNING SHIFT - ម៉ោងទី ១ ដល់ ទី ៤)
+                            </td>
+                        </tr>
+                        {% for p in [1, 2, 3, 4] %}
+                        <tr>
+                            <td class="text-center fw-bold bg-light">
+                                <div>ម៉ោងទី {{ p }}</div>
+                                <small class="text-muted">
+                                    {% if p == 1 %}07:00 - 07:50{% elif p == 2 %}07:55 - 08:45{% elif p == 3 %}09:00 - 09:50{% else %}09:55 - 10:45{% endif %}
+                                </small>
+                            </td>
+                            {% for d in days %}
+                                {% set slot = grid.get((d.code, p)) %}
+                                <td class="timetable-slot-cell {% if slot %}has-class{% endif %}"
+                                    data-slot-id="{{ slot.id if slot else '' }}"
+                                    data-day-code="{{ d.code }}"
+                                    data-day-name="{{ d.name }}"
+                                    data-period="{{ p }}"
+                                    data-shift="Morning"
+                                    data-class-code="{{ slot.class_code if slot else (selected_class_code if view_type != 'teacher' else '') }}"
+                                    data-teacher-id="{{ slot.teacher_id if slot else (selected_teacher_id if view_type == 'teacher' else '') }}"
+                                    data-teacher-name="{{ slot.teacher_name if slot else '' }}"
+                                    data-subject-name="{{ slot.subject_name if slot else '' }}"
+                                    data-room="{{ slot.room_number if slot else '' }}"
+                                    onclick="handleSlotClick(this)">
+                                    {% if slot %}
+                                        <div class="slot-subject fw-bold">{{ slot.subject_name or slot.subject_code }}</div>
+                                        {% if view_type == 'teacher' %}
+                                            <div class="slot-class badge badge-primary mt-1">ថ្នាក់ទី {{ slot.class_code }}</div>
+                                        {% else %}
+                                            <div class="slot-teacher text-muted small mt-1">
+                                                <i class="fa-solid fa-user-tie"></i> {{ slot.teacher_name or slot.teacher_code }}
+                                            </div>
+                                        {% endif %}
+                                        {% if slot.room_number %}
+                                        <div class="slot-room text-muted small" style="font-size:0.75rem;">
+                                            <i class="fa-solid fa-door-open"></i> {{ slot.room_number }}
+                                        </div>
+                                        {% endif %}
+                                    {% else %}
+                                        <div class="slot-empty">—</div>
+                                    {% endif %}
+                                </td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+
+                        <!-- Afternoon Shift Header -->
+                        <tr class="shift-divider-row">
+                            <td colspan="7" class="text-center fw-bold bg-light text-primary">
+                                <i class="fa-solid fa-moon text-info"></i> វេនពេលរសៀល (AFTERNOON SHIFT - ម៉ោងទី ៥ ដល់ ទី ៨)
+                            </td>
+                        </tr>
+                        {% for p in [5, 6, 7, 8] %}
+                        <tr>
+                            <td class="text-center fw-bold bg-light">
+                                <div>ម៉ោងទី {{ p }}</div>
+                                <small class="text-muted">
+                                    {% if p == 5 %}01:00 - 01:50{% elif p == 6 %}01:55 - 02:45{% elif p == 7 %}03:00 - 03:50{% else %}03:55 - 04:45{% endif %}
+                                </small>
+                            </td>
+                            {% for d in days %}
+                                {% set slot = grid.get((d.code, p)) %}
+                                <td class="timetable-slot-cell {% if slot %}has-class{% endif %}"
+                                    data-slot-id="{{ slot.id if slot else '' }}"
+                                    data-day-code="{{ d.code }}"
+                                    data-day-name="{{ d.name }}"
+                                    data-period="{{ p }}"
+                                    data-shift="Afternoon"
+                                    data-class-code="{{ slot.class_code if slot else (selected_class_code if view_type != 'teacher' else '') }}"
+                                    data-teacher-id="{{ slot.teacher_id if slot else (selected_teacher_id if view_type == 'teacher' else '') }}"
+                                    data-teacher-name="{{ slot.teacher_name if slot else '' }}"
+                                    data-subject-name="{{ slot.subject_name if slot else '' }}"
+                                    data-room="{{ slot.room_number if slot else '' }}"
+                                    onclick="handleSlotClick(this)">
+                                    {% if slot %}
+                                        <div class="slot-subject fw-bold">{{ slot.subject_name or slot.subject_code }}</div>
+                                        {% if view_type == 'teacher' %}
+                                            <div class="slot-class badge badge-primary mt-1">ថ្នាក់ទី {{ slot.class_code }}</div>
+                                        {% else %}
+                                            <div class="slot-teacher text-muted small mt-1">
+                                                <i class="fa-solid fa-user-tie"></i> {{ slot.teacher_name or slot.teacher_code }}
+                                            </div>
+                                        {% endif %}
+                                        {% if slot.room_number %}
+                                        <div class="slot-room text-muted small" style="font-size:0.75rem;">
+                                            <i class="fa-solid fa-door-open"></i> {{ slot.room_number }}
+                                        </div>
+                                        {% endif %}
+                                    {% else %}
+                                        <div class="slot-empty">—</div>
+                                    {% endif %}
+                                </td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Slot Edit/Add Modal (Admin Only) -->
+<div class="modal fade" id="modalEditSlot" tabindex="-1" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1050; align-items:center; justify-content:center;">
+    <div class="modal-dialog" style="background:#fff; width:95%; max-width:520px; border-radius:16px; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.2);">
+        <div class="modal-header" style="background:linear-gradient(135deg, #1e40af, #3b82f6); color:#fff; padding:16px 20px; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+                <h4 style="margin:0; font-size:1.1rem; font-weight:700;"><i class="fa-solid fa-pen-to-square"></i> កែប្រែកាលវិភាគបង្រៀន</h4>
+                <small id="modalSlotSubtitle" style="opacity:0.9;">ព័ត៌មានម៉ោងបង្រៀន</small>
+            </div>
+            <button type="button" onclick="closeSlotModal()" style="background:none; border:none; color:#fff; font-size:24px; cursor:pointer;">&times;</button>
+        </div>
+        <div class="modal-body" style="padding:20px;">
+            <input type="hidden" id="editSlotId">
+            <input type="hidden" id="editDayCode">
+            <input type="hidden" id="editPeriodNum">
+            <input type="hidden" id="editShift">
+
+            <div class="form-group mb-3">
+                <label style="font-weight:600; font-size:0.9rem; margin-bottom:4px; display:block;">
+                    <i class="fa-solid fa-chalkboard text-primary"></i> ថ្នាក់រៀន (Class)
+                </label>
+                <select id="editClassCode" class="form-control" style="width:100%;">
+                    {% for c in timetable_classes %}
+                    <option value="{{ c }}">ថ្នាក់ទី {{ c }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group mb-3">
+                <label style="font-weight:600; font-size:0.9rem; margin-bottom:4px; display:block;">
+                    <i class="fa-solid fa-book-open text-primary"></i> មុខវិជ្ជា (Subject)
+                </label>
+                <select id="editSubjectName" class="form-control" style="width:100%;">
+                    {% for sub in subjects %}
+                    <option value="{{ sub.name_kh }}">{{ sub.name_kh }} ({{ sub.code }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group mb-3">
+                <label style="font-weight:600; font-size:0.9rem; margin-bottom:4px; display:block;">
+                    <i class="fa-solid fa-user-tie text-primary"></i> គ្រូបង្រៀនទទួលបន្ទុក (Teacher)
+                </label>
+                <select id="editTeacherId" class="form-control" style="width:100%;">
+                    {% for t in teachers %}
+                    <option value="{{ t.id }}">{{ t.full_name_kh }} ({{ t.subject }}) - {{ t.teacher_code }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group mb-3">
+                <label style="font-weight:600; font-size:0.9rem; margin-bottom:4px; display:block;">
+                    <i class="fa-solid fa-door-open text-primary"></i> បន្ទប់សិក្សា (Room)
+                </label>
+                <input type="text" id="editRoomNumber" class="form-control" placeholder="ឧ. បន្ទប់ ១០២ ឬ អគារ B">
+            </div>
+        </div>
+        <div class="modal-footer" style="padding:14px 20px; background:#f8fafc; border-top:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+            <button type="button" class="btn btn-outline" id="btnDeleteSlot" onclick="deleteCurrentSlot()" style="color:#dc2626; border-color:#fca5a5;">
+                <i class="fa-solid fa-trash-can"></i> លុបម៉ោងនេះ
+            </button>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-outline" onclick="closeSlotModal()">បោះបង់</button>
+                <button type="button" class="btn btn-primary" onclick="saveCurrentSlot()" id="btnSaveSlot">
+                    <i class="fa-solid fa-floppy-disk"></i> រក្សាទុក
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Homeroom Teacher & Telegram Config -->
+<div class="modal fade" id="modalHomeroom" tabindex="-1" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1050; align-items:center; justify-content:center;">
+    <div class="modal-dialog" style="background:#fff; width:95%; max-width:480px; border-radius:16px; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.2);">
+        <div class="modal-header" style="background:linear-gradient(135deg, #0d9488, #059669); color:#fff; padding:16px 20px; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+                <h4 style="margin:0; font-size:1.1rem; font-weight:700;"><i class="fa-solid fa-user-shield"></i> កំណត់គ្រូបន្ទុកថ្នាក់ & Telegram</h4>
+                <small style="opacity:0.9;">សម្រាប់ថ្នាក់ទី {{ selected_class_code }}</small>
+            </div>
+            <button type="button" onclick="closeHomeroomModal()" style="background:none; border:none; color:#fff; font-size:24px; cursor:pointer;">&times;</button>
+        </div>
+        <div class="modal-body" style="padding:20px;">
+            <input type="hidden" id="homeroomClassId" value="{{ class_obj.id if class_obj else '' }}">
+
+            <div class="form-group mb-3">
+                <label style="font-weight:600; font-size:0.9rem; margin-bottom:4px; display:block;">
+                    <i class="fa-solid fa-user-tie text-teal"></i> គ្រូបន្ទុកថ្នាក់ (Homeroom Teacher)
+                </label>
+                <select id="homeroomTeacherId" class="form-control" style="width:100%;">
+                    <option value="">-- មិនទាន់កំណត់ (None) --</option>
+                    {% for t in teachers %}
+                    <option value="{{ t.id }}" {% if class_obj and class_obj.homeroom_teacher_id == t.id %}selected{% endif %}>
+                        {{ t.full_name_kh }} ({{ t.subject }}) - {{ t.teacher_code }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group mb-3">
+                <label style="font-weight:600; font-size:0.9rem; margin-bottom:4px; display:block;">
+                    <i class="fa-brands fa-telegram text-info"></i> Telegram Group Chat ID ថ្នាក់រៀន
+                </label>
+                <input type="text" id="homeroomTelegramChatId" class="form-control" 
+                       placeholder="ឧ. -1001234567890" 
+                       value="{{ class_obj.telegram_chat_id if (class_obj and class_obj.telegram_chat_id) else '' }}">
+                <small class="text-muted" style="font-size:0.8rem; display:block; margin-top:4px;">
+                    <i class="fa-solid fa-circle-info text-info"></i> Chat ID នៃ Group Telegram ថ្នាក់រៀន (សម្រាប់ទទួលរបាយការណ៍វត្តមានសង្ខេបប្រចាំម៉ោង)
+                </small>
+            </div>
+        </div>
+        <div class="modal-footer" style="padding:14px 20px; background:#f8fafc; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end; gap:8px;">
+            <button type="button" class="btn btn-outline" onclick="closeHomeroomModal()">បោះបង់</button>
+            <button type="button" class="btn btn-primary" onclick="submitHomeroomConfig()" id="btnSaveHomeroom" style="background:#0d9488; border-color:#0d9488;">
+                <i class="fa-solid fa-floppy-disk"></i> រក្សាទុក
+            </button>
+        </div>
+    </div>
+</div>
+
+{% if current_user and current_user.role == 'admin' %}
+<!-- Modal Import Master School Timetable (Excel) -->
+<div class="modal fade" id="modalImportTimetable" tabindex="-1" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1050; align-items:center; justify-content:center;">
+    <div class="modal-dialog" style="background:#fff; width:95%; max-width:540px; border-radius:16px; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.2);">
+        <div class="modal-header" style="background:linear-gradient(135deg, #059669, #10b981); color:#fff; padding:16px 20px; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+                <h4 style="margin:0; font-size:1.15rem; font-weight:700;"><i class="fa-solid fa-file-excel"></i> បញ្ចូលកាលវិភាគរួមក្នុងសាលា (Import Master Timetable)</h4>
+                <small style="opacity:0.9;">បញ្ចូលកាលវិភាគរួមតាមរយៈឯកសារ Excel (.xlsx)</small>
+            </div>
+            <button type="button" onclick="closeImportTimetableModal()" style="background:none; border:none; color:#fff; font-size:24px; cursor:pointer;">&times;</button>
+        </div>
+        <div class="modal-body" style="padding:22px;">
+            <!-- Download Template Banner -->
+            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 12px 16px; margin-bottom: 18px; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+                <div>
+                    <strong style="color: #166534; font-size: 0.92rem; display: block;"><i class="fa-solid fa-circle-info"></i> ទម្រង់គំរូកាលវិភាគរួម (Excel Template)</strong>
+                    <small style="color: #15803d; font-size: 0.82rem;">ទាញយកឯកសារគំរូដែលមានតារាងយោងកូដគ្រូ និងថ្នាក់រៀន</small>
+                </div>
+                <a href="/timetable/template/excel" class="btn btn-sm btn-outline" style="white-space: nowrap; border-color: #16a34a; color: #166534; background: #fff;">
+                    <i class="fa-solid fa-download"></i> ទាញយក Template
+                </a>
+            </div>
+
+            <!-- File Upload -->
+            <div class="form-group mb-3">
+                <label style="font-weight:600; font-size:0.9rem; margin-bottom:6px; display:block;">
+                    <i class="fa-solid fa-cloud-arrow-up text-success"></i> ជ្រើសរើសឯកសារ Excel កាលវិភាគ (.xlsx) <span class="text-danger">*</span>
+                </label>
+                <input type="file" id="importTimetableFileInput" class="form-control" accept=".xlsx, .xls" style="padding: 9px;">
+                <small class="text-muted" style="font-size:0.8rem; display:block; margin-top:4px;">
+                    គាំទ្រឯកសារ Excel (.xlsx) ដែលមានក្បាលជួរដេក៖ ថ្នាក់រៀន, ថ្ងៃបង្រៀន (ច-ស), ម៉ោងទី (១-៨), មុខវិជ្ជា, គ្រូបង្រៀន, បន្ទប់
+                </small>
+            </div>
+
+            <!-- Import Mode Selection -->
+            <div class="form-group mb-3">
+                <label style="font-weight:600; font-size:0.9rem; margin-bottom:6px; display:block;">
+                    <i class="fa-solid fa-sliders text-primary"></i> ជម្រើសនៃការបញ្ចូលទិន្នន័យ (Import Mode)
+                </label>
+                <select id="importTimetableMode" class="form-control">
+                    <option value="merge" selected>បន្ថែម / កែប្រែលើកាលវិភាគចាស់ (Merge / Update - ណែនាំ)</option>
+                    <option value="replace">សម្អាតកាលវិភាគចាស់ទាំងអស់ រួចជំនួសថ្មីទាំងស្រុង (Replace All)</option>
+                </select>
+                <small class="text-muted" style="font-size:0.8rem; display:block; margin-top:4px;">
+                    • <strong>Merge</strong>៖ រក្សាកាលវិភាគចាស់ ហើយកែប្រែតែម៉ោងណាដែលមានក្នុងឯកសារថ្មី<br>
+                    • <strong>Replace All</strong>៖ លុបកាលវិភាគចាស់ទាំងអស់ក្នុងសាលាចេញ ហើយជំនួសដោយឯកសារថ្មីនេះ
+                </small>
+            </div>
+
+            <div id="importResultAlert" style="display:none; margin-top:12px; padding:12px; border-radius:8px; font-size:0.88rem;"></div>
+        </div>
+        <div class="modal-footer" style="padding:14px 20px; background:#f8fafc; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end; gap:8px;">
+            <button type="button" class="btn btn-outline" onclick="closeImportTimetableModal()">បោះបង់</button>
+            <button type="button" class="btn btn-primary" onclick="submitTimetableImport()" id="btnSubmitImportTimetable" style="background:#059669; border-color:#059669;">
+                <i class="fa-solid fa-file-import"></i> ចាប់ផ្តើមបញ្ចូលកាលវិភាគ
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal KKHS Cloud Sync & Google Sheets Bridge (kkhs.web.app) -->
+<div class="modal fade" id="modalKkhsSync" tabindex="-1" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1050; align-items:center; justify-content:center;">
+    <div class="modal-dialog" style="background:#fff; width:95%; max-width:620px; border-radius:16px; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.2); max-height:90vh; display:flex; flex-direction:column;">
+        <div class="modal-header" style="background:linear-gradient(135deg, #1d4ed8, #3b82f6); color:#fff; padding:16px 20px; display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
+            <div>
+                <h4 style="margin:0; font-size:1.15rem; font-weight:700;"><i class="fa-solid fa-cloud-arrow-down"></i> ធ្វើសមកាលកម្មកាលវិភាគ KKHS & Google Sheets</h4>
+                <small style="opacity:0.9;">តភ្ជាប់ kkhs.web.app ជាមួយ Google Sheets និងរក្សាទុកក្នុងប្រព័ន្ធអចិន្ត្រៃយ៍</small>
+            </div>
+            <button type="button" onclick="closeKkhsSyncModal()" style="background:none; border:none; color:#fff; font-size:24px; cursor:pointer;">&times;</button>
+        </div>
+        <div class="modal-body" style="padding:20px; overflow-y:auto;">
+            <!-- Source Banner -->
+            <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 12px 16px; margin-bottom: 16px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                    <span style="font-weight: 700; color: #1e40af; font-size: 0.95rem;">
+                        <i class="fa-solid fa-globe"></i> ប្រភពកាលវិភាគផ្លូវការ៖
+                    </span>
+                    <a href="https://kkhs.web.app" target="_blank" style="color: #2563eb; font-weight: 600; text-decoration: none; font-size: 0.88rem;">
+                        kkhs.web.app <i class="fa-solid fa-arrow-up-right-from-square" style="font-size: 0.75rem;"></i>
+                    </a>
+                </div>
+                <div style="color: #475569; font-size: 0.83rem; line-height: 1.5;">
+                    ទិន្នន័យរួមមាន <strong>៤០ ថ្នាក់រៀន</strong>, <strong>១១៩ គ្រូបង្រៀន</strong>, និង <strong>១,១៨៨ ម៉ោងបង្រៀន</strong> សម្រាប់ប្រើប្រាស់ជាអចិន្ត្រៃយ៍សម្រាប់ស្រង់វត្តមានសិស្ស។
+                </div>
+            </div>
+
+            <!-- Section 1: Direct Sync from kkhs.web.app -->
+            <div style="border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; margin-bottom: 16px; background: #ffffff;">
+                <div style="font-weight: 700; color: #1e293b; margin-bottom: 8px; font-size: 0.92rem; display: flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-bolt text-warning"></i> វិធីទី ១៖ Sync ផ្ទាល់ពី kkhs.web.app មក Local DB
+                </div>
+                <div class="form-group mb-2">
+                    <label style="font-size:0.84rem; font-weight:600; color:#475569; margin-bottom:4px; display:block;">ជម្រើស Sync (Mode)</label>
+                    <select id="kkhsSyncMode" class="form-control" style="font-size:0.86rem; padding:6px 10px;">
+                        <option value="merge" selected>បន្ថែម / កែប្រែលើកាលវិភាគចាស់ (Merge - ណែនាំ)</option>
+                        <option value="replace">សម្អាតចាស់ទាំងអស់ រួចជំនួសថ្មីទាំងស្រុង (Replace All)</option>
+                    </select>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
+                    <button type="button" class="btn btn-sm btn-outline" onclick="testKkhsConnectionInModal()" id="btnTestKkhsModal" style="border-color:#94a3b8; color:#475569; font-size:0.82rem;">
+                        <i class="fa-solid fa-wifi"></i> តេស្តតភ្ជាប់ kkhs
+                    </button>
+                    <button type="button" class="btn btn-sm btn-primary" onclick="submitKkhsSync()" id="btnSubmitKkhsSync" style="background:#2563eb; border-color:#2563eb; font-size:0.85rem;">
+                        <i class="fa-solid fa-rotate"></i> ចាប់ផ្តើម Sync ផ្ទាល់
+                    </button>
+                </div>
+            </div>
+
+            <!-- Section 2: Google Sheets Cloud Backup & Permanent Pull -->
+            <div style="border: 1px solid #bbf7d0; border-radius: 10px; padding: 14px; background: #f0fdf4;">
+                <div style="font-weight: 700; color: #166534; margin-bottom: 6px; font-size: 0.92rem; display: flex; align-items: center; gap: 6px;">
+                    <i class="fa-brands fa-google text-success"></i> វិធីទី ២៖ Backup ទៅ Google Sheets និងទាញយកមក Local
+                </div>
+                <div style="font-size: 0.82rem; color: #374151; line-height: 1.5; margin-bottom: 10px;">
+                    ចម្លងកាលវិភាគទៅក្នុង Google Sheets (<code>🗓️ កាលវិភាគរួម (KKHS Backup)</code>) ដើម្បីរក្សាទុកលើ Cloud Drive ហើយអាចទាញយកមកកាន់ Student_Absence_System បានគ្រប់ពេល។
+                </div>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button type="button" class="btn btn-sm btn-outline" onclick="triggerKkhsToSheetsModal()" id="btnKkhsToSheetsModal" style="border-color:#16a34a; color:#15803d; background:#fff; font-weight:600; font-size:0.82rem;">
+                        <i class="fa-brands fa-google text-success"></i> 1. Backup ទៅ Google Sheets
+                    </button>
+                    <button type="button" class="btn btn-sm btn-accent" onclick="triggerSheetsToLocalModal()" id="btnSheetsToLocalModal" style="font-weight:600; font-size:0.82rem;">
+                        <i class="fa-solid fa-cloud-arrow-down"></i> 2. ទាញយកពី Sheets មក Local DB
+                    </button>
+                    <button type="button" class="btn btn-sm btn-primary" onclick="triggerSheetsToFirestoreModal()" id="btnSheetsToFirestoreModal" style="background:#f59e0b; border-color:#d97706; color:#fff; font-weight:600; font-size:0.82rem;">
+                        <i class="fa-solid fa-fire text-white"></i> 3. Sync ទៅ Firestore
+                    </button>
+                </div>
+            </div>
+
+            <div id="kkhsSyncResultAlert" style="display:none; margin-top:14px; padding:12px; border-radius:8px; font-size:0.86rem;"></div>
+        </div>
+        <div class="modal-footer" style="padding:12px 20px; background:#f8fafc; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end; align-items:center; flex-shrink:0;">
+            <button type="button" class="btn btn-outline" onclick="closeKkhsSyncModal()">បិទ</button>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<style>
+.timetable-grid th, .timetable-grid td {
+    text-align: center;
+    vertical-align: middle;
+    border: 1px solid var(--border);
+    padding: 10px 8px;
+}
+.timetable-slot-cell {
+    height: 76px;
+    background: #ffffff;
+    transition: var(--transition);
+    cursor: default;
+    position: relative;
+}
+.timetable-slot-cell.has-class {
+    background: #f8fafc;
+}
+.timetable-slot-cell.has-class:hover {
+    background: var(--primary-light);
+}
+.edit-mode-active .timetable-slot-cell {
+    cursor: pointer !important;
+    border: 1.5px dashed #93c5fd !important;
+}
+.edit-mode-active .timetable-slot-cell:hover {
+    background: #eff6ff !important;
+    border-color: #2563eb !important;
+}
+.slot-subject {
+    color: var(--primary);
+    font-size: 0.95rem;
+}
+.slot-empty {
+    color: #cbd5e1;
+    font-size: 1.2rem;
+}
+.shift-divider-row td {
+    padding: 8px !important;
+    letter-spacing: 0.5px;
+    font-size: 0.85rem;
+}
+
+@media print {
+    body { background: #fff; }
+    .sidebar, .top-navbar, .no-print { display: none !important; }
+    .page-content { padding: 0 !important; }
+    .card { border: none !important; box-shadow: none !important; }
+    .print-header { display: block !important; margin-bottom: 20px; }
+    .timetable-grid th { background-color: #f1f5f9 !important; -webkit-print-color-adjust: exact; }
+}
+</style>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    let isEditMode = false;
+    const isAdmin = {{ 'true' if current_user and current_user.role == 'admin' else 'false' }};
+
+    function toggleTimetableEditMode() {
+        if (!isAdmin) return;
+        isEditMode = !isEditMode;
+        const grid = document.getElementById('mainTimetableGrid');
+        const badge = document.getElementById('editActiveBadge');
+        const btn = document.getElementById('btnToggleEditMode');
+        const label = document.getElementById('editModeLabel');
+
+        if (isEditMode) {
+            grid.classList.add('edit-mode-active');
+            badge.style.display = 'inline-flex';
+            btn.classList.remove('btn-outline');
+            btn.classList.add('btn-primary');
+            label.innerText = 'បិទមុខងារកែប្រែ (Exit Edit)';
+            showToast('បានបើកមុខងារកែប្រែកាលវិភាគ! សូមចុចលើប្រឡោះណាមួយដើម្បីកែប្រែ ឬបន្ថែម', 'info');
+        } else {
+            grid.classList.remove('edit-mode-active');
+            badge.style.display = 'none';
+            btn.classList.remove('btn-primary');
+            btn.classList.add('btn-outline');
+            label.innerText = 'បើកមុខងារកែប្រែ (Edit Mode)';
+        }
+    }
+
+    function handleSlotClick(cell) {
+        if (!isAdmin) return;
+        // If clicked, open the edit modal
+        const slotId = cell.getAttribute('data-slot-id') || '';
+        const dayCode = cell.getAttribute('data-day-code');
+        const dayName = cell.getAttribute('data-day-name');
+        const period = cell.getAttribute('data-period');
+        const shift = cell.getAttribute('data-shift');
+        const classCode = cell.getAttribute('data-class-code') || '{{ selected_class_code }}';
+        const teacherId = cell.getAttribute('data-teacher-id') || '';
+        const subjectName = cell.getAttribute('data-subject-name') || '';
+        const room = cell.getAttribute('data-room') || '';
+
+        document.getElementById('editSlotId').value = slotId;
+        document.getElementById('editDayCode').value = dayCode;
+        document.getElementById('editPeriodNum').value = period;
+        document.getElementById('editShift').value = shift;
+        document.getElementById('modalSlotSubtitle').innerText = `${dayName} • ម៉ោងទី ${period} (${shift === 'Morning' ? 'ពេលព្រឹក' : 'ពេលរសៀល'})`;
+
+        const classSelect = document.getElementById('editClassCode');
+        if (classSelect) classSelect.value = classCode;
+
+        const teacherSelect = document.getElementById('editTeacherId');
+        if (teacherSelect && teacherId) teacherSelect.value = teacherId;
+
+        const subjectSelect = document.getElementById('editSubjectName');
+        if (subjectSelect && subjectName) subjectSelect.value = subjectName;
+
+        document.getElementById('editRoomNumber').value = room;
+
+        const deleteBtn = document.getElementById('btnDeleteSlot');
+        if (slotId) {
+            deleteBtn.style.display = 'inline-block';
+        } else {
+            deleteBtn.style.display = 'none';
+        }
+
+        const modal = document.getElementById('modalEditSlot');
+        modal.style.display = 'flex';
+    }
+
+    function closeSlotModal() {
+        document.getElementById('modalEditSlot').style.display = 'none';
+    }
+
+    function saveCurrentSlot() {
+        const slotId = document.getElementById('editSlotId').value;
+        const dayCode = document.getElementById('editDayCode').value;
+        const periodNum = document.getElementById('editPeriodNum').value;
+        const shift = document.getElementById('editShift').value;
+        const classCode = document.getElementById('editClassCode').value;
+        const teacherId = document.getElementById('editTeacherId').value;
+        const subjectName = document.getElementById('editSubjectName').value;
+        const roomNumber = document.getElementById('editRoomNumber').value.trim();
+
+        const btn = document.getElementById('btnSaveSlot');
+        const origText = btn.innerHTML;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> កំពុងរក្សាទុក...';
+        btn.disabled = true;
+
+        fetch('/api/timetable/slot/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                slot_id: slotId || null,
+                class_code: classCode,
+                teacher_id: teacherId,
+                day_code: dayCode,
+                period_num: periodNum,
+                shift: shift,
+                subject_name: subjectName,
+                room_number: roomNumber
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            btn.innerHTML = origText;
+            btn.disabled = false;
+            if (data.success) {
+                showToast(data.message, 'success');
+                closeSlotModal();
+                setTimeout(() => window.location.reload(), 700);
+            } else {
+                showToast(data.message, 'danger');
+            }
+        })
+        .catch(err => {
+            btn.innerHTML = origText;
+            btn.disabled = false;
+            showToast('កំហុស៖ ' + err, 'danger');
+        });
+    }
+
+    function deleteCurrentSlot() {
+        const slotId = document.getElementById('editSlotId').value;
+        if (!slotId) return;
+
+        if (!confirm('តើអ្នកពិតជាចង់លុបម៉ោងបង្រៀននេះចេញពីកាលវិភាគមែនឬទេ?')) return;
+
+        fetch(`/api/timetable/slot/delete/${slotId}`, {
+            method: 'POST'
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                showToast(data.message, 'info');
+                closeSlotModal();
+                setTimeout(() => window.location.reload(), 700);
+            } else {
+                showToast(data.message, 'danger');
+            }
+        })
+        .catch(err => {
+            showToast('កំហុស៖ ' + err, 'danger');
+        });
+    }
+
+    function openHomeroomModal() {
+        const modal = document.getElementById('modalHomeroom');
+        if (modal) modal.style.display = 'flex';
+    }
+
+    function closeHomeroomModal() {
+        const modal = document.getElementById('modalHomeroom');
+        if (modal) modal.style.display = 'none';
+    }
+
+    function submitHomeroomConfig() {
+        const classId = document.getElementById('homeroomClassId').value;
+        const teacherId = document.getElementById('homeroomTeacherId').value;
+        const telegramChatId = document.getElementById('homeroomTelegramChatId').value.trim();
+
+        if (!classId) {
+            showToast('មិនអាចរកឃើញលេខសម្គាល់ថ្នាក់រៀនទេ!', 'danger');
+            return;
+        }
+
+        const btn = document.getElementById('btnSaveHomeroom');
+        const origText = btn.innerHTML;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> កំពុងរក្សាទុក...';
+        btn.disabled = true;
+
+        fetch('/api/classes/homeroom', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                class_id: parseInt(classId),
+                homeroom_teacher_id: teacherId ? parseInt(teacherId) : null,
+                telegram_chat_id: telegramChatId
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            btn.innerHTML = origText;
+            btn.disabled = false;
+            if (data.success) {
+                showToast(data.message, 'success');
+                closeHomeroomModal();
+                setTimeout(() => window.location.reload(), 700);
+            } else {
+                showToast(data.message, 'danger');
+            }
+        })
+        .catch(err => {
+            btn.innerHTML = origText;
+            btn.disabled = false;
+            showToast('កំហុស៖ ' + err, 'danger');
+        });
+    }
+
+    function openImportTimetableModal() {
+        const modal = document.getElementById('modalImportTimetable');
+        if (modal) {
+            document.getElementById('importTimetableFileInput').value = '';
+            document.getElementById('importResultAlert').style.display = 'none';
+            modal.style.display = 'flex';
+        }
+    }
+
+    function closeImportTimetableModal() {
+        const modal = document.getElementById('modalImportTimetable');
+        if (modal) modal.style.display = 'none';
+    }
+
+    function submitTimetableImport() {
+        const fileInput = document.getElementById('importTimetableFileInput');
+        if (!fileInput.files || fileInput.files.length === 0) {
+            showToast('សូមជ្រើសរើសឯកសារ Excel កាលវិភាគជាមុនសិន!', 'danger');
+            return;
+        }
+
+        const mode = document.getElementById('importTimetableMode').value;
+        const btn = document.getElementById('btnSubmitImportTimetable');
+        const alertBox = document.getElementById('importResultAlert');
+        const origText = btn.innerHTML;
+
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> កំពុងបញ្ចូល...';
+        btn.disabled = true;
+
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+        formData.append('mode', mode);
+
+        fetch('/api/timetable/import-excel', {
+            method: 'POST',
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            btn.innerHTML = origText;
+            btn.disabled = false;
+            if (data.success) {
+                alertBox.className = 'alert alert-success';
+                alertBox.style.display = 'block';
+                let msg = `<strong><i class="fa-solid fa-circle-check"></i> ${data.message}</strong>`;
+                if (data.data && data.data.error_count > 0) {
+                    msg += `<br><small class="text-warning">មានជួរដេកមិនត្រឹមត្រូវ ${data.data.error_count} ជួរ។</small>`;
+                }
+                alertBox.innerHTML = msg;
+                showToast(data.message, 'success');
+                setTimeout(() => window.location.reload(), 1200);
+            } else {
+                alertBox.className = 'alert alert-danger';
+                alertBox.style.display = 'block';
+                alertBox.innerHTML = `<strong><i class="fa-solid fa-triangle-exclamation"></i> កំហុស៖</strong> ${data.message}`;
+                showToast(data.message, 'danger');
+            }
+        })
+        .catch(err => {
+            btn.innerHTML = origText;
+            btn.disabled = false;
+            alertBox.className = 'alert alert-danger';
+            alertBox.style.display = 'block';
+            alertBox.innerHTML = `<strong><i class="fa-solid fa-triangle-exclamation"></i> កំហុសតភ្ជាប់៖</strong> ${err}`;
+            showToast('កំហុស៖ ' + err, 'danger');
+        });
+    }
+
+    function openKkhsSyncModal() {
+        const modal = document.getElementById('modalKkhsSync');
+        if (modal) {
+            document.getElementById('kkhsSyncResultAlert').style.display = 'none';
+            modal.style.display = 'flex';
+        }
+    }
+
+    function closeKkhsSyncModal() {
+        const modal = document.getElementById('modalKkhsSync');
+        if (modal) modal.style.display = 'none';
+    }
+
+    function testKkhsConnectionInModal() {
+        const btn = document.getElementById('btnTestKkhsModal');
+        const alertBox = document.getElementById('kkhsSyncResultAlert');
+        const origText = btn.innerHTML;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> កំពុងតភ្ជាប់...';
+        btn.disabled = true;
+
+        fetch('/api/sync/test-kkhs', { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            btn.innerHTML = origText;
+            btn.disabled = false;
+            alertBox.style.display = 'block';
+            if (data.success) {
+                alertBox.className = 'alert alert-success';
+                alertBox.innerHTML = `<strong><i class="fa-solid fa-circle-check"></i> ${data.message}</strong><br><small>ឆ្នាំសិក្សា៖ ${data.academic_year || ''} | ${data.location || ''}</small>`;
+            } else {
+                alertBox.className = 'alert alert-danger';
+                alertBox.innerHTML = `<strong><i class="fa-solid fa-triangle-exclamation"></i> កំហុស៖</strong> ${data.message}`;
+            }
+        })
+        .catch(err => {
+            btn.innerHTML = origText;
+            btn.disabled = false;
+            alertBox.className = 'alert alert-danger';
+            alertBox.style.display = 'block';
+            alertBox.innerHTML = `<strong><i class="fa-solid fa-triangle-exclamation"></i> កំហុសតភ្ជាប់៖</strong> ${err}`;
+        });
+    }
+
+    function submitKkhsSync() {
+        const mode = document.getElementById('kkhsSyncMode').value;
+        const btn = document.getElementById('btnSubmitKkhsSync');
+        const alertBox = document.getElementById('kkhsSyncResultAlert');
+        const origText = btn.innerHTML;
+
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> កំពុង Sync ទិន្នន័យ...';
+        btn.disabled = true;
+
+        fetch('/api/sync/kkhs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mode: mode })
+        })
+        .then(r => r.json())
+        .then(data => {
+            btn.innerHTML = origText;
+            btn.disabled = false;
+            alertBox.style.display = 'block';
+            if (data.success) {
+                alertBox.className = 'alert alert-success';
+                alertBox.innerHTML = `<strong><i class="fa-solid fa-circle-check"></i> ${data.message}</strong>`;
+                if (window.showToast) showToast(data.message, 'success');
+                setTimeout(() => window.location.reload(), 1500);
+            } else {
+                alertBox.className = 'alert alert-danger';
+                alertBox.innerHTML = `<strong><i class="fa-solid fa-triangle-exclamation"></i> កំហុស៖</strong> ${data.message}`;
+                if (window.showToast) showToast(data.message, 'danger');
+            }
+        })
+        .catch(err => {
+            btn.innerHTML = origText;
+            btn.disabled = false;
+            alertBox.className = 'alert alert-danger';
+            alertBox.style.display = 'block';
+            alertBox.innerHTML = `<strong><i class="fa-solid fa-triangle-exclamation"></i> កំហុសតភ្ជាប់៖</strong> ${err}`;
+            if (window.showToast) showToast('កំហុស៖ ' + err, 'danger');
+        });
+    }
+
+    function triggerKkhsToSheetsModal() {
+        const btn = document.getElementById('btnKkhsToSheetsModal');
+        const alertBox = document.getElementById('kkhsSyncResultAlert');
+        const origText = btn.innerHTML;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> កំពុង Backup ទៅ Google Sheets...';
+        btn.disabled = true;
+
+        fetch('/api/sync/kkhs-to-sheets', { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            btn.innerHTML = origText;
+            btn.disabled = false;
+            alertBox.style.display = 'block';
+            if (data.success) {
+                alertBox.className = 'alert alert-success';
+                alertBox.innerHTML = `<strong><i class="fa-solid fa-circle-check"></i> ${data.message}</strong>`;
+                if (window.showToast) showToast(data.message, 'success');
+            } else {
+                alertBox.className = 'alert alert-danger';
+                alertBox.innerHTML = `<strong><i class="fa-solid fa-triangle-exclamation"></i> កំហុស Backup៖</strong> ${data.message}`;
+                if (window.showToast) showToast(data.message, 'danger');
+            }
+        })
+        .catch(err => {
+            btn.innerHTML = origText;
+            btn.disabled = false;
+            alertBox.className = 'alert alert-danger';
+            alertBox.style.display = 'block';
+            alertBox.innerHTML = `<strong><i class="fa-solid fa-triangle-exclamation"></i> កំហុសតភ្ជាប់៖</strong> ${err}`;
+            if (window.showToast) showToast('កំហុស៖ ' + err, 'danger');
+        });
+    }
+
+    function triggerSheetsToLocalModal() {
+        if (!confirm('តើអ្នកពិតជាចង់ទាញយកទិន្នន័យកាលវិភាគពី Google Sheets Backup មកកាន់ Local Database ដែរឬទេ?')) {
+            return;
+        }
+        const btn = document.getElementById('btnSheetsToLocalModal');
+        const alertBox = document.getElementById('kkhsSyncResultAlert');
+        const origText = btn.innerHTML;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> កំពុងទាញយកទិន្នន័យ...';
+        btn.disabled = true;
+
+        fetch('/api/sync/sheets-to-timetable', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mode: 'merge' })
+        })
+        .then(r => r.json())
+        .then(data => {
+            btn.innerHTML = origText;
+            btn.disabled = false;
+            alertBox.style.display = 'block';
+            if (data.success) {
+                alertBox.className = 'alert alert-success';
+                alertBox.innerHTML = `<strong><i class="fa-solid fa-circle-check"></i> ${data.message}</strong>`;
+                if (window.showToast) showToast(data.message, 'success');
+                setTimeout(() => window.location.reload(), 1500);
+            } else {
+                alertBox.className = 'alert alert-danger';
+                alertBox.innerHTML = `<strong><i class="fa-solid fa-triangle-exclamation"></i> កំហុសទាញយក៖</strong> ${data.message}`;
+                if (window.showToast) showToast(data.message, 'danger');
+            }
+        })
+        .catch(err => {
+            btn.innerHTML = origText;
+            btn.disabled = false;
+            alertBox.className = 'alert alert-danger';
+            alertBox.style.display = 'block';
+            alertBox.innerHTML = `<strong><i class="fa-solid fa-triangle-exclamation"></i> កំហុសតភ្ជាប់៖</strong> ${err}`;
+            if (window.showToast) showToast('កំហុស៖ ' + err, 'danger');
+        });
+    }
+
+    function triggerSheetsToFirestoreModal() {
+        if (!confirm('តើអ្នកពិតជាចង់ Sync ទិន្នន័យកាលវិភាគពី Google Sheets ទៅកាន់ Cloud Firestore មែនឬទេ?')) {
+            return;
+        }
+        const btn = document.getElementById('btnSheetsToFirestoreModal');
+        const alertBox = document.getElementById('kkhsSyncResultAlert');
+        const origText = btn.innerHTML;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> កំពុង Sync ទៅ Firestore...';
+        btn.disabled = true;
+
+        fetch('/api/sync/sheets-to-firestore', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({})
+        })
+        .then(r => r.json())
+        .then(data => {
+            btn.innerHTML = origText;
+            btn.disabled = false;
+            alertBox.style.display = 'block';
+            if (data.success) {
+                alertBox.className = 'alert alert-success';
+                alertBox.innerHTML = `<strong><i class="fa-solid fa-circle-check"></i> ${data.message}</strong>`;
+                if (window.showToast) showToast(data.message, 'success');
+                setTimeout(() => window.location.reload(), 1500);
+            } else {
+                if (data.needs_creation) {
+                    alertBox.className = 'alert alert-warning';
+                    alertBox.innerHTML = `<strong><i class="fa-solid fa-triangle-exclamation"></i> សេចក្តីជូនដំណឹង Cloud Firestore៖</strong><br>${data.message}`;
+                } else {
+                    alertBox.className = 'alert alert-danger';
+                    alertBox.innerHTML = `<strong><i class="fa-solid fa-triangle-exclamation"></i> កំហុស Sync Firestore៖</strong> ${data.message}`;
+                }
+                if (window.showToast) showToast(data.message, 'danger');
+            }
+        })
+        .catch(err => {
+            btn.innerHTML = origText;
+            btn.disabled = false;
+            alertBox.className = 'alert alert-danger';
+            alertBox.style.display = 'block';
+            alertBox.innerHTML = `<strong><i class="fa-solid fa-triangle-exclamation"></i> កំហុសតភ្ជាប់៖</strong> ${err}`;
+            if (window.showToast) showToast('កំហុស៖ ' + err, 'danger');
+        });
+    }
+</script>
+{% endblock %}
