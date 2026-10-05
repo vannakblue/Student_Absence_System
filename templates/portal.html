@@ -6,10 +6,13 @@
     <title>Teacher Mobile Portal | {{ global_school_name_kh }}</title>
 
     <!-- PWA & Mobile Metas -->
-    <meta name="theme-color" content="#2563eb">
+    <meta name="theme-color" content="#1e3a8a">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="វត្តមានសិស្ស">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='icons/icon-192.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/apple-touch-icon.png') }}">
 
     <!-- Google Fonts & FontAwesome -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -38,6 +41,10 @@
                     <span>{{ global_school_name_kh }}</span>
                 </div>
                 <div class="mobile-header-actions">
+                    <!-- App Download / Install -->
+                    <button type="button" onclick="openAppCenterModal()" class="mobile-icon-btn" title="ដំឡើង App / ទាញយក APK" style="background:rgba(255,255,255,0.25); border:none; cursor:pointer; color:#fff;">
+                        <i class="fa-brands fa-android"></i>
+                    </button>
                     <!-- Theme Toggle -->
                     <button type="button" onclick="toggleTheme()" class="mobile-icon-btn" title="ប្តូរពណ៌ (Light/Dark Mode)" style="background:none; border:none; cursor:pointer; color:#fff; font-size:16px;">
                         <i class="fa-solid fa-moon" id="portalThemeIcon"></i>
@@ -316,6 +323,14 @@
                 </div>
                 {% endif %}
 
+                <a href="javascript:void(0)" onclick="openAppCenterModal()" class="action-tile" style="border:1.5px solid #2563eb; background:#eff6ff;">
+                    <div class="action-tile-icon" style="background:#2563eb; color:#fff;">
+                        <i class="fa-brands fa-android"></i>
+                    </div>
+                    <h4>ដំឡើង App / APK</h4>
+                    <span style="color:#1d4ed8; font-weight:600;">ទាញយក APK & PWA</span>
+                </a>
+
                 <a href="{{ url_for('timetable_page', view='teacher', teacher_id=current_teacher.id) }}" class="action-tile">
                     <div class="action-tile-icon purple">
                         <i class="fa-solid fa-calendar-week"></i>
@@ -352,6 +367,27 @@
             </div>
         </main>
 
+        <!-- Floating PWA Install Prompt Banner -->
+        <div class="pwa-install-banner" id="pwaInstallBanner">
+            <div class="pwa-banner-left">
+                <div class="pwa-banner-icon">
+                    <img src="{{ url_for('static', filename='icons/icon-192.png') }}" alt="App Icon">
+                </div>
+                <div class="pwa-banner-text">
+                    <h4>ដំឡើង App លើទូរសព្ទ</h4>
+                    <p>ដំណើរការលឿន ងាយស្រួលស្រង់វត្តមាន</p>
+                </div>
+            </div>
+            <div class="pwa-banner-actions">
+                <button type="button" class="btn-pwa-install" id="btnPwaInstall" onclick="installPwaApp()">
+                    <i class="fa-solid fa-download"></i> ដំឡើង
+                </button>
+                <button type="button" class="btn-pwa-dismiss" onclick="dismissPwaBanner()" title="បិទ">
+                    &times;
+                </button>
+            </div>
+        </div>
+
         <!-- Bottom Mobile Navigation Bar -->
         <nav class="mobile-bottom-nav">
             <a href="{{ url_for('portal_page') }}" class="nav-item-mobile active">
@@ -361,6 +397,10 @@
             <a href="javascript:void(0)" onclick="handleTakeAttendanceNav()" class="nav-item-mobile">
                 <i class="fa-solid fa-clipboard-check"></i>
                 <span>ស្រង់វត្តមាន</span>
+            </a>
+            <a href="javascript:void(0)" onclick="openAppCenterModal()" class="nav-item-mobile">
+                <i class="fa-brands fa-android"></i>
+                <span>App / APK</span>
             </a>
             <a href="{{ url_for('timetable_page', view='teacher', teacher_id=current_teacher.id) }}" class="nav-item-mobile">
                 <i class="fa-solid fa-calendar-days"></i>
@@ -404,7 +444,7 @@
         </div>
     </div>
 
-    <!-- Class Picker Modal (For taking attendance of any class) -->
+    <!-- Class Picker Modal -->
     <div class="modal-backdrop" id="classPickerModal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); display:none; align-items:flex-end; z-index:1000;">
         <div style="background:#fff; width:100%; max-width:480px; margin:0 auto; border-top-left-radius:24px; border-top-right-radius:24px; max-height:80vh; display:flex; flex-direction:column; overflow:hidden;">
             <div style="padding:16px 20px; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
@@ -435,7 +475,7 @@
             <div id="portalLeaveNotice" style="background:#eff6ff; border:1px solid #bfdbfe; color:#1e40af; padding:10px 12px; border-radius:12px; font-size:0.8rem; line-height:1.4; margin-bottom:14px; display:flex; align-items:flex-start; gap:8px;">
                 <i class="fa-solid fa-circle-info" style="margin-top:2px; color:#2563eb;"></i>
                 <div>
-                    <strong>គោលការណ៍សុំច្បាប់៖</strong> អាចសុំបានតែថ្ងៃដែលមានម៉ោងបង្រៀន។ សុំសម្រាប់ថ្ងៃនេះត្រូវធ្វើឡើងមុនម៉ោង <strong><span id="portalCutoffDisplay">17:00</span></strong> ឬសម្រាប់ថ្ងៃបន្ទាប់។
+                    <strong>គោលការណ៍សុំច្បាប់៖</strong> គ្រូអាចសុំច្បាប់បានតែសម្រាប់ <strong>ថ្ងៃបច្ចុប្បន្ន (មុនម៉ោង <span id="portalCutoffDisplay">17:00</span>)</strong> ឬ <strong>ថ្ងៃបន្ទាប់</strong> ដែលមានម៉ោងបង្រៀនប៉ុណ្ណោះ។
                 </div>
             </div>
 
@@ -583,12 +623,25 @@
         });
 
         function openPortalLeaveModal() {
-            const today = new Date().toISOString().split('T')[0];
+            const now = new Date();
+            const pad = n => n < 10 ? '0' + n : n;
+            const today = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+
+            // Calculate next day (skip Sunday if tomorrow is Sunday)
+            const tomorrow = new Date(now);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            if (tomorrow.getDay() === 0) { // Sunday -> Next school day is Monday
+                tomorrow.setDate(tomorrow.getDate() + 1);
+            }
+            const nextDay = `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth()+1)}-${pad(tomorrow.getDate())}`;
+
             const startInput = document.getElementById('pLeaveStart');
             const endInput = document.getElementById('pLeaveEnd');
 
             startInput.min = today;
+            startInput.max = nextDay;
             endInput.min = today;
+            endInput.max = nextDay;
             startInput.value = today;
             endInput.value = today;
             document.getElementById('pLeaveReason').value = '';
@@ -604,15 +657,17 @@
 
         async function handlePortalDateChange() {
             const tid = parseInt(document.getElementById('leaveTeacherId').value);
-            const start = document.getElementById('pLeaveStart').value;
-            let end = document.getElementById('pLeaveEnd').value;
+            const startInput = document.getElementById('pLeaveStart');
+            const endInput = document.getElementById('pLeaveEnd');
+            let start = startInput.value;
+            let end = endInput.value;
             const feedback = document.getElementById('portalLeaveEligibilityFeedback');
             const submitBtn = document.getElementById('portalSubmitLeaveBtn');
 
             if (!start) return;
             if (!end || end < start) {
                 end = start;
-                document.getElementById('pLeaveEnd').value = start;
+                endInput.value = start;
             }
 
             feedback.style.display = 'block';
@@ -627,6 +682,32 @@
 
                 if (data.cutoff_time) {
                     document.getElementById('portalCutoffDisplay').innerText = data.cutoff_time;
+                }
+
+                // Adjust min/max bounds dynamically based on server boundary response
+                if (data.min_date) {
+                    startInput.min = data.min_date;
+                    endInput.min = data.min_date;
+                    if (start < data.min_date) {
+                        start = data.min_date;
+                        startInput.value = data.min_date;
+                        if (end < data.min_date) {
+                            end = data.min_date;
+                            endInput.value = data.min_date;
+                        }
+                    }
+                }
+                if (data.max_date) {
+                    startInput.max = data.max_date;
+                    endInput.max = data.max_date;
+                    if (start > data.max_date) {
+                        start = data.max_date;
+                        startInput.value = data.max_date;
+                    }
+                    if (end > data.max_date) {
+                        end = data.max_date;
+                        endInput.value = data.max_date;
+                    }
                 }
 
                 if (data.eligible) {
@@ -729,7 +810,177 @@
             }
         }
 
-        window.addEventListener('DOMContentLoaded', initTheme);
+        // -------------------------------------------------------------
+        // PWA & Mobile App Center Handlers
+        // -------------------------------------------------------------
+        let deferredPrompt = null;
+
+        // Register Service Worker for Offline & High Performance
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js', { scope: '/' })
+                    .then(reg => {
+                        console.log('✅ Service Worker registered successfully with scope:', reg.scope);
+                    })
+                    .catch(err => {
+                        console.log('ℹ️ Service Worker registration notice:', err);
+                    });
+            });
+        }
+
+        // Listen for PWA Install Prompt
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            const dismissed = sessionStorage.getItem('pwa-prompt-dismissed');
+            if (!dismissed) {
+                const banner = document.getElementById('pwaInstallBanner');
+                if (banner) banner.style.display = 'flex';
+            }
+        });
+
+        window.addEventListener('appinstalled', () => {
+            console.log('🎉 PWA was successfully installed');
+            deferredPrompt = null;
+            const banner = document.getElementById('pwaInstallBanner');
+            if (banner) banner.style.display = 'none';
+        });
+
+        async function installPwaApp() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const choiceResult = await deferredPrompt.userChoice;
+                if (choiceResult.outcome === 'accepted') {
+                    console.log('User accepted the PWA install prompt');
+                }
+                deferredPrompt = null;
+                const banner = document.getElementById('pwaInstallBanner');
+                if (banner) banner.style.display = 'none';
+            } else {
+                alert('📱 របៀបដំឡើង Web App:\n\n1. ប្រសិនបើលោកអ្នកប្រើ Android Chrome៖ ចុចលើ Menu (ចំនុចបី) -> ជ្រើសរើស "Install app" ឬ "Add to Home screen"\n2. ប្រសិនបើលោកអ្នកប្រើ iPhone Safari៖ ចុចប៊ូតុង Share -> ជ្រើសរើស "Add to Home Screen"');
+            }
+        }
+
+        function dismissPwaBanner() {
+            const banner = document.getElementById('pwaInstallBanner');
+            if (banner) banner.style.display = 'none';
+            sessionStorage.setItem('pwa-prompt-dismissed', 'true');
+        }
+
+        function openAppCenterModal() {
+            const modal = document.getElementById('appCenterModal');
+            if (modal) modal.style.display = 'flex';
+        }
+
+        function closeAppCenterModal() {
+            const modal = document.getElementById('appCenterModal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initTheme();
+        });
     </script>
+
+    <!-- App & APK Download Center Modal -->
+    <div class="modal-backdrop" id="appCenterModal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); display:none; align-items:flex-end; justify-content:center; z-index:2000;">
+        <div style="background:#fff; width:100%; max-width:480px; margin:0 auto; border-top-left-radius:24px; border-top-right-radius:24px; max-height:88vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 -10px 30px rgba(0,0,0,0.25);">
+            <!-- Modal Header -->
+            <div style="padding:16px 20px; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; background:#f8fafc;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <div style="width:38px; height:38px; border-radius:12px; background:#2563eb; color:#fff; display:flex; align-items:center; justify-content:center; font-size:1.15rem;">
+                        <i class="fa-brands fa-android"></i>
+                    </div>
+                    <div>
+                        <h4 style="margin:0; font-size:1.05rem; font-weight:700; color:#0f172a;">ដំឡើង Mobile App & APK</h4>
+                        <span style="font-size:0.75rem; color:#64748b;">សម្រាប់លោកគ្រូ-អ្នកគ្រូ (Android & Web)</span>
+                    </div>
+                </div>
+                <button onclick="closeAppCenterModal()" style="background:none; border:none; font-size:24px; color:#64748b; cursor:pointer; line-height:1;">&times;</button>
+            </div>
+
+            <!-- Modal Body -->
+            <div style="overflow-y:auto; padding:18px 20px; box-sizing:border-box;">
+                
+                <!-- Option 1: Direct Android APK Download -->
+                <div class="app-center-card" style="padding:16px; border:1.5px solid #2563eb; background:#f0f7ff;">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="background:#2563eb; color:#fff; padding:3px 8px; border-radius:8px; font-size:0.72rem; font-weight:700;">ជម្រើសទី ១</span>
+                            <span style="font-weight:700; font-size:0.95rem; color:#1e3a8a;">ទាញយក Android APK</span>
+                        </div>
+                        <span style="font-size:0.72rem; color:#2563eb; background:#dbeafe; padding:2px 8px; border-radius:10px; font-weight:600;">Full Release</span>
+                    </div>
+                    <p style="font-size:0.8rem; color:#475569; margin:0 0 12px 0; line-height:1.4;">
+                        ឯកសារ APK ផ្ទាល់ ដំណើរការពេញលេញលើទូរសព្ទ Android គ្រប់ម៉ូដែល (Samsung, Oppo, Xiaomi, Vivo, Realme...)។
+                    </p>
+                    
+                    <a href="{{ url_for('download_apk') }}" download class="btn-download-apk" style="display:flex; align-items:center; justify-content:center; gap:8px; background:#2563eb; color:#fff; text-decoration:none; padding:12px; border-radius:12px; font-weight:700; font-size:0.92rem; box-shadow:0 3px 10px rgba(37,99,235,0.35); transition:all 0.2s ease;">
+                        <i class="fa-solid fa-download"></i> ទាញយក StudentAbsenceSystem.apk
+                    </a>
+                </div>
+
+                <!-- QR Code for Mobile Scanning -->
+                <div class="app-center-card" style="padding:16px; text-align:center;">
+                    <div style="font-weight:700; font-size:0.9rem; color:#0f172a; margin-bottom:4px;">
+                        <i class="fa-solid fa-qrcode text-primary"></i> ស្កេន QR Code ដើម្បីទាញយកលើទូរសព្ទ
+                    </div>
+                    <p style="font-size:0.78rem; color:#64748b; margin:0 0 12px 0;">
+                        បើកកាមេរ៉ាទូរសព្ទ ឬ QR Scanner ដើម្បីទាញយក APK ចូលទូរសព្ទភ្លាមៗ
+                    </p>
+                    <div class="qr-code-wrapper">
+                        <img src="{{ url_for('api_qr_apk') }}" alt="QR Code ទាញយក APK">
+                    </div>
+                    <div style="margin-top:8px; font-size:0.75rem; color:#475569; font-weight:500;">
+                        Scan QR Code ខាងលើដើម្បីទាញយក APK ចូលទូរសព្ទ
+                    </div>
+                </div>
+
+                <!-- Option 2: 1-Click PWA Installation -->
+                <div class="app-center-card" style="padding:16px; border:1px solid #e2e8f0;">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="background:#10b981; color:#fff; padding:3px 8px; border-radius:8px; font-size:0.72rem; font-weight:700;">ជម្រើសទី ២</span>
+                            <span style="font-weight:700; font-size:0.95rem; color:#065f46;">ដំឡើង Web App (PWA)</span>
+                        </div>
+                        <span style="font-size:0.72rem; color:#10b981; background:#d1fae5; padding:2px 8px; border-radius:10px; font-weight:600;">1-Tap</span>
+                    </div>
+                    <p style="font-size:0.8rem; color:#475569; margin:0 0 12px 0; line-height:1.4;">
+                        បន្ថែមកម្មវិធីទៅលើ Home Screen ភ្លាមៗ (ទាំង Android និង iPhone/iOS) ដោយមិនចាំបាច់ដោនឡូត APK។
+                    </p>
+                    <button type="button" onclick="installPwaApp()" class="btn-install-pwa-modal" style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; background:#10b981; color:#fff; border:none; padding:12px; border-radius:12px; font-weight:700; font-size:0.92rem; cursor:pointer; box-shadow:0 3px 10px rgba(16,185,129,0.35);">
+                        <i class="fa-solid fa-mobile-screen"></i> ដំឡើងទៅលើ Home Screen
+                    </button>
+                </div>
+
+                <!-- 3 Steps Installation Guide -->
+                <div style="background:#f8fafc; border-radius:16px; padding:14px; border:1px solid #e2e8f0; margin-bottom:10px;">
+                    <h5 style="margin:0 0 10px 0; font-size:0.85rem; font-weight:700; color:#334155;">
+                        <i class="fa-solid fa-circle-question text-primary"></i> របៀបដំឡើង APK លើ Android៖
+                    </h5>
+                    <div class="apk-install-step">
+                        <div class="step-number">១</div>
+                        <div class="step-text">ចុចប៊ូតុង <strong>ទាញយក APK</strong> ខាងលើ ហើយរង់ចាំរហូតដល់ទាញយករួចរាល់។</div>
+                    </div>
+                    <div class="apk-install-step">
+                        <div class="step-number">២</div>
+                        <div class="step-text">បើកឯកសារ <strong>StudentAbsenceSystem.apk</strong> ពីកម្មវិធី Downloads។</div>
+                    </div>
+                    <div class="apk-install-step">
+                        <div class="step-number">៣</div>
+                        <div class="step-text">ចុច <strong>Install (ដំឡើង)</strong>។ ប្រសិនបើទូរសព្ទទាមទារ សូមបើក <em>"Allow from this source"</em>។</div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Modal Footer -->
+            <div style="padding:12px 20px; border-top:1px solid #e2e8f0; text-align:center; background:#f8fafc;">
+                <button type="button" onclick="closeAppCenterModal()" style="background:#e2e8f0; color:#475569; border:none; padding:10px 24px; border-radius:10px; font-weight:600; font-family:inherit; cursor:pointer; font-size:0.88rem;">
+                    បិទផ្ទាំង
+                </button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

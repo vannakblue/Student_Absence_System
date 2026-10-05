@@ -336,6 +336,9 @@
                 });
             });
 
+            // Filter strictly to absent/permission/late students to ensure sparse payload
+            const absentRecords = records.filter(r => r.status !== 'PRESENT');
+
             fetch('/api/student-attendance', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -344,7 +347,7 @@
                     date: "{{ date }}",
                     shift: "{{ shift }}",
                     period: "{{ period }}",
-                    records: records
+                    records: absentRecords
                 })
             })
             .then(res => res.json().then(data => ({ status: res.status, body: data })))

@@ -1,4 +1,4 @@
-﻿"""
+"""
 Sync Local SQLite Database (attendance.db) to Firebase Realtime Database
 Under /absence_system for the Cloud Web Client & Mobile PWA
 """
@@ -19,7 +19,7 @@ if sys.platform == "win32":
 
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(PROJECT_DIR, "attendance.db")
-FIREBASE_URL = "https://school-timetable-67972-default-rtdb.asia-southeast1.firebasedatabase.app/absence_system.json"
+FIREBASE_URL = "https://kkhs-absence-default-rtdb.asia-southeast1.firebasedatabase.app/absence_system.json"
 
 def sync_sqlite_to_firebase():
     if not os.path.exists(DB_PATH):
@@ -100,6 +100,15 @@ def sync_sqlite_to_firebase():
         "settings": settings,
         "last_synced": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
+
+    # 7. Always save local bundle to public/data.json for instant offline / fast loading
+    try:
+        public_data_path = os.path.join(PROJECT_DIR, "public", "data.json")
+        with open(public_data_path, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False)
+        print(f"  [OK] Saved offline bundle to {public_data_path}")
+    except Exception as ex:
+        print(f"  [WARNING] Could not save public/data.json: {ex}")
 
     print("\n  [INFO] Uploading payload to Firebase Cloud Database...")
     json_data = json.dumps(payload, ensure_ascii=False).encode("utf-8")

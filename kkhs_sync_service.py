@@ -13,7 +13,7 @@ import database as db
 logger = logging.getLogger("kkhs_sync")
 
 DEFAULT_KKHS_URL = "https://kkhs.web.app"
-DEFAULT_FIREBASE_RTDB_URL = "https://school-timetable-67972-default-rtdb.asia-southeast1.firebasedatabase.app"
+DEFAULT_FIREBASE_RTDB_URL = "https://schoolsm-default-rtdb.asia-southeast1.firebasedatabase.app"
 
 DAY_NAMES = {
     'ច': 'ចន្ទ',

@@ -41,7 +41,7 @@ class TestFirestoreSync(unittest.TestCase):
         mock_client.batch.return_value = mock_batch
 
         # Login as Admin
-        self.client.post("/login", data={"username": "admin", "password": "admin123"})
+        self.client.post("/login", data={"username": "admin", "password": "1627"})
 
         # Call test-firestore with mock
         res_test = self.client.post("/api/sync/test-firestore")
@@ -60,7 +60,7 @@ class TestFirestoreSync(unittest.TestCase):
 
     def test_03_firestore_missing_db_graceful_handling(self):
         """ផ្ទៀងផ្ទាត់ថាប្រព័ន្ធផ្តល់សារណែនាំត្រឹមត្រូវពេល Firestore មិនទាន់ចុច Create Database លើ Console"""
-        self.client.post("/login", data={"username": "admin", "password": "admin123"})
+        self.client.post("/login", data={"username": "admin", "password": "1627"})
         res = self.client.post("/api/sync/test-firestore")
         self.assertEqual(res.status_code, 200)
         data = res.get_json()

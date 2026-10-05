@@ -56,7 +56,7 @@ class TestStudentAbsenceSystem(unittest.TestCase):
 
     def test_03_authentication_logic(self):
         # 1. Admin login valid
-        auth_admin = db.authenticate_user("admin", "admin123")
+        auth_admin = db.authenticate_user("admin", "1627")
         self.assertIsNotNone(auth_admin)
         self.assertEqual(auth_admin["username"], "admin")
 
@@ -160,7 +160,7 @@ class TestStudentAbsenceSystem(unittest.TestCase):
         # 4. Login as Admin
         with self.client.session_transaction() as sess:
             sess.clear()
-        res_admin_login = self.client.post("/login", data={"username": "admin", "password": "admin123"}, follow_redirects=False)
+        res_admin_login = self.client.post("/login", data={"username": "admin", "password": "1627"}, follow_redirects=False)
         self.assertEqual(res_admin_login.status_code, 302)
         self.assertEqual(res_admin_login.location, "/")
 

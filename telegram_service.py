@@ -148,26 +148,86 @@ def test_telegram_connection(bot_token=None, chat_id=None):
     return send_telegram_message(chat_id, msg, bot_token=bot_token)
 
 
-def send_daily_absence_report(target_date=None):
+# ==========================================
+# TELEGRAM DESTINATION ROUTING HELPERS
+# ==========================================
+def get_unrecorded_alert_chat_ids():
+    """ទាញយកបញ្ជី Chat IDs សម្រាប់ទទួលសាររំលឹកគ្រូដែលមិនបានស្រង់វត្តមាន"""
+    raw = db.get_setting("telegram_unrecorded_alert_chat_ids", "").strip()
+    chat_ids = []
+    if raw:
+        for cid in raw.replace(",", "\n").split("\n"):
+            cid = cid.strip()
+            if cid:
+                chat_ids.append(cid)
+    if not chat_ids:
+        admin_id = db.get_setting("telegram_admin_chat_id", "").strip()
+        if admin_id:
+            chat_ids.append(admin_id)
+    return chat_ids
+
+
+def get_leave_approver_chat_ids():
+    """ទាញយកបញ្ជី Chat IDs គណៈគ្រប់គ្រងដែលមានសិទ្ធិទទួលពាក្យសុំច្បាប់ និងអនុម័ត"""
+    raw = db.get_setting("telegram_leave_approver_chat_ids", "").strip()
+    chat_ids = []
+    if raw:
+        for cid in raw.replace(",", "\n").split("\n"):
+            cid = cid.strip()
+            if cid:
+                chat_ids.append(cid)
+    if not chat_ids:
+        leave_admin_id = db.get_setting("telegram_leave_admin_chat_id", "").strip()
+        if leave_admin_id:
+            chat_ids.append(leave_admin_id)
+        else:
+            admin_id = db.get_setting("telegram_admin_chat_id", "").strip()
+            if admin_id:
+                chat_ids.append(admin_id)
+    return chat_ids
+
+
+def get_daily_student_report_chat_id():
+    """Telegram Chat ID សម្រាប់របាយការណ៍សិស្សប្រចាំថ្ងៃ"""
+    return db.get_setting("telegram_daily_student_report_chat_id", "").strip() or db.get_setting("telegram_admin_chat_id", "").strip()
+
+
+def get_daily_teacher_report_chat_id():
+    """Telegram Chat ID សម្រាប់របាយការណ៍គ្រូប្រចាំថ្ងៃ"""
+    return db.get_setting("telegram_daily_teacher_report_chat_id", "").strip() or db.get_setting("telegram_admin_chat_id", "").strip()
+
+
+def get_hourly_student_absence_chat_id():
+    """Telegram Chat ID សម្រាប់សិស្សអវត្តមានតាមម៉ោង"""
+    return db.get_setting("telegram_hourly_student_absence_chat_id", "").strip()
+
+
+def get_hourly_teacher_absence_chat_id():
+    """Telegram Chat ID សម្រាប់គ្រូអវត្តមានតាមម៉ោង / គ្រូមិនបានស្រង់"""
+    return db.get_setting("telegram_hourly_teacher_absence_chat_id", "").strip()
+
+
+# ==========================================
+# DAILY ABSENCE REPORTS (STUDENT & TEACHER)
+# ==========================================
+def send_daily_student_absence_report(target_date=None, chat_id=None):
     """
-    ផ្ញើរបាយការណ៍សិស្ស និងគ្រូអវត្តមានប្រចាំថ្ងៃទៅកាន់ Admin Telegram
+    ផ្ញើរបាយការណ៍អវត្តមានសិស្សប្រចាំថ្ងៃទៅកាន់ Telegram សិស្ស (Student Daily Absence Report)
     """
     if not target_date:
         target_date = datetime.now().strftime("%Y-%m-%d")
 
-    admin_chat_id = db.get_setting("telegram_admin_chat_id", "").strip()
+    target_chat_id = chat_id or get_daily_student_report_chat_id()
     bot_token = db.get_setting("telegram_bot_token", "").strip()
     notify_enabled = db.get_setting("telegram_notify_absence", "1") == "1"
 
-    if not notify_enabled or not bot_token or not admin_chat_id:
-        return False, "Telegram Bot មិនទាន់បានបើក ឬមិនទាន់កំណត់ Chat ID សម្រាប់ Admin ទេ"
+    if not notify_enabled or not bot_token or not target_chat_id:
+        return False, "Telegram Bot មិនទាន់បានបើក ឬមិនទាន់កំណត់ Chat ID សម្រាប់របាយការណ៍សិស្ស"
 
     school_name = db.get_setting("school_name_kh", "វិទ្យាល័យ ហ៊ុន សែន កំពង់កន្ទួត")
     formatted_date = format_khmer_date(target_date)
 
     conn = db.get_db_connection()
-
-    # 1. ស្ថិតិអវត្តមានសិស្ស
     student_rows = conn.execute("""
         SELECT sa.status, sa.reason, sa.period, sa.shift,
                s.student_code, s.full_name_kh, s.gender,
@@ -178,33 +238,11 @@ def send_daily_absence_report(target_date=None):
         WHERE sa.date = ? AND sa.status IN ('ABSENT', 'PERMISSION')
         ORDER BY c.grade_level ASC, c.class_name ASC, s.full_name_kh ASC
     """, (target_date,)).fetchall()
-
-    # 2. ស្ថិតិអវត្តមានគ្រូបង្រៀន
-    teacher_rows = conn.execute("""
-        SELECT ta.status, ta.reason, ta.shift, ta.period,
-               t.teacher_code, t.full_name_kh, t.gender, t.subject
-        FROM teacher_attendance ta
-        JOIN teachers t ON ta.teacher_id = t.id
-        WHERE ta.date = ? AND ta.status IN ('ABSENT', 'PERMISSION')
-        ORDER BY t.full_name_kh ASC
-    """, (target_date,)).fetchall()
-
-    # Leave requests for teachers today
-    leave_rows = conn.execute("""
-        SELECT lr.reason, t.full_name_kh, t.subject
-        FROM leave_requests lr
-        JOIN teachers t ON lr.person_id = t.id
-        WHERE lr.person_type = 'TEACHER'
-          AND lr.status = 'Approved'
-          AND ? BETWEEN lr.start_date AND lr.end_date
-    """, (target_date,)).fetchall()
-
     conn.close()
 
     total_stud_absent = sum(1 for r in student_rows if r["status"] == "ABSENT")
     total_stud_permission = sum(1 for r in student_rows if r["status"] == "PERMISSION")
 
-    # Group students by class
     class_absences = {}
     for r in student_rows:
         cname = r["class_name"]
@@ -212,9 +250,8 @@ def send_daily_absence_report(target_date=None):
             class_absences[cname] = []
         class_absences[cname].append(r)
 
-    # Build Message
     msg_lines = [
-        f"📊 <b>របាយការណ៍អវត្តមានប្រចាំថ្ងៃ (Daily Absence Report)</b>",
+        f"📊 <b>របាយការណ៍អវត្តមានសិស្សប្រចាំថ្ងៃ (Daily Student Absence Report)</b>",
         f"🏫 <b>{school_name}</b>",
         f"📅 កាលបរិច្ឆេទ៖ <b>{formatted_date}</b>",
         f"━━━━━━━━━━━━━━━━━━━━\n",
@@ -227,7 +264,7 @@ def send_daily_absence_report(target_date=None):
         msg_lines.append("📋 <b>ព័ត៌មានលម្អិតតាមថ្នាក់រៀន៖</b>")
         for cname, slist in class_absences.items():
             stud_strs = []
-            for s in slist[:6]: # Limit display to avoid hitting Telegram length
+            for s in slist[:6]:
                 st_icon = "❌" if s["status"] == "ABSENT" else "⚠️"
                 stud_strs.append(f"{st_icon} {s['full_name_kh']}")
             extra = f" (+{to_khmer_numerals(len(slist)-6)} នាក់ទៀត)" if len(slist) > 6 else ""
@@ -235,9 +272,55 @@ def send_daily_absence_report(target_date=None):
     else:
         msg_lines.append("✅ <i>គ្មានសិស្សអវត្តមាននៅថ្ងៃនេះទេ (វត្តមាន ១០០%)!</i>")
 
-    msg_lines.append("\n━━━━━━━━━━━━━━━━━━━━")
+    msg_lines.append(f"\n🕒 បញ្ជូនរបាយការណ៍នៅម៉ោង៖ {to_khmer_numerals(datetime.now().strftime('%H:%M'))}")
+    return send_telegram_message(target_chat_id, "\n".join(msg_lines), bot_token=bot_token)
+
+
+def send_daily_teacher_absence_report(target_date=None, chat_id=None):
+    """
+    ផ្ញើរបាយការណ៍អវត្តមាន និងការសុំច្បាប់របស់គ្រូប្រចាំថ្ងៃ (Teacher Daily Report)
+    """
+    if not target_date:
+        target_date = datetime.now().strftime("%Y-%m-%d")
+
+    target_chat_id = chat_id or get_daily_teacher_report_chat_id()
+    bot_token = db.get_setting("telegram_bot_token", "").strip()
+    notify_enabled = db.get_setting("telegram_notify_absence", "1") == "1"
+
+    if not notify_enabled or not bot_token or not target_chat_id:
+        return False, "Telegram Bot មិនទាន់បានបើក ឬមិនទាន់កំណត់ Chat ID សម្រាប់របាយការណ៍គ្រូ"
+
+    school_name = db.get_setting("school_name_kh", "វិទ្យាល័យ ហ៊ុន សែន កំពង់កន្ទួត")
+    formatted_date = format_khmer_date(target_date)
+
+    conn = db.get_db_connection()
+    teacher_rows = conn.execute("""
+        SELECT ta.status, ta.reason, ta.shift, ta.period,
+               t.teacher_code, t.full_name_kh, t.gender, t.subject
+        FROM teacher_attendance ta
+        JOIN teachers t ON ta.teacher_id = t.id
+        WHERE ta.date = ? AND ta.status IN ('ABSENT', 'PERMISSION')
+        ORDER BY t.full_name_kh ASC
+    """, (target_date,)).fetchall()
+
+    leave_rows = conn.execute("""
+        SELECT lr.reason, t.full_name_kh, t.subject
+        FROM leave_requests lr
+        JOIN teachers t ON lr.person_id = t.id
+        WHERE lr.person_type = 'TEACHER'
+          AND lr.status = 'Approved'
+          AND ? BETWEEN lr.start_date AND lr.end_date
+    """, (target_date,)).fetchall()
+    conn.close()
+
     teacher_absent_count = len(teacher_rows) + len(leave_rows)
-    msg_lines.append(f"👨‍🏫 <b>អវត្តមានគ្រូបង្រៀនសរុប៖ {to_khmer_numerals(teacher_absent_count)} នាក់</b>")
+    msg_lines = [
+        f"👨‍🏫 <b>របាយការណ៍វត្តមានលោកគ្រូ-អ្នកគ្រូប្រចាំថ្ងៃ (Daily Teacher Report)</b>",
+        f"🏫 <b>{school_name}</b>",
+        f"📅 កាលបរិច្ឆេទ៖ <b>{formatted_date}</b>",
+        f"━━━━━━━━━━━━━━━━━━━━\n",
+        f"👨‍🏫 <b>អវត្តមានគ្រូបង្រៀនសរុប៖ {to_khmer_numerals(teacher_absent_count)} នាក់</b>"
+    ]
 
     if teacher_rows or leave_rows:
         seen_teachers = set()
@@ -256,9 +339,20 @@ def send_daily_absence_report(target_date=None):
         msg_lines.append("✅ <i>គ្រូបង្រៀនទាំងអស់បានចូលបង្រៀនពេញលេញគ្រប់ម៉ោង!</i>")
 
     msg_lines.append(f"\n🕒 បញ្ជូនរបាយការណ៍នៅម៉ោង៖ {to_khmer_numerals(datetime.now().strftime('%H:%M'))}")
+    return send_telegram_message(target_chat_id, "\n".join(msg_lines), bot_token=bot_token)
 
-    final_text = "\n".join(msg_lines)
-    return send_telegram_message(admin_chat_id, final_text, bot_token=bot_token)
+
+def send_daily_absence_report(target_date=None):
+    """
+    ផ្ញើរបាយការណ៍ទាំងសិស្ស និងគ្រូ ទៅកាន់ Telegram តាមគោលដៅកំណត់ដាច់ពីគ្នា
+    """
+    student_tg = get_daily_student_report_chat_id()
+    teacher_tg = get_daily_teacher_report_chat_id()
+
+    s_ok, s_msg = send_daily_student_absence_report(target_date, chat_id=student_tg)
+    t_ok, t_msg = send_daily_teacher_absence_report(target_date, chat_id=teacher_tg)
+
+    return (s_ok or t_ok), f"Student TG: {s_msg}; Teacher TG: {t_msg}"
 
 
 def send_hourly_student_and_homeroom_alerts(class_id, date_str, shift, period_label, teacher_name="", subject_name="", absent_records=None):
@@ -372,22 +466,49 @@ def send_hourly_student_and_homeroom_alerts(class_id, date_str, shift, period_la
         final_group_msg = "\n".join(group_msg_lines)
         send_telegram_message(homeroom_chat_id, final_group_msg, bot_token=bot_token)
 
+    # 3. ផ្ញើដំណឹងសិស្សអវត្តមានតាមម៉ោងទៅកាន់ Telegram Channel/Group ដាច់ដោយឡែក (បើមានកំណត់)
+    hourly_stud_tg = get_hourly_student_absence_chat_id()
+    if hourly_stud_tg:
+        try:
+            absent_list = [r for r in flagged_students if r.get("status") == "ABSENT"]
+            perm_list = [r for r in flagged_students if r.get("status") == "PERMISSION"]
+            late_list = [r for r in flagged_students if r.get("status") == "LATE"]
+
+            h_lines = [
+                f"📋 <b>ដំណឹងអវត្តមានសិស្សតាមម៉ោង (Hourly Student Absence)</b>",
+                f"🏫 <b>{school_name}</b> | ថ្នាក់៖ <b>{class_name}</b>",
+                f"🕒 ម៉ោង៖ <b>{period_label}</b> ({formatted_date})",
+            ]
+            if teacher_name:
+                h_lines.append(f"👨‍🏫 គ្រូ៖ {teacher_name}")
+            h_lines.append("━━━━━━━━━━━━━━━━━━━━")
+            if absent_list:
+                h_lines.append(f"❌ <b>ឥតច្បាប់ ({to_khmer_numerals(len(absent_list))} នាក់)៖</b> " + ", ".join([s.get("full_name_kh", "") for s in absent_list[:8]]))
+            if perm_list:
+                h_lines.append(f"⚠️ <b>មានច្បាប់ ({to_khmer_numerals(len(perm_list))} នាក់)៖</b> " + ", ".join([s.get("full_name_kh", "") for s in perm_list[:8]]))
+            if late_list:
+                h_lines.append(f"⏰ <b>យឺត ({to_khmer_numerals(len(late_list))} នាក់)៖</b> " + ", ".join([s.get("full_name_kh", "") for s in late_list[:8]]))
+
+            send_telegram_message(hourly_stud_tg, "\n".join(h_lines), bot_token=bot_token)
+        except Exception as ex:
+            logger.warning(f"Failed to dispatch to hourly student telegram: {ex}")
+
     conn.close()
     return True, "បានផ្ញើដំណឹង Telegram រួចរាល់"
 
 
 def send_leave_request_to_admin_with_buttons(leave_id):
     """
-    ផ្ញើដំណឹងពាក្យសុំច្បាប់ថ្មីទៅ Telegram Admin ជាមួយប៊ូតុង Inline Keyboard (✅ អនុម័ត / ❌ បដិសេធ)
+    ផ្ញើដំណឹងពាក្យសុំច្បាប់ថ្មីទៅ Telegram គណៈគ្រប់គ្រងដែលមានសិទ្ធិអនុម័ត ជាមួយប៊ូតុង Inline Keyboard (✅ អនុម័ត / ❌ បដិសេធ)
     """
     req = db.get_leave_request_by_id(leave_id)
     if not req:
         return False, "រកមិនឃើញពាក្យសុំច្បាប់"
 
-    admin_chat_id = db.get_setting("telegram_leave_admin_chat_id", "").strip() or db.get_setting("telegram_admin_chat_id", "").strip()
+    approver_chat_ids = get_leave_approver_chat_ids()
     bot_token = db.get_setting("telegram_bot_token", "").strip()
-    if not bot_token or not admin_chat_id:
-        return False, "មិនទាន់កំណត់ Telegram Bot Token ឬ Admin Chat ID"
+    if not bot_token or not approver_chat_ids:
+        return False, "មិនទាន់កំណត់ Telegram Bot Token ឬ Approver Chat ID"
 
     school_name = db.get_setting("school_name_kh", "វិទ្យាល័យ ហ៊ុន សែន កំពង់កន្ទួត")
     start_fmt = format_khmer_date(req["start_date"])
@@ -438,7 +559,14 @@ def send_leave_request_to_admin_with_buttons(leave_id):
         ]
     }
 
-    return send_telegram_message(admin_chat_id, msg, reply_markup=reply_markup, bot_token=bot_token)
+    # ផ្ញើទៅកាន់គ្រប់ Chat IDs ដែលមានសិទ្ធិអនុម័ត
+    sent_any = False
+    for chat_id in approver_chat_ids:
+        ok, _ = send_telegram_message(chat_id, msg, reply_markup=reply_markup, bot_token=bot_token)
+        if ok:
+            sent_any = True
+
+    return sent_any, ("បានផ្ញើទៅកាន់គណៈគ្រប់គ្រងអនុម័ត" if sent_any else "បរាជ័យក្នុងការផ្ញើសារ")
 
 
 def handle_telegram_callback_query(callback_data_dict):
@@ -507,19 +635,33 @@ def handle_telegram_callback_query(callback_data_dict):
 
 def check_and_dispatch_period_attendance(current_dt=None):
     """
-    រៀងរាល់ម៉ោងសិក្សា៖ ពិនិត្យមើលនៅក្រោយពេលចូលថ្នាក់ ៣០ នាទី (ឬចំនួននាទីកំណត់ដោយ Admin)៖
-    1. បើគ្រូមិនទាន់ស្រង់វត្តមាន ➡️ ផ្ញើសារព្រមានរំលឹកបន្ទាន់ទៅកាន់ Telegram Admin
+    រៀងរាល់ម៉ោងសិក្សា៖ ពិនិត្យមើលនៅក្រោយពេលចូលថ្នាក់ (តាម Deadline នៃម៉ោងនីមួយៗ ឧ. ២៥ ឬ ៣០ នាទី)៖
+    1. បើគ្រូមិនទាន់ស្រង់វត្តមាន ➡️ ផ្ញើសារព្រមានរំលឹកបន្ទាន់ទៅកាន់បញ្ជី Telegram អ្នកទទួលទាំងអស់
     2. បើគ្រូបានស្រង់វត្តមានរួច ➡️ ផ្ញើដំណឹងអវត្តមានសិស្សទៅ Telegram Class Group
     """
     if current_dt is None:
         current_dt = datetime.now()
 
-    # Skip Sundays
+    date_str = current_dt.strftime("%Y-%m-%d")
+
+    # Skip Sundays, Holidays, and Vacations
     if current_dt.weekday() == 6:
         return {"checked": False, "reason": "Sunday - No classes"}
 
+    is_hol, _ = db.is_holiday_date(date_str)
+    if is_hol:
+        return {"checked": False, "reason": "Holiday - Attendance disabled"}
+
+    is_vac, _ = db.is_vacation_date(date_str)
+    if is_vac:
+        return {"checked": False, "reason": "Vacation - Attendance disabled"}
+
     bot_token = db.get_setting("telegram_bot_token", "").strip()
-    admin_chat_id = db.get_setting("telegram_admin_chat_id", "").strip()
+    alert_targets = get_unrecorded_alert_chat_ids()
+    teacher_hourly_tg = get_hourly_teacher_absence_chat_id()
+    if teacher_hourly_tg and teacher_hourly_tg not in alert_targets:
+        alert_targets.append(teacher_hourly_tg)
+
     if not bot_token:
         return {"checked": False, "reason": "No bot token configured"}
 
@@ -535,11 +677,8 @@ def check_and_dispatch_period_attendance(current_dt=None):
     cur_min = current_dt.hour * 60 + current_dt.minute
     minutes_elapsed = cur_min - start_min
 
-    # Threshold minutes (default 30 mins)
-    try:
-        reminder_threshold = int(db.get_setting("telegram_period_reminder_minutes", "30"))
-    except Exception:
-        reminder_threshold = 30
+    # Period-specific deadline (e.g. 25 or 30 mins)
+    reminder_threshold = db.get_period_deadline_minutes(active_p["db_period_num"])
 
     if minutes_elapsed < reminder_threshold:
         return {
@@ -547,7 +686,6 @@ def check_and_dispatch_period_attendance(current_dt=None):
             "reason": f"Only {minutes_elapsed} mins into period (threshold is {reminder_threshold} mins)"
         }
 
-    date_str = current_dt.strftime("%Y-%m-%d")
     period_num = active_p["db_period_num"]
     shift = active_p["shift"]
     school_name = db.get_setting("school_name_kh", "វិទ្យាល័យ ហ៊ុន សែន កំពង់កន្ទួត")
@@ -557,8 +695,8 @@ def check_and_dispatch_period_attendance(current_dt=None):
     marked_slots = slots_data.get("marked", [])
 
     alerts_sent = 0
-    # 1. សម្រាប់គ្រូដែលខកខានមិនទាន់ស្រង់វត្តមាន ផ្ញើទៅ Admin
-    if admin_chat_id and unmarked_slots:
+    # 1. សម្រាប់គ្រូដែលខកខានមិនទាន់ស្រង់វត្តមាន ផ្ញើទៅកាន់បញ្ជីអ្នកទទួលទាំងអស់
+    if alert_targets and unmarked_slots:
         for slot in unmarked_slots:
             slot_id = slot["id"]
             if not db.is_period_alert_sent(date_str, slot_id, "MISSED_ATTENDANCE"):
@@ -578,8 +716,12 @@ def check_and_dispatch_period_attendance(current_dt=None):
                     f"━━━━━━━━━━━━━━━━━━━━\n"
                     f"🕒 វេលាព្រមាន៖ {to_khmer_numerals(current_dt.strftime('%H:%M'))}"
                 )
-                ok, _ = send_telegram_message(admin_chat_id, warning_msg, bot_token=bot_token)
-                if ok:
+                sent_one = False
+                for target_id in alert_targets:
+                    ok, _ = send_telegram_message(target_id, warning_msg, bot_token=bot_token)
+                    if ok:
+                        sent_one = True
+                if sent_one:
                     db.record_period_alert_sent(date_str, slot_id, "MISSED_ATTENDANCE")
                     alerts_sent += 1
 
@@ -591,6 +733,51 @@ def check_and_dispatch_period_attendance(current_dt=None):
         "marked_count": len(marked_slots),
         "alerts_sent": alerts_sent
     }
+
+
+# ==========================================
+# SCHEDULED DAILY DISPATCH ENGINE
+# ==========================================
+DAY_NAME_KEY_MAP = {
+    0: "mon", 1: "tue", 2: "wed", 3: "thu", 4: "fri", 5: "sat", 6: "sun"
+}
+
+def check_and_dispatch_scheduled_daily_reports(current_dt=None):
+    """
+    ពិនិត្យម៉ោងកំណត់បញ្ជូនរបាយការណ៍សិស្ស និងគ្រូប្រចាំថ្ងៃ តាមថ្ងៃនីមួយៗក្នុងសប្តាហ៍ (ចន្ទ ដល់ អាទិត្យ)
+    """
+    if current_dt is None:
+        current_dt = datetime.now()
+
+    today_date = current_dt.strftime("%Y-%m-%d")
+    is_hol, _ = db.is_holiday_date(today_date)
+    if is_hol:
+        return {"dispatched": False, "reason": "Holiday"}
+    is_vac, _ = db.is_vacation_date(today_date)
+    if is_vac:
+        return {"dispatched": False, "reason": "Vacation"}
+
+    weekday_idx = current_dt.weekday()
+    day_key = DAY_NAME_KEY_MAP.get(weekday_idx, "mon")
+    configured_time = db.get_setting(f"daily_report_time_{day_key}", "").strip()
+
+    if not configured_time or configured_time.lower() in ("off", "none", "0"):
+        return {"dispatched": False, "reason": f"No scheduled time for {day_key}"}
+
+    cur_time = current_dt.strftime("%H:%M")
+    if cur_time != configured_time:
+        return {"dispatched": False, "reason": f"Current {cur_time} != Scheduled {configured_time}"}
+
+    # Check if already sent today
+    if db.is_period_alert_sent(today_date, 0, "DAILY_DISPATCH_SCHEDULE"):
+        return {"dispatched": False, "reason": "Already dispatched today"}
+
+    success, msg = send_daily_absence_report(today_date)
+    if success:
+        db.record_period_alert_sent(today_date, 0, "DAILY_DISPATCH_SCHEDULE")
+        logger.info(f"Successfully triggered scheduled daily absence dispatch for {today_date} ({day_key} at {cur_time})")
+
+    return {"dispatched": success, "time": cur_time, "message": msg}
 
 
 def setup_telegram_webhook(webhook_url, bot_token=None):

@@ -186,13 +186,21 @@ def init_db():
     except Exception:
         pass
 
-    # Ensure classes table has homeroom_teacher_id and telegram_chat_id
+    # Ensure classes table has homeroom_teacher_id, telegram_chat_id, is_suspended, suspend_reason
     try:
         cursor.execute("ALTER TABLE classes ADD COLUMN homeroom_teacher_id INTEGER;")
     except Exception:
         pass
     try:
         cursor.execute("ALTER TABLE classes ADD COLUMN telegram_chat_id TEXT;")
+    except Exception:
+        pass
+    try:
+        cursor.execute("ALTER TABLE classes ADD COLUMN is_suspended INTEGER DEFAULT 0;")
+    except Exception:
+        pass
+    try:
+        cursor.execute("ALTER TABLE classes ADD COLUMN suspend_reason TEXT DEFAULT '';")
     except Exception:
         pass
 
@@ -252,6 +260,33 @@ def init_db():
         );
     """)
 
+    # 12. School Vacations Table (វិស្សមកាលសិក្សា)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS school_vacations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            start_date TEXT NOT NULL, -- YYYY-MM-DD
+            end_date TEXT NOT NULL,   -- YYYY-MM-DD
+            academic_year TEXT DEFAULT '2026-2027',
+            notes TEXT,
+            is_active INTEGER DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    """)
+
+    # 13. School Holidays Table (ថ្ងៃឈប់សម្រាកបុណ្យជាតិផ្លូវការ)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS school_holidays (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            holiday_name TEXT NOT NULL,
+            holiday_date TEXT NOT NULL UNIQUE, -- YYYY-MM-DD
+            academic_year TEXT DEFAULT '2026-2027',
+            notes TEXT,
+            is_active INTEGER DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    """)
+
     # Insert default settings if not exists
     default_settings = [
         ("school_name_kh", "វិទ្យាល័យ ហ៊ុន សែន (សាលាគំរូ)"),
@@ -266,6 +301,30 @@ def init_db():
         ("telegram_notify_absence", "1"),
         ("telegram_notify_homeroom", "1"),
         ("telegram_notify_parent", "1"),
+        ("maintenance_mode", "0"),
+        ("maintenance_message", "ប្រព័ន្ធកំពុងស្ថិតក្រោមការថែទាំ និងកែលម្អបច្ចេកទេសបណ្តោះអាសន្ន។ សូមអភ័យទោសចំពោះការរំខាន!"),
+        ("telegram_unrecorded_alert_chat_ids", ""),
+        ("telegram_leave_approver_chat_ids", ""),
+        ("suspended_grades", ""),
+        ("period_1_deadline_minutes", "30"),
+        ("period_2_deadline_minutes", "30"),
+        ("period_3_deadline_minutes", "30"),
+        ("period_4_deadline_minutes", "30"),
+        ("period_5_deadline_minutes", "30"),
+        ("period_6_deadline_minutes", "30"),
+        ("period_7_deadline_minutes", "30"),
+        ("period_8_deadline_minutes", "30"),
+        ("daily_report_time_mon", "17:15"),
+        ("daily_report_time_tue", "17:15"),
+        ("daily_report_time_wed", "17:00"),
+        ("daily_report_time_thu", "17:15"),
+        ("daily_report_time_fri", "17:00"),
+        ("daily_report_time_sat", "11:30"),
+        ("daily_report_time_sun", "off"),
+        ("telegram_daily_student_report_chat_id", ""),
+        ("telegram_daily_teacher_report_chat_id", ""),
+        ("telegram_hourly_student_absence_chat_id", ""),
+        ("telegram_hourly_teacher_absence_chat_id", ""),
     ]
     for key, val in default_settings:
         cursor.execute(
@@ -561,34 +620,58 @@ def get_student_attendance(class_id, date_str, shift="Morning", period="Daily"):
 def save_student_attendance(class_id, date_str, shift, period, records, recorded_by="Teacher"):
     """
     រក្សាទុកកំណត់ត្រាវត្តមានសិស្ស (Sparse Storage Model)៖
-    - សិស្សអវត្តមាន (ABSENT, PERMISSION, LATE) ត្រូវរក្សាទុកក្នុង Database
-    - សិស្សមានវត្តមាន (PRESENT) មិនត្រូវរក្សាទុកក្នុង Database ឡើយ (ហើយលុប record ចាស់បើធ្លាប់មាន)
-    - កត់ត្រាក្នុង attendance_audit_logs ដើម្បីបញ្ជាក់ថាថ្នាក់នេះបានស្រង់រួចរាល់ ទោះបីគ្មានសិស្សអវត្តមានក៏ដោយ
-    records: list of dicts: [{'student_id': 1, 'status': 'PRESENT', 'reason': ''}]
+    - សិស្សអវត្តមាន (ABSENT, PERMISSION, LATE) ត្រូវរក្សាទុកក្នុង Database ប៉ុណ្ណោះ
+    - សិស្សមានវត្តមាន (PRESENT) មិនត្រូវរក្សាទុកក្នុង Database ឡើយ
+    - សិស្សណាដែលធ្លាប់កត់ត្រាអវត្តមានពីមុន តែឥឡូវមានវត្តមាន ត្រូវលុប record ចេញពី student_attendance
+    - កត់ត្រាក្នុង attendance_audit_logs ដើម្បីបញ្ជាក់ថាថ្នាក់នេះបានស្រង់រួចរាល់ ទោះបីគ្មានសិស្សអវត្តមាន (១០០%) ក៏ដោយ
+    records: list of dicts: [{'student_id': 1, 'status': 'ABSENT', 'reason': ''}]
     """
     conn = get_db_connection()
     cursor = conn.cursor()
-    for rec in records:
-        student_id = rec.get("student_id")
-        status = rec.get("status", "PRESENT")
-        reason = rec.get("reason", "")
 
-        if status in ("ABSENT", "PERMISSION", "LATE"):
-            cursor.execute("""
-                INSERT INTO student_attendance (date, student_id, class_id, shift, period, status, reason, recorded_by)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(date, student_id, shift, period) DO UPDATE SET
-                    status = excluded.status,
-                    reason = excluded.reason,
-                    recorded_by = excluded.recorded_by,
-                    created_at = CURRENT_TIMESTAMP
-            """, (date_str, student_id, class_id, shift, period, status, reason, recorded_by))
-        else:
-            # PRESENT: remove any previous absence record for this slot
-            cursor.execute("""
-                DELETE FROM student_attendance
-                WHERE date = ? AND student_id = ? AND shift = ? AND period = ?
-            """, (date_str, student_id, shift, period))
+    # Filter strictly to absent records
+    absent_records = [
+        r for r in (records or []) 
+        if r.get("status") in ("ABSENT", "PERMISSION", "LATE") and r.get("student_id")
+    ]
+    absent_student_ids = [r["student_id"] for r in absent_records]
+
+    # Reconciliation: Any student who was previously marked absent in this class/date/shift/period
+    # but is NOT in absent_student_ids must have their absence record deleted (i.e. they are now PRESENT)
+    if absent_student_ids:
+        placeholders = ",".join("?" for _ in absent_student_ids)
+        cursor.execute(f"""
+            DELETE FROM student_attendance
+            WHERE class_id = ? AND date = ? AND shift = ? AND period = ?
+              AND student_id NOT IN ({placeholders})
+        """, [class_id, date_str, shift, period, *absent_student_ids])
+    else:
+        # No students are absent (100% present in this class/slot)
+        cursor.execute("""
+            DELETE FROM student_attendance
+            WHERE class_id = ? AND date = ? AND shift = ? AND period = ?
+        """, (class_id, date_str, shift, period))
+
+    # Insert or update only the absent records (ABSENT, PERMISSION, LATE)
+    for rec in absent_records:
+        student_id = rec.get("student_id")
+        status = rec.get("status")
+        reason = rec.get("reason", "")
+        cursor.execute("""
+            INSERT INTO student_attendance (date, student_id, class_id, shift, period, status, reason, recorded_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(date, student_id, shift, period) DO UPDATE SET
+                status = excluded.status,
+                reason = excluded.reason,
+                recorded_by = excluded.recorded_by,
+                created_at = CURRENT_TIMESTAMP
+        """, (date_str, student_id, class_id, shift, period, status, reason, recorded_by))
+
+    # Ensure no legacy or accidental 'PRESENT' rows exist
+    cursor.execute("""
+        DELETE FROM student_attendance
+        WHERE class_id = ? AND date = ? AND shift = ? AND period = ? AND status = 'PRESENT'
+    """, (class_id, date_str, shift, period))
 
     # Record in audit logs so we know this class/period was recorded even if 0 students were absent
     audit_check = cursor.execute("""
@@ -734,6 +817,14 @@ def get_unmarked_slots_for_period(date_str, period_num, shift):
     ទាញយកបញ្ជី timetable_slots ក្នុងវេន (shift) និងម៉ោង (period_num) នៃថ្ងៃ date_str
     ដែលគ្រូមិនទាន់បានស្រង់វត្តមាន (និងមិនមានច្បាប់ឈប់សម្រាក Approved)
     """
+    # 1. Skip on holidays or vacations
+    is_hol, _ = is_holiday_date(date_str)
+    if is_hol:
+        return {"unmarked": [], "marked": []}
+    is_vac, _ = is_vacation_date(date_str)
+    if is_vac:
+        return {"unmarked": [], "marked": []}
+
     try:
         dt = datetime.strptime(date_str, "%Y-%m-%d")
         weekday_idx = dt.weekday()
@@ -779,6 +870,12 @@ def get_unmarked_slots_for_period(date_str, period_num, shift):
         # Check if already has approved leave
         if t_id in leave_map:
             continue
+
+        # Check if class or grade is suspended
+        if c_id:
+            is_susp, _, _ = is_class_suspended(c_id)
+            if is_susp:
+                continue
 
         audit_row = conn.execute("""
             SELECT COUNT(*) as c FROM attendance_audit_logs
@@ -835,12 +932,13 @@ def get_teacher_teaching_days(teacher_id):
     return [dict(r) for r in rows]
 
 
-def validate_teacher_leave_eligibility(teacher_id, start_date, end_date=None, current_dt=None):
+def validate_teacher_leave_eligibility(teacher_id, start_date, end_date=None, current_dt=None, is_admin=False):
     """
     ផ្ទៀងផ្ទាត់លក្ខខណ្ឌសុំច្បាប់របស់គ្រូបង្រៀន៖
     1. មិនអនុញ្ញាតឱ្យសុំច្បាប់កាលបរិច្ឆេទអតីតកាល (start_date < today)
-    2. ប្រសិនបើសុំសម្រាប់ថ្ងៃនេះ (start_date == today)៖ ត្រូវធ្វើឡើងមុនម៉ោងកំណត់ដោយ Admin (ឧ. 17:00 / ម៉ោង ៥ រសៀល)
-    3. ថ្ងៃដែលសុំច្បាប់ ត្រូវតែជាថ្ងៃដែលគ្រូនោះមានម៉ោងបង្រៀនជាក់ស្តែងក្នុងកាលវិភាគ (Timetable)
+    2. គ្រូអាចសុំច្បាប់បានតែសម្រាប់ថ្ងៃបច្ចុប្បន្ន (មុនម៉ោងកំណត់ដោយ Admin) ឬថ្ងៃបន្ទាប់ប៉ុណ្ណោះ (ហាមសុំលើសពីនេះ)
+    3. ប្រសិនបើសុំសម្រាប់ថ្ងៃនេះ (start_date == today)៖ ត្រូវធ្វើឡើងមុនម៉ោងកំណត់ដោយ Admin (Cutoff Time ឧ. 17:00)
+    4. ថ្ងៃដែលសុំច្បាប់ ត្រូវតែជាថ្ងៃដែលគ្រូនោះមានម៉ោងបង្រៀនជាក់ស្តែងក្នុងកាលវិភាគ (Timetable)
     """
     if current_dt is None:
         current_dt = datetime.now()
@@ -860,18 +958,32 @@ def validate_teacher_leave_eligibility(teacher_id, start_date, end_date=None, cu
     if start_dt > end_dt:
         return False, "កាលបរិច្ឆេទចាប់ផ្តើមមិនអាចក្រោយកាលបរិច្ឆេទបញ្ចប់បានទេ", []
 
-    # Check 1: មិនអនុញ្ញាតកាលបរិច្ឆេទអតីតកាល
-    if start_date < today_str:
-        return False, f"មិនអាចសុំច្បាប់សម្រាប់កាលបរិច្ឆេទកន្លងផុតទៅបានទេ (អាចសុំបានចាប់ពីថ្ងៃនេះ {today_str} ឡើងទៅ)!", []
+    # If teacher (not admin): enforce strict date boundaries
+    if not is_admin:
+        # Check 1: មិនអនុញ្ញាតកាលបរិច្ឆេទអតីតកាល
+        if start_date < today_str:
+            return False, f"មិនអាចសុំច្បាប់សម្រាប់កាលបរិច្ឆេទកន្លងផុតទៅបានទេ (អាចសុំបានចាប់ពីថ្ងៃនេះ {today_str} ឡើងទៅ)!", []
 
-    # Check 2: ប្រសិនបើសុំសម្រាប់ថ្ងៃនេះ ត្រូវតែមុនម៉ោងកំណត់ដោយ Admin (Cutoff Time)
-    cutoff_time = get_setting("teacher_leave_cutoff_time", "17:00")
-    if not cutoff_time or not str(cutoff_time).strip():
-        cutoff_time = "17:00"
-    cutoff_time = str(cutoff_time).strip()
+        # Check 2: មិនអនុញ្ញាតឱ្យរើសថ្ងៃលើសពីថ្ងៃបន្ទាប់ (Today or Next Day only)
+        # Next teaching day: tomorrow, or Monday if tomorrow is Sunday
+        tomorrow_dt = current_dt.date() + timedelta(days=1)
+        if tomorrow_dt.weekday() == 6:  # Sunday -> extend to Monday (next school day)
+            max_allowed_dt = current_dt.date() + timedelta(days=2)
+        else:
+            max_allowed_dt = tomorrow_dt
+        max_allowed_str = max_allowed_dt.strftime("%Y-%m-%d")
 
-    if start_date == today_str and current_time_str >= cutoff_time:
-        return False, f"ផុតម៉ោងកំណត់សុំច្បាប់សម្រាប់ថ្ងៃនេះហើយ (កំណត់ត្រឹមម៉ោង {cutoff_time})! សូមទំនាក់ទំនងរដ្ឋបាលសាលាដោយផ្ទាល់។", []
+        if start_date > max_allowed_str or end_date > max_allowed_str:
+            return False, f"លោកគ្រូ-អ្នកគ្រូ អាចសុំច្បាប់បានតែសម្រាប់ថ្ងៃបច្ចុប្បន្ន (មុនម៉ោងកំណត់) ឬថ្ងៃបន្ទាប់ ({max_allowed_str}) ប៉ុណ្ណោះ! មិនអាចជ្រើសរើសកាលបរិច្ឆេទលើសពីនេះបានឡើយ។", []
+
+        # Check 3: ប្រសិនបើសុំសម្រាប់ថ្ងៃនេះ ត្រូវតែមុនម៉ោងកំណត់ដោយ Admin (Cutoff Time)
+        cutoff_time = get_setting("teacher_leave_cutoff_time", "17:00")
+        if not cutoff_time or not str(cutoff_time).strip():
+            cutoff_time = "17:00"
+        cutoff_time = str(cutoff_time).strip()
+
+        if start_date == today_str and current_time_str >= cutoff_time:
+            return False, f"ផុតម៉ោងកំណត់សុំច្បាប់សម្រាប់ថ្ងៃនេះហើយ (កំណត់ត្រឹមម៉ោង {cutoff_time})! សូមទំនាក់ទំនងរដ្ឋបាលសាលាដោយផ្ទាល់ ឬជ្រើសរើសថ្ងៃបន្ទាប់ ({max_allowed_str})។", []
 
     # Check 3: ពិនិត្យកាលវិភាគបង្រៀន (Timetable Slots)
     day_kh_map = {0: 'ច', 1: 'អ', 2: 'ព', 3: 'ព្រ', 4: 'សុ', 5: 'ស', 6: 'អា'}
@@ -932,11 +1044,14 @@ def calculate_teacher_attendance_from_slots(date_str=None):
     """
     ស្រង់វត្តមានគ្រូបង្រៀនដោយស្វ័យប្រវត្តិ ផ្អែកលើការស្រង់វត្តមានសិស្សតាមម៉ោងសិក្សា៖
     - ប្រសិនបើគ្រូបង្រៀនបានស្រង់វត្តមានសិស្សសម្រាប់ម៉ោងនោះ => វត្តមាន (PRESENT)
-    - ប្រសិនបើគ្រូបង្រៀនខកខានមិនបានស្រង់វត្តមានសិស្ស => អវត្តមាន (ABSENT)
+    - ប្រសិនបើគ្រូបង្រៀនខកខានមិនបានស្រង់វត្តមានសិស្ស (ហើយម៉ោងនោះបានកន្លងផុត) => អវត្តមាន (ABSENT)
     - ប្រសិនបើមានច្បាប់អនុញ្ញាតត្រឹមត្រូវ => ច្បាប់ (PERMISSION)
+    - ម៉ោងទៅអនាគត ឬម៉ោងដែលមិនទាន់ចប់ => មិនទាន់ចាត់ទុកជាអវត្តមានឡើយ
     """
+    now_dt = datetime.now()
+    today_str = now_dt.strftime("%Y-%m-%d")
     if not date_str:
-        date_str = datetime.now().strftime("%Y-%m-%d")
+        date_str = today_str
 
     try:
         dt = datetime.strptime(date_str, "%Y-%m-%d")
@@ -951,6 +1066,23 @@ def calculate_teacher_attendance_from_slots(date_str=None):
     day_code = day_map[weekday_idx]
     conn = get_db_connection()
     cursor = conn.cursor()
+
+    # Determine period elapsed times
+    # Morning: 1 (07:00-08:00), 2 (08:00-09:00), 3 (09:00-10:00), 4 (10:00-11:00)
+    # Afternoon: 5 (13:00-14:00), 6 (14:00-15:00), 7 (15:00-16:00), 8 (16:00-17:00)
+    PERIOD_END_MINUTES = {
+        1: 8 * 60,
+        2: 9 * 60,
+        3: 10 * 60,
+        4: 11 * 60,
+        5: 14 * 60,
+        6: 15 * 60,
+        7: 16 * 60,
+        8: 17 * 60,
+    }
+    cur_minutes = now_dt.hour * 60 + now_dt.minute
+    is_today = (date_str == today_str)
+    is_past = (date_str < today_str)
 
     # Get all scheduled slots for this day where an active teacher is assigned
     slots = conn.execute("""
@@ -988,8 +1120,15 @@ def calculate_teacher_attendance_from_slots(date_str=None):
         teacher_name = s["teacher_full_name"] or s["teacher_name"] or "គ្រូបង្រៀន"
         subj = s["subject_name"] or s["subject_code"] or "មុខវិជ្ជា"
 
+        # Check if period has already elapsed
+        if is_past:
+            period_has_elapsed = True
+        elif is_today:
+            period_has_elapsed = (cur_minutes >= PERIOD_END_MINUTES.get(p_num, 0))
+        else:
+            period_has_elapsed = False
+
         # Check if student attendance is recorded for this class and period on date_str
-        # (Checks both student_attendance for absences and attendance_audit_logs for completed sessions)
         att_row = conn.execute("""
             SELECT 
                 (SELECT COUNT(*) FROM student_attendance 
@@ -1011,7 +1150,7 @@ def calculate_teacher_attendance_from_slots(date_str=None):
             status = 'PERMISSION'
             reason = f"ច្បាប់សម្រាក៖ {leave_map[t_id]}"
             permission_count += 1
-        else:
+        elif period_has_elapsed:
             status = 'ABSENT'
             reason = f"ខកខានមិនបានស្រង់វត្តមានសិស្ស {period_label} ថ្នាក់ {class_code}"
             absent_count += 1
@@ -1025,24 +1164,33 @@ def calculate_teacher_attendance_from_slots(date_str=None):
                 "subject": subj,
                 "reason": reason
             })
+        else:
+            # Upcoming or ongoing period - not yet absent
+            status = None
+            reason = None
 
-        # Reconcile into teacher_attendance (only overwrite if recorded_by was system/automatic)
+        # Reconcile into teacher_attendance
         existing = conn.execute("""
             SELECT id, recorded_by FROM teacher_attendance
             WHERE date = ? AND teacher_id = ? AND shift = ? AND period = ?
         """, (date_str, t_id, shift, period_label)).fetchone()
 
-        if not existing:
-            cursor.execute("""
-                INSERT INTO teacher_attendance (date, teacher_id, shift, period, status, reason, recorded_by)
-                VALUES (?, ?, ?, ?, ?, ?, 'System_Timetable')
-            """, (date_str, t_id, shift, period_label, status, reason))
-        elif existing["recorded_by"] in ('System_Timetable', 'Auto_Reconcile', None, ''):
-            cursor.execute("""
-                UPDATE teacher_attendance
-                SET status = ?, reason = ?, recorded_by = 'System_Timetable'
-                WHERE id = ?
-            """, (status, reason, existing["id"]))
+        if status is not None:
+            if not existing:
+                cursor.execute("""
+                    INSERT INTO teacher_attendance (date, teacher_id, shift, period, status, reason, recorded_by)
+                    VALUES (?, ?, ?, ?, ?, ?, 'System_Timetable')
+                """, (date_str, t_id, shift, period_label, status, reason))
+            elif existing["recorded_by"] in ('System_Timetable', 'Auto_Reconcile', None, ''):
+                cursor.execute("""
+                    UPDATE teacher_attendance
+                    SET status = ?, reason = ?, recorded_by = 'System_Timetable'
+                    WHERE id = ?
+                """, (status, reason, existing["id"]))
+        else:
+            # If slot hasn't elapsed yet, clear any premature system absent record
+            if existing and existing["recorded_by"] in ('System_Timetable', 'Auto_Reconcile'):
+                cursor.execute("DELETE FROM teacher_attendance WHERE id = ?", (existing["id"],))
 
     conn.commit()
     conn.close()
@@ -1180,17 +1328,72 @@ def get_dashboard_stats(date_str=None):
     total_students = conn.execute("SELECT COUNT(*) FROM students WHERE status = 'Active'").fetchone()[0]
     total_classes = conn.execute("SELECT COUNT(*) FROM classes").fetchone()[0]
 
-    # Teacher today stats
-    teacher_stats = conn.execute("""
-        SELECT 
-            SUM(CASE WHEN status = 'PRESENT' THEN 1 ELSE 0 END) as present,
-            SUM(CASE WHEN status = 'PERMISSION' THEN 1 ELSE 0 END) as permission,
-            SUM(CASE WHEN status = 'ABSENT' THEN 1 ELSE 0 END) as absent,
-            SUM(CASE WHEN status = 'LATE' THEN 1 ELSE 0 END) as late,
-            COUNT(*) as total_recorded
-        FROM teacher_attendance
-        WHERE date = ?
-    """, (date_str,)).fetchone()
+    # Teacher attendance records for date_str (Grouped by teacher to count actual persons)
+    absent_teacher_rows = conn.execute("""
+        SELECT ta.*, t.full_name_kh, t.teacher_code, t.subject, t.phone, sub.full_name_kh as substitute_name
+        FROM teacher_attendance ta
+        JOIN teachers t ON ta.teacher_id = t.id
+        LEFT JOIN teachers sub ON ta.substitute_teacher_id = sub.id
+        WHERE ta.date = ? AND ta.status IN ('ABSENT', 'PERMISSION', 'LATE')
+        ORDER BY ta.shift ASC, ta.period ASC, t.full_name_kh ASC
+    """, (date_str,)).fetchall()
+
+    grouped_absent_teachers = {}
+    for r in absent_teacher_rows:
+        tid = r["teacher_id"]
+        if tid not in grouped_absent_teachers:
+            grouped_absent_teachers[tid] = {
+                "id": r["id"],
+                "teacher_id": tid,
+                "teacher_code": r["teacher_code"],
+                "full_name_kh": r["full_name_kh"],
+                "subject": r["subject"],
+                "phone": r["phone"],
+                "status": r["status"],
+                "substitute_name": r["substitute_name"],
+                "periods": [],
+                "reasons": []
+            }
+        
+        # Priority order: ABSENT > PERMISSION > LATE
+        if r["status"] == 'ABSENT':
+            grouped_absent_teachers[tid]["status"] = 'ABSENT'
+        elif r["status"] == 'PERMISSION' and grouped_absent_teachers[tid]["status"] != 'ABSENT':
+            grouped_absent_teachers[tid]["status"] = 'PERMISSION'
+
+        # Extract clean period / class text
+        p_desc = r["period"]
+        if r["reason"] and "ថ្នាក់" in r["reason"]:
+            txt = r["reason"].replace("ខកខានមិនបានស្រង់វត្តមានសិស្ស ", "").strip()
+            parts = txt.split(" ថ្នាក់ ")
+            if len(parts) == 2:
+                p_desc = f"{parts[0]} ({parts[1]})"
+            else:
+                p_desc = txt
+        if p_desc not in grouped_absent_teachers[tid]["periods"]:
+            grouped_absent_teachers[tid]["periods"].append(p_desc)
+        if r["reason"] and r["reason"] not in grouped_absent_teachers[tid]["reasons"]:
+            grouped_absent_teachers[tid]["reasons"].append(r["reason"])
+
+    absent_teachers_list = []
+    t_absent_count = 0
+    t_perm_count = 0
+    t_late_count = 0
+
+    for tid, tinfo in grouped_absent_teachers.items():
+        if tinfo["status"] == 'ABSENT':
+            t_absent_count += 1
+            p_list_str = ", ".join(tinfo["periods"])
+            tinfo["reason"] = f"ខកខានស្រង់វត្តមាន {len(tinfo['periods'])} ម៉ោង៖ {p_list_str}"
+        elif tinfo["status"] == 'PERMISSION':
+            t_perm_count += 1
+            tinfo["reason"] = "; ".join(tinfo["reasons"])
+        elif tinfo["status"] == 'LATE':
+            t_late_count += 1
+            tinfo["reason"] = "; ".join(tinfo["reasons"])
+        absent_teachers_list.append(tinfo)
+
+    t_present_count = max(0, total_teachers - (t_absent_count + t_perm_count))
 
     # Student today stats
     student_stats = conn.execute("""
@@ -1223,16 +1426,6 @@ def get_dashboard_stats(date_str=None):
         total_student_sessions = sum((r["sessions_cnt"] or 0) * (r["class_size"] or 0) for r in recorded_classes)
         st_present = max(0, total_student_sessions - (st_perm + st_ab + st_late))
 
-    # Absent teachers today
-    absent_teachers = conn.execute("""
-        SELECT ta.*, t.full_name_kh, t.subject, t.phone, sub.full_name_kh as substitute_name
-        FROM teacher_attendance ta
-        JOIN teachers t ON ta.teacher_id = t.id
-        LEFT JOIN teachers sub ON ta.substitute_teacher_id = sub.id
-        WHERE ta.date = ? AND ta.status IN ('ABSENT', 'PERMISSION', 'LATE')
-        ORDER BY ta.shift ASC, t.full_name_kh ASC
-    """, (date_str,)).fetchall()
-
     # Absent students today
     absent_students = conn.execute("""
         SELECT sa.*, s.full_name_kh, s.student_code, s.gender, s.parent_phone, c.class_name
@@ -1242,6 +1435,37 @@ def get_dashboard_stats(date_str=None):
         WHERE sa.date = ? AND sa.status IN ('ABSENT', 'PERMISSION', 'LATE')
         ORDER BY c.class_name ASC, s.full_name_kh ASC
     """, (date_str,)).fetchall()
+
+    # 40-Class Status Matrix (ស្ថានភាពស្រង់វត្តមានតាមថ្នាក់រៀនទាំង ៤០ ថ្នាក់)
+    all_classes = conn.execute("""
+        SELECT id, class_name, grade_level, shift 
+        FROM classes 
+        ORDER BY grade_level ASC, class_name ASC
+    """).fetchall()
+
+    recorded_class_ids = set()
+    rows_sa = conn.execute("SELECT DISTINCT class_id FROM student_attendance WHERE date = ?", (date_str,)).fetchall()
+    for r in rows_sa:
+        if r["class_id"]:
+            recorded_class_ids.add(r["class_id"])
+    rows_al = conn.execute("SELECT DISTINCT class_id FROM attendance_audit_logs WHERE date = ?", (date_str,)).fetchall()
+    for r in rows_al:
+        if r["class_id"]:
+            recorded_class_ids.add(r["class_id"])
+
+    class_matrix = []
+    classes_recorded_count = 0
+    for c in all_classes:
+        is_done = c["id"] in recorded_class_ids
+        if is_done:
+            classes_recorded_count += 1
+        class_matrix.append({
+            "id": c["id"],
+            "class_name": c["class_name"],
+            "grade_level": c["grade_level"],
+            "shift": c["shift"],
+            "is_recorded": is_done
+        })
 
     conn.close()
 
@@ -1253,13 +1477,15 @@ def get_dashboard_stats(date_str=None):
         "timetable_reconcile": accountability_info,
         "unmarked_slots": accountability_info.get("unmarked_slots", []),
         "unmarked_slots_count": len(accountability_info.get("unmarked_slots", [])),
+        "class_matrix": class_matrix,
+        "classes_recorded_count": classes_recorded_count,
         "teachers": {
-            "present": teacher_stats["present"] or 0,
-            "permission": teacher_stats["permission"] or 0,
-            "absent": teacher_stats["absent"] or 0,
-            "late": teacher_stats["late"] or 0,
-            "total_recorded": teacher_stats["total_recorded"] or 0,
-            "absent_list": [dict(r) for r in absent_teachers]
+            "present": t_present_count,
+            "permission": t_perm_count,
+            "absent": t_absent_count,
+            "late": t_late_count,
+            "total_recorded": t_absent_count + t_perm_count + t_late_count,
+            "absent_list": absent_teachers_list
         },
         "students": {
             "present": st_present,
@@ -1370,6 +1596,307 @@ def get_all_settings():
     return {r["key"]: r["value"] for r in rows}
 
 
+def is_system_in_maintenance():
+    """ត្រួតពិនិត្យថាតើប្រព័ន្ធកំពុងស្ថិតក្នុង Maintenance Mode ឬអត់"""
+    val = get_setting("maintenance_mode", "0")
+    msg = get_setting("maintenance_message", "ប្រព័ន្ធកំពុងស្ថិតក្រោមការថែទាំ និងកែលម្អបច្ចេកទេសបណ្តោះអាសន្ន។ សូមអភ័យទោសចំពោះការរំខាន!")
+    return (val == "1"), msg
+
+
+def get_period_deadline_minutes(period_num):
+    """
+    ទាញយកចំនួននាទី Deadline សម្រាប់ម៉ោងនីមួយៗ (1 ដល់ 8)
+    ឧទាហរណ៍៖ ២៥ នាទី ឬ ៣០ នាទី
+    """
+    key = f"period_{period_num}_deadline_minutes"
+    val = get_setting(key, None)
+    if val is not None:
+        try:
+            m = int(val)
+            if 5 <= m <= 60:
+                return m
+        except Exception:
+            pass
+    # Fallback to global window
+    global_window = get_setting("attendance_window_minutes", "30")
+    try:
+        m = int(global_window)
+        if 5 <= m <= 60:
+            return m
+    except Exception:
+        pass
+    return 30
+
+
+# ==========================================
+# SCHOOL VACATIONS CRUD (វិស្សមកាលសិក្សា)
+# ==========================================
+def get_vacations():
+    conn = get_db_connection()
+    rows = conn.execute("SELECT * FROM school_vacations ORDER BY start_date DESC").fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def add_vacation(title, start_date, end_date, notes="", academic_year="2026-2027"):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO school_vacations (title, start_date, end_date, academic_year, notes, is_active)
+        VALUES (?, ?, ?, ?, ?, 1)
+    """, (title.strip(), start_date.strip(), end_date.strip(), academic_year, notes))
+    conn.commit()
+    new_id = cursor.lastrowid
+    conn.close()
+    return new_id
+
+
+def delete_vacation(vacation_id):
+    conn = get_db_connection()
+    conn.execute("DELETE FROM school_vacations WHERE id = ?", (vacation_id,))
+    conn.commit()
+    conn.close()
+    return True
+
+
+def toggle_vacation(vacation_id, is_active=None):
+    conn = get_db_connection()
+    if is_active is None:
+        conn.execute("UPDATE school_vacations SET is_active = CASE WHEN is_active = 1 THEN 0 ELSE 1 END WHERE id = ?", (vacation_id,))
+    else:
+        conn.execute("UPDATE school_vacations SET is_active = ? WHERE id = ?", (1 if is_active else 0, vacation_id))
+    conn.commit()
+    conn.close()
+    return True
+
+
+def is_vacation_date(date_str):
+    """ត្រួតពិនិត្យថាតើកាលបរិច្ឆេទស្ថិតក្នុងថ្ងៃវិស្សមកាលដែលបើកសកម្ម (Active) ឬអត់"""
+    conn = get_db_connection()
+    row = conn.execute("""
+        SELECT * FROM school_vacations
+        WHERE is_active = 1 AND ? BETWEEN start_date AND end_date
+        LIMIT 1
+    """, (date_str,)).fetchone()
+    conn.close()
+    if row:
+        return True, dict(row)
+    return False, None
+
+
+# ==========================================
+# SCHOOL HOLIDAYS CRUD (ថ្ងៃឈប់សម្រាកបុណ្យជាតិផ្លូវការ)
+# ==========================================
+DEFAULT_CAMBODIAN_HOLIDAYS_2026_2027 = [
+    ("ទិវាជ័យជម្នះលើរបបប្រល័យពូជសាសន៍", "2026-01-07"),
+    ("ទិវាអន្តរជាតិនារី ៨ មីនា", "2026-03-08"),
+    ("ពិធីបុណ្យចូលឆ្នាំថ្មី ប្រពៃណីជាតិខ្មែរ (ថ្ងៃទី ១)", "2026-04-14"),
+    ("ពិធីបុណ្យចូលឆ្នាំថ្មី ប្រពៃណីជាតិខ្មែរ (ថ្ងៃទី ២)", "2026-04-15"),
+    ("ពិធីបុណ្យចូលឆ្នាំថ្មី ប្រពៃណីជាតិខ្មែរ (ថ្ងៃទី ៣)", "2026-04-16"),
+    ("ទិវាពលកម្មអន្តរជាតិ ១ ឧសភា", "2026-05-01"),
+    ("ពិធីបុណ្យវិសាខបូជា", "2026-05-01"),
+    ("ព្រះរាជពិធីច្រត់ព្រះនង្គ័ល", "2026-05-05"),
+    ("ព្រះរាជពិធីបុណ្យចម្រើនព្រះជន្ម ព្រះមហាក្សត្រ", "2026-05-14"),
+    ("ទិវាជាតិនៃការចងចាំ", "2026-05-20"),
+    ("ទិវាកុមារអន្តរជាតិ", "2026-06-01"),
+    ("ព្រះរាជពិធីបុណ្យចម្រើនព្រះជន្ម សម្តេចព្រះមហាក្សត្រី ព្រះវររាជមាតាជាតិខ្មែរ", "2026-06-18"),
+    ("ទិវាប្រកាសរដ្ឋធម្មនុញ្ញ", "2026-09-24"),
+    ("ពិធីបុណ្យភ្ជុំបិណ្ឌ (ថ្ងៃទី ១)", "2026-10-10"),
+    ("ពិធីបុណ្យភ្ជុំបិណ្ឌ (ថ្ងៃទី ២)", "2026-10-11"),
+    ("ពិធីបុណ្យភ្ជុំបិណ្ឌ (ថ្ងៃទី ៣)", "2026-10-12"),
+    ("ទិវារំលឹកខួបនៃការយាងសោយព្រះទិវង្គត ព្រះបរមរតនកោដ្ឋ", "2026-10-15"),
+    ("ទិវាព្រះរាជពិធីគ្រងរាជសម្បត្តិ", "2026-10-29"),
+    ("ពិធីបុណ្យឯករាជ្យជាតិ ៩ វិច្ឆិកា", "2026-11-09"),
+    ("ព្រះរាជពិធីបុណ្យអុំទូក បណ្តែតប្រទីប និងសំពះព្រះខែ (ថ្ងៃទី ១)", "2026-11-23"),
+    ("ព្រះរាជពិធីបុណ្យអុំទូក បណ្តែតប្រទីប និងសំពះព្រះខែ (ថ្ងៃទី ២)", "2026-11-24"),
+    ("ព្រះរាជពិធីបុណ្យអុំទូក បណ្តែតប្រទីប និងសំពះព្រះខែ (ថ្ងៃទី ៣)", "2026-11-25"),
+    ("ទិវាសិទ្ធិមនុស្សអន្តរជាតិ", "2026-12-10"),
+]
+
+
+def seed_cambodian_holidays():
+    """បញ្ចូលទិន្នន័យថ្ងៃបុណ្យជាតិផ្លូវការរបស់កម្ពុជាចូលក្នុង Database"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    count = 0
+    for name, dt in DEFAULT_CAMBODIAN_HOLIDAYS_2026_2027:
+        cursor.execute("""
+            INSERT OR IGNORE INTO school_holidays (holiday_name, holiday_date, academic_year, is_active)
+            VALUES (?, ?, '2026-2027', 1)
+        """, (name, dt))
+        if cursor.rowcount > 0:
+            count += 1
+    conn.commit()
+    conn.close()
+    return count
+
+
+def get_holidays():
+    conn = get_db_connection()
+    rows = conn.execute("SELECT * FROM school_holidays ORDER BY holiday_date ASC").fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def add_holiday(holiday_name, holiday_date, notes="", academic_year="2026-2027"):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO school_holidays (holiday_name, holiday_date, academic_year, notes, is_active)
+        VALUES (?, ?, ?, ?, 1)
+        ON CONFLICT(holiday_date) DO UPDATE SET holiday_name = excluded.holiday_name, notes = excluded.notes, is_active = 1
+    """, (holiday_name.strip(), holiday_date.strip(), academic_year, notes))
+    conn.commit()
+    new_id = cursor.lastrowid
+    conn.close()
+    return new_id
+
+
+def delete_holiday(holiday_id):
+    conn = get_db_connection()
+    conn.execute("DELETE FROM school_holidays WHERE id = ?", (holiday_id,))
+    conn.commit()
+    conn.close()
+    return True
+
+
+def toggle_holiday(holiday_id, is_active=None):
+    conn = get_db_connection()
+    if is_active is None:
+        conn.execute("UPDATE school_holidays SET is_active = CASE WHEN is_active = 1 THEN 0 ELSE 1 END WHERE id = ?", (holiday_id,))
+    else:
+        conn.execute("UPDATE school_holidays SET is_active = ? WHERE id = ?", (1 if is_active else 0, holiday_id))
+    conn.commit()
+    conn.close()
+    return True
+
+
+def is_holiday_date(date_str):
+    """ត្រួតពិនិត្យថាតើកាលបរិច្ឆេទជាថ្ងៃឈប់សម្រាកបុណ្យជាតិ (Active) ឬអត់"""
+    conn = get_db_connection()
+    row = conn.execute("""
+        SELECT * FROM school_holidays
+        WHERE is_active = 1 AND holiday_date = ?
+        LIMIT 1
+    """, (date_str,)).fetchone()
+    conn.close()
+    if row:
+        return True, dict(row)
+    return False, None
+
+
+# ==========================================
+# CLASS & GRADE SUSPENSION OPERATIONS
+# (ផ្អាកដំណើរការថ្នាក់រៀនបណ្តោះអាសន្ន)
+# ==========================================
+def get_suspended_grades():
+    """ទាញយកបញ្ជីកម្រិតថ្នាក់ដែលត្រូវបានផ្អាក (ឧ. [7, 8])"""
+    raw = get_setting("suspended_grades", "").strip()
+    if not raw:
+        return []
+    grades = []
+    for g in raw.split(","):
+        g = g.strip()
+        if g.isdigit():
+            grades.append(int(g))
+    return grades
+
+
+def set_suspended_grades(grade_list):
+    """រក្សាទុកកម្រិតថ្នាក់ដែលផ្អាក"""
+    clean_list = [str(g).strip() for g in grade_list if str(g).strip().isdigit()]
+    set_setting("suspended_grades", ",".join(clean_list))
+    return clean_list
+
+
+def suspend_grade(grade_level, reason=""):
+    """ផ្អាកដំណើរការគ្រប់ថ្នាក់ក្នុងកម្រិតថ្នាក់នោះ"""
+    current = get_suspended_grades()
+    if int(grade_level) not in current:
+        current.append(int(grade_level))
+        set_suspended_grades(current)
+    if reason:
+        set_setting(f"suspended_grade_reason_{grade_level}", reason.strip())
+    return True
+
+
+def unsuspend_grade(grade_level):
+    """បើកដំណើរការកម្រិតថ្នាក់ឡើងវិញ"""
+    current = get_suspended_grades()
+    if int(grade_level) in current:
+        current = [g for g in current if g != int(grade_level)]
+        set_suspended_grades(current)
+    return True
+
+
+def suspend_class(class_id, reason=""):
+    """ផ្អាកដំណើរការថ្នាក់រៀនជាក់លាក់"""
+    conn = get_db_connection()
+    conn.execute("UPDATE classes SET is_suspended = 1, suspend_reason = ? WHERE id = ?", (reason.strip(), class_id))
+    conn.commit()
+    conn.close()
+    return True
+
+
+def unsuspend_class(class_id):
+    """បើកដំណើរការថ្នាក់រៀនជាក់លាក់ឡើងវិញ"""
+    conn = get_db_connection()
+    conn.execute("UPDATE classes SET is_suspended = 0, suspend_reason = '' WHERE id = ?", (class_id,))
+    conn.commit()
+    conn.close()
+    return True
+
+
+def is_class_suspended(class_id):
+    """
+    ពិនិត្យថាតើថ្នាក់រៀនត្រូវបានផ្អាក ឬអត់ (ទាំងតាមកម្រិតថ្នាក់ ឬតាមថ្នាក់ជាក់លាក់)
+    Returns: (is_suspended: bool, reason: str, is_grade_suspended: bool)
+    """
+    conn = get_db_connection()
+    c = conn.execute("SELECT id, class_name, grade_level, is_suspended, suspend_reason FROM classes WHERE id = ?", (class_id,)).fetchone()
+    conn.close()
+    if not c:
+        return False, "", False
+
+    # 1. Check grade level suspension
+    suspended_grades = get_suspended_grades()
+    if c["grade_level"] in suspended_grades:
+        grade_reason = get_setting(f"suspended_grade_reason_{c['grade_level']}", "") or f"ផ្អាកដំណើរការកម្រិតថ្នាក់ទី {c['grade_level']}"
+        return True, grade_reason, True
+
+    # 2. Check individual class suspension
+    if c["is_suspended"]:
+        reason = c["suspend_reason"] or f"ផ្អាកដំណើរការថ្នាក់ {c['class_name']} ជាបណ្តោះអាសន្ន"
+        return True, reason, False
+
+    return False, "", False
+
+
+def get_suspended_status():
+    """ទាញយកព័ត៌មានសង្ខេបអំពីកម្រិតថ្នាក់ និងថ្នាក់ទាំងអស់ដែលកំពុងផ្អាក"""
+    conn = get_db_connection()
+    classes = conn.execute("SELECT id, class_name, grade_level, is_suspended, suspend_reason FROM classes ORDER BY grade_level ASC, class_name ASC").fetchall()
+    conn.close()
+
+    suspended_grades = get_suspended_grades()
+    grade_reasons = {g: get_setting(f"suspended_grade_reason_{g}", "") for g in suspended_grades}
+
+    class_list = []
+    for c in classes:
+        c_dict = dict(c)
+        is_susp, reason, is_grade = is_class_suspended(c["id"])
+        c_dict["is_effectively_suspended"] = is_susp
+        c_dict["effective_reason"] = reason
+        c_dict["is_grade_suspended"] = is_grade
+        class_list.append(c_dict)
+
+    return {
+        "suspended_grades": suspended_grades,
+        "grade_reasons": grade_reasons,
+        "classes": class_list
+    }
+
+
 # ==========================================
 # TIMETABLE OPERATIONS
 # ==========================================
@@ -1419,6 +1946,59 @@ def get_timetable_by_teacher(teacher_id):
     """, (teacher_id,)).fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+
+def get_scheduled_teacher_for_slot(class_id, date_str, period_str, shift="Morning"):
+    """
+    ស្វែងរកគ្រូបង្រៀនដែលមានម៉ោងបង្រៀនតាមកាលវិភាគសម្រាប់ថ្នាក់ កាលបរិច្ឆេទ និងម៉ោងនេះ
+    ដើម្បីឱ្យ Admin ងាយស្រួលចុះវត្តមានជំនួសគ្រូដែលមានបញ្ហាដូចជាខូចទូរសព្ទជាដើម។
+    """
+    if not class_id or not date_str:
+        return None
+
+    try:
+        dt = datetime.strptime(date_str, "%Y-%m-%d")
+        weekday_idx = dt.weekday()
+    except Exception:
+        weekday_idx = 0
+
+    day_map = {0: 'ច', 1: 'អ', 2: 'ព', 3: 'ព្រ', 4: 'សុ', 5: 'ស'}
+    if weekday_idx not in day_map:
+        return None
+
+    day_code = day_map[weekday_idx]
+
+    period_num = 1
+    if "Session " in str(period_str):
+        try:
+            period_num = int(str(period_str).replace("Session ", "").strip())
+        except Exception:
+            pass
+    elif str(period_str).isdigit():
+        period_num = int(period_str)
+
+    conn = get_db_connection()
+    c_row = conn.execute("SELECT id, class_name FROM classes WHERE id = ?", (class_id,)).fetchone()
+    if not c_row:
+        conn.close()
+        return None
+
+    c_name = c_row["class_name"]
+    c_clean = c_name.replace("ថ្នាក់ទី", "").replace("ថ្នាក់", "").strip()
+
+    row = conn.execute("""
+        SELECT ts.*, t.id as teacher_id, t.full_name_kh, t.teacher_code, t.subject, t.phone
+        FROM timetable_slots ts
+        JOIN teachers t ON ts.teacher_id = t.id
+        WHERE (ts.class_id = ? OR ts.class_code = ? OR ts.class_code = ? OR ? LIKE '%' || ts.class_code || '%')
+          AND ts.day_code = ?
+          AND ts.period_num = ?
+        ORDER BY ts.id ASC
+        LIMIT 1
+    """, (class_id, c_name, c_clean, c_name, day_code, period_num)).fetchone()
+
+    conn.close()
+    return dict(row) if row else None
 
 
 def get_all_timetable_classes():
@@ -1936,18 +2516,21 @@ def init_default_users():
     conn = get_db_connection()
 
     # 1. Ensure Admin Account
-    admin_user = conn.execute("SELECT id FROM users WHERE username = 'admin'").fetchone()
+    admin_user = conn.execute("SELECT id, plain_password_hint FROM users WHERE username = 'admin'").fetchone()
     if not admin_user:
         create_user(
             username="admin",
-            password="admin123",
+            password="1627",
             role="admin",
             full_name_kh="គណៈគ្រប់គ្រងសាលា (Administrator)",
             teacher_id=None,
             phone="012 888 999",
-            plain_hint="admin123"
+            plain_hint="1627"
         )
-        print("[OK] Created default Admin account: admin / admin123")
+        print("[OK] Created default Admin account: admin / 1627")
+    else:
+        reset_user_password(admin_user["id"], "1627")
+        print("[OK] Default Admin account verified: admin / 1627")
 
     # 2. Ensure Teacher Accounts for all teachers in database
     teachers = conn.execute("SELECT * FROM teachers").fetchall()
@@ -2148,19 +2731,25 @@ def get_current_period_info(current_dt=None):
     min_into_period = cur_minutes - start_min
     sec_into_period = min_into_period * 60 + current_dt.second
 
-    sec_remaining_first_30 = max(0, 1800 - sec_into_period)
+    # Configurable Attendance Window per period (1-8), default or overridden (e.g. 25 or 30 mins)
+    attendance_window_minutes = get_period_deadline_minutes(matched_period["db_period_num"])
+
+    sec_window_limit = attendance_window_minutes * 60
+    sec_remaining_window = max(0, sec_window_limit - sec_into_period)
     sec_remaining_period = max(0, 3600 - sec_into_period)
 
-    if min_into_period < 30:
+    if min_into_period < attendance_window_minutes:
         phase = "first_30"
-        phase_kh = "ចន្លោះពេលធម្មតា (កែប្រែបានច្រើនដង)"
+        phase_kh = f"ចន្លោះពេលធម្មតា ({attendance_window_minutes} នាទីដំបូង - កែប្រែបានច្រើនដង)"
     else:
         phase = "second_30"
         phase_kh = "ចន្លោះពេលបន្ថែម (បញ្ចូលបានតែ ១ ដងគត់)"
 
     matched_period["phase"] = phase
     matched_period["phase_kh"] = phase_kh
-    matched_period["sec_remaining_first_30"] = sec_remaining_first_30
+    matched_period["window_minutes"] = attendance_window_minutes
+    matched_period["deadline_minutes"] = attendance_window_minutes
+    matched_period["sec_remaining_first_30"] = sec_remaining_window
     matched_period["sec_remaining_period"] = sec_remaining_period
     matched_period["min_into_period"] = min_into_period
 
@@ -2190,6 +2779,27 @@ def get_current_teaching_slot(teacher_id, current_dt=None):
             "reason": "ក្រៅម៉ោងបង្រៀនផ្លូវការ"
         }
 
+    date_str = period_info.get("current_date_str")
+    is_vac, vac_info = is_vacation_date(date_str)
+    if is_vac:
+        vac_reason = vac_info.get("title", "") if isinstance(vac_info, dict) else str(vac_info)
+        return {
+            "period_info": period_info,
+            "slot": None,
+            "has_slot": False,
+            "reason": f"ថ្ងៃនេះស្ថិតក្នុងកំឡុងពេលវិស្សមកាល ({vac_reason})"
+        }
+
+    is_hol, hol_info = is_holiday_date(date_str)
+    if is_hol:
+        hol_name = hol_info.get("holiday_name", "") if isinstance(hol_info, dict) else str(hol_info)
+        return {
+            "period_info": period_info,
+            "slot": None,
+            "has_slot": False,
+            "reason": f"ថ្ងៃនេះជាថ្ងៃឈប់សម្រាកបុណ្យ ({hol_name})"
+        }
+
     p = period_info["period"]
     day_code = period_info["day"]["code"]
     db_period_num = p["db_period_num"]
@@ -2214,6 +2824,16 @@ def get_current_teaching_slot(teacher_id, current_dt=None):
         }
 
     slot_dict = dict(slot)
+    class_db_id = slot_dict.get("class_db_id")
+    is_susp, susp_reason, _ = is_class_suspended(class_db_id)
+    if is_susp:
+        return {
+            "period_info": period_info,
+            "slot": slot_dict,
+            "has_slot": False,
+            "is_suspended": True,
+            "reason": f"ថ្នាក់រៀនត្រូវបានផ្អាកដំណើរការបណ្តោះអាសន្ន ({susp_reason})"
+        }
     audit = get_attendance_submission_audit(
         slot_dict["class_db_id"],
         period_info["current_date_str"],
@@ -2305,12 +2925,35 @@ def check_submission_window_rule(class_id, date_str, shift, period_str, teacher_
     if current_dt is None:
         current_dt = datetime.now()
 
-    period_info = get_current_period_info(current_dt)
+    # 0. Check Maintenance Mode
+    in_maint, maint_msg = is_system_in_maintenance()
+    if in_maint:
+        return False, 503, f"ប្រព័ន្ធកំពុងស្ថិតក្រោមការថែទាំ (Maintenance Mode)៖ {maint_msg}", "maintenance", 0
 
     # 1. Check Date
     today_date = current_dt.strftime("%Y-%m-%d")
     if date_str != today_date:
         return False, 403, "លោកគ្រូ-អ្នកគ្រូ មិនអាចស្រង់វត្តមានខុសពីកាលបរិច្ឆេទថ្ងៃនេះបានឡើយ!", "invalid_date", 0
+
+    # 1.1 Check Vacation
+    is_vac, vac_info = is_vacation_date(today_date)
+    if is_vac:
+        v_title = vac_info.get("title", "វិស្សមកាល")
+        return False, 403, f"បច្ចុប្បន្នស្ថិតក្នុងថ្ងៃវិស្សមកាល ({v_title})! ប្រព័ន្ធមិនអនុញ្ញាតឱ្យបញ្ចូលអវត្តមានឡើយ។", "vacation", 0
+
+    # 1.2 Check Holiday
+    is_hol, hol_info = is_holiday_date(today_date)
+    if is_hol:
+        h_name = hol_info.get("holiday_name", "បុណ្យជាតិ")
+        return False, 403, f"ថ្ងៃនេះជាថ្ងៃឈប់សម្រាកផ្លូវការ ({h_name})! ប្រព័ន្ធមិនអនុញ្ញាតឱ្យបញ្ចូលអវត្តមានឡើយ។", "holiday", 0
+
+    # 1.3 Check Class or Grade Suspension
+    if class_id:
+        is_susp, susp_reason, _ = is_class_suspended(class_id)
+        if is_susp:
+            return False, 403, f"ថ្នាក់នេះត្រូវបានផ្អាកដំណើរការបណ្តោះអាសន្ន ({susp_reason})! មិនអនុញ្ញាតឱ្យបញ្ចូលអវត្តមានឡើយ។", "suspended_class", 0
+
+    period_info = get_current_period_info(current_dt)
 
     # 2. Check if currently in an active teaching period
     if not period_info["has_active_period"]:
@@ -2361,15 +3004,18 @@ def check_submission_window_rule(class_id, date_str, shift, period_str, teacher_
     audit = get_attendance_submission_audit(class_id, today_date, shift, period_key)
     sub_count = audit.get("submission_count", 0)
 
+    # Retrieve deadline for this specific period (1-8)
+    attendance_window_minutes = get_period_deadline_minutes(active_p["db_period_num"])
+
     if active_p["phase"] == "first_30":
-        # First 30 mins: allowed multiple times
-        return True, 200, "អនុញ្ញាតក្នុងចន្លោះ ៣០ នាទីដំបូង", "first_30", sub_count
+        # First phase (configured minutes): allowed multiple times
+        return True, 200, f"អនុញ្ញាតក្នុងចន្លោះ {attendance_window_minutes} នាទីដំបូង", "first_30", sub_count
     else:
-        # Second 30 mins (30 - 60 mins): allowed ONCE if not submitted yet
+        # Second phase: allowed ONCE if not submitted yet
         if sub_count == 0:
-            return True, 200, "អនុញ្ញាតបញ្ចូលបាន ១ ដងគត់ក្នុងចន្លោះពេលបន្ថែម (៣០ នាទីចុងក្រោយ)", "second_30", sub_count
+            return True, 200, "អនុញ្ញាតបញ្ចូលបាន ១ ដងគត់ក្នុងចន្លោះពេលបន្ថែម", "second_30", sub_count
         else:
-            return False, 403, f"ផុតម៉ោងអនុញ្ញាតកែប្រែ (៣០ នាទីដំបូង) ហើយ! លោកគ្រូ-អ្នកគ្រូ បានដាក់ស្នើរួចហើយ ({sub_count} ដង) មិនអាចកែប្រែបានទៀតទេ។", "locked_second_30", sub_count
+            return False, 403, f"ផុតម៉ោងអនុញ្ញាតកែប្រែ ({attendance_window_minutes} នាទីដំបូង) ហើយ! លោកគ្រូ-អ្នកគ្រូ បានដាក់ស្នើរួចហើយ ({sub_count} ដង) មិនអាចកែប្រែបានទៀតទេ។", "locked_second_30", sub_count
 
 
 if __name__ == "__main__":

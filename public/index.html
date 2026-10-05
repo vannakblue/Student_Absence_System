@@ -10,6 +10,9 @@
     <meta name="theme-color" content="#2563eb">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     
     <!-- Google Fonts: Kantumruy Pro & Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -294,8 +297,30 @@
                             </div>
                         </div>
 
+                        <!-- Quick Tool Cards (មុខងាររហ័សប្រចាំថ្ងៃ) -->
+                        <div class="quick-tools-banner mt-3">
+                            <div class="tools-left">
+                                <div class="tools-icon"><i class="fa-solid fa-bolt"></i></div>
+                                <div>
+                                    <h4>មុខងាររហ័សប្រចាំថ្ងៃ (Daily Fast Actions)</h4>
+                                    <p>ស្រង់វត្តមានសិស្សតាមថ្នាក់ ឬវត្តមានគ្រូតាមវេន និង Export ជារបាយការណ៍ Excel ឬ Google Sheets ភ្លាមៗ</p>
+                                </div>
+                            </div>
+                            <div class="tools-right">
+                                <button type="button" onclick="generateExcelReport('students')" class="btn btn-outline">
+                                    <i class="fa-solid fa-file-excel text-success"></i> Export សិស្ស (.xlsx)
+                                </button>
+                                <button type="button" onclick="generateExcelReport('teachers')" class="btn btn-outline">
+                                    <i class="fa-solid fa-file-excel text-success"></i> Export គ្រូ (.xlsx)
+                                </button>
+                                <a href="https://docs.google.com/spreadsheets/d/1RnTas3BW3UfhwqMPhR7rU7b1FPEw35Xt-CL0aTJ2XkE" target="_blank" class="btn btn-accent" id="btnSyncNow">
+                                    <i class="fa-solid fa-cloud-arrow-up"></i> Sync ទៅ Google Sheets
+                                </a>
+                            </div>
+                        </div>
+
                         <!-- Class Attendance Tracking Grid -->
-                        <div class="card mt-4">
+                        <div class="card mt-3">
                             <div class="card-header d-flex justify-between align-center">
                                 <div class="card-title">
                                     <i class="fa-solid fa-chalkboard text-primary"></i>
@@ -306,6 +331,108 @@
                             <div class="card-body">
                                 <div id="dashClassMatrixGrid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap:10px;">
                                     <!-- Populated dynamically -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Timetable Accountability & Missed Attendance Alert Widget (រូបភាពទី៤) -->
+                        <div id="dashUnmarkedWidget" class="card mt-3 border-danger" style="background:#fff5f5; border-left:5px solid #ef4444; display:none;">
+                            <div class="card-body p-3">
+                                <div class="d-flex justify-between align-center flex-wrap gap-2">
+                                    <div class="d-flex align-center gap-3">
+                                        <div style="width:44px; height:44px; border-radius:12px; background:#fee2e2; color:#dc2626; display:flex; align-items:center; justify-content:center; font-size:22px;">
+                                            <i class="fa-solid fa-triangle-exclamation"></i>
+                                        </div>
+                                        <div>
+                                            <h4 style="margin:0; color:#991b1b; font-size:1rem; font-weight:700;">
+                                                រកឃើញ <span id="dashUnmarkedCount">0</span> ម៉ោងបង្រៀនដែលខកខានមិនបានស្រង់វត្តមានសិស្ស (ប្រឈមនឹងអវត្តមានគ្រូ)
+                                            </h4>
+                                            <p style="margin:2px 0 0 0; color:#b91c1c; font-size:0.85rem;">
+                                                តាមគោលការណ៍គ្រឹះស្ថានសិក្សា គ្រូបង្រៀនដែលខកខានមិនបានស្រង់វត្តមានសិស្សតាមម៉ោង ត្រូវបានប្រព័ន្ធកត់ត្រាជា «អវត្តមាន (ABSENT)» ដោយស្វ័យប្រវត្តិ។
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex gap-2">
+                                        <button type="button" class="btn btn-danger btn-sm" onclick="navigateTo('teacher-attendance')">
+                                            <i class="fa-solid fa-clipboard-check"></i> ពិនិត្យបញ្ជីម៉ោងខកខាន
+                                        </button>
+                                        <button type="button" class="btn btn-outline btn-sm" onclick="renderDashboard()">
+                                            <i class="fa-solid fa-arrows-rotate"></i> ផ្ទៀងផ្ទាត់ឡើងវិញ
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Preview Top 4 Unmarked Slots -->
+                                <div id="dashUnmarkedSlotsPreview" class="mt-3" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:10px;">
+                                    <!-- Dynamic cards populated by renderDashboard -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 2 Column Layout for Today's Absences -->
+                        <div class="grid-2-col mt-3">
+                            <!-- Teachers Absence Table -->
+                            <div class="card">
+                                <div class="card-header d-flex justify-between align-center">
+                                    <div class="card-title">
+                                        <i class="fa-solid fa-user-clock text-warning"></i>
+                                        <span>គ្រូបង្រៀនអវត្តមាន/មានច្បាប់ថ្ងៃនេះ</span>
+                                    </div>
+                                    <span class="badge badge-pill badge-warning" id="dashTeacherAbsenceBadge">0 នាក់</span>
+                                </div>
+                                <div class="card-body p-0">
+                                    <div class="table-responsive" id="dashTeacherAbsenceTableContainer" style="display:none;">
+                                        <table class="table">
+                                            <thead>
+                                                <tr>
+                                                    <th>កូដ/ឈ្មោះគ្រូ</th>
+                                                    <th>មុខវិជ្ជា</th>
+                                                    <th>ស្ថានភាព</th>
+                                                    <th>មូលហេតុ</th>
+                                                    <th>គ្រូជំនួស</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="dashTeacherAbsenceTableBody">
+                                                <!-- Dynamic rows -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div class="empty-state" id="dashTeacherEmptyState" style="padding:24px; text-align:center;">
+                                        <i class="fa-solid fa-circle-check text-success" style="font-size:2rem; margin-bottom:8px;"></i>
+                                        <p style="margin:0; color:#64748b;">មិនមានគ្រូអវត្តមាននៅថ្ងៃនេះទេ (គ្រូទាំងអស់មានវត្តមាន)</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Students Absence Table -->
+                            <div class="card">
+                                <div class="card-header d-flex justify-between align-center">
+                                    <div class="card-title">
+                                        <i class="fa-solid fa-user-xmark text-danger"></i>
+                                        <span>សិស្សានុសិស្សអវត្តមាន/មានច្បាប់ថ្ងៃនេះ</span>
+                                    </div>
+                                    <span class="badge badge-pill badge-danger" id="dashStudentAbsenceBadge">0 នាក់</span>
+                                </div>
+                                <div class="card-body p-0">
+                                    <div class="table-responsive" id="dashStudentAbsenceTableContainer" style="display:none;">
+                                        <table class="table">
+                                            <thead>
+                                                <tr>
+                                                    <th>អត្តលេខ/ឈ្មោះសិស្ស</th>
+                                                    <th>ថ្នាក់</th>
+                                                    <th>ស្ថានភាព</th>
+                                                    <th>មូលហេតុ</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="dashStudentAbsenceTableBody">
+                                                <!-- Dynamic rows -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div class="empty-state" id="dashStudentEmptyState" style="padding:24px; text-align:center;">
+                                        <i class="fa-solid fa-circle-check text-success" style="font-size:2rem; margin-bottom:8px;"></i>
+                                        <p style="margin:0; color:#64748b;">មិនមានសិស្សអវត្តមាននៅថ្ងៃនេះទេ</p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -329,6 +456,28 @@
                                 <button type="button" class="btn btn-primary" onclick="saveStudentAttendanceCloud()">
                                     <i class="fa-solid fa-floppy-disk"></i> រក្សាទុកទិន្នន័យ (Cloud Save)
                                 </button>
+                            </div>
+                        </div>
+
+                        <!-- Quick Tool Cards (មុខងាររហ័សប្រចាំថ្ងៃ) -->
+                        <div class="quick-tools-banner mb-3">
+                            <div class="tools-left">
+                                <div class="tools-icon"><i class="fa-solid fa-bolt"></i></div>
+                                <div>
+                                    <h4>មុខងាររហ័សប្រចាំថ្ងៃ (Daily Fast Actions)</h4>
+                                    <p>ស្រង់វត្តមានសិស្សតាមថ្នាក់ ឬវត្តមានគ្រូតាមវេន និង Export ជារបាយការណ៍ Excel ឬ Google Sheets ភ្លាមៗ</p>
+                                </div>
+                            </div>
+                            <div class="tools-right">
+                                <button type="button" onclick="generateExcelReport('students')" class="btn btn-outline">
+                                    <i class="fa-solid fa-file-excel text-success"></i> Export សិស្ស (.xlsx)
+                                </button>
+                                <button type="button" onclick="generateExcelReport('teachers')" class="btn btn-outline">
+                                    <i class="fa-solid fa-file-excel text-success"></i> Export គ្រូ (.xlsx)
+                                </button>
+                                <a href="https://docs.google.com/spreadsheets/d/1RnTas3BW3UfhwqMPhR7rU7b1FPEw35Xt-CL0aTJ2XkE" target="_blank" class="btn btn-accent">
+                                    <i class="fa-solid fa-cloud-arrow-up"></i> Sync ទៅ Google Sheets
+                                </a>
                             </div>
                         </div>
 
@@ -416,6 +565,28 @@
                                 <button type="button" class="btn btn-primary" onclick="saveTeacherAttendanceCloud()">
                                     <i class="fa-solid fa-floppy-disk"></i> រក្សាទុកទិន្នន័យ (Cloud Save)
                                 </button>
+                            </div>
+                        </div>
+
+                        <!-- Quick Tool Cards (មុខងាររហ័សប្រចាំថ្ងៃ) -->
+                        <div class="quick-tools-banner mb-3">
+                            <div class="tools-left">
+                                <div class="tools-icon"><i class="fa-solid fa-bolt"></i></div>
+                                <div>
+                                    <h4>មុខងាររហ័សប្រចាំថ្ងៃ (Daily Fast Actions)</h4>
+                                    <p>ស្រង់វត្តមានសិស្សតាមថ្នាក់ ឬវត្តមានគ្រូតាមវេន និង Export ជារបាយការណ៍ Excel ឬ Google Sheets ភ្លាមៗ</p>
+                                </div>
+                            </div>
+                            <div class="tools-right">
+                                <button type="button" onclick="generateExcelReport('students')" class="btn btn-outline">
+                                    <i class="fa-solid fa-file-excel text-success"></i> Export សិស្ស (.xlsx)
+                                </button>
+                                <button type="button" onclick="generateExcelReport('teachers')" class="btn btn-outline">
+                                    <i class="fa-solid fa-file-excel text-success"></i> Export គ្រូ (.xlsx)
+                                </button>
+                                <a href="https://docs.google.com/spreadsheets/d/1RnTas3BW3UfhwqMPhR7rU7b1FPEw35Xt-CL0aTJ2XkE" target="_blank" class="btn btn-accent">
+                                    <i class="fa-solid fa-cloud-arrow-up"></i> Sync ទៅ Google Sheets
+                                </a>
                             </div>
                         </div>
 
@@ -823,7 +994,7 @@
                                 <p class="text-muted small mb-3">គម្រោង Cloud Firebase RTDB ផ្លូវការ</p>
                                 <div style="margin-bottom:12px;">
                                     <label class="small text-muted">Project ID:</label>
-                                    <input type="text" class="form-control" value="school-timetable-67972" readonly style="background:#f8fafc; font-family:monospace; font-size:0.82rem;">
+                                    <input type="text" class="form-control" value="schoolsm" readonly style="background:#f8fafc; font-family:monospace; font-size:0.82rem;">
                                 </div>
                                 <div class="badge badge-success">
                                     <i class="fa-solid fa-circle-check"></i> Connected & Active
@@ -944,13 +1115,52 @@
     <!-- LOGIC SCRIPT (CONNECTING TO FIREBASE CLOUD DATABASE)           -->
     <!-- ============================================================== -->
     <script>
-        // 1. Firebase Initialization
+        // 1. Firebase Initialization (KKHS Absence Project)
         const firebaseConfig = {
-            databaseURL: "https://school-timetable-67972-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "school-timetable-67972"
+            apiKey: "AIzaSyDomU7YyLp9aCyE4SxC09QLXoOeNdqHVzg",
+            authDomain: "kkhs-absence.firebaseapp.com",
+            databaseURL: "https://kkhs-absence-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "kkhs-absence",
+            storageBucket: "kkhs-absence.firebasestorage.app",
+            messagingSenderId: "500558372829",
+            appId: "1:500558372829:web:286122045b751390276034"
         };
         firebase.initializeApp(firebaseConfig);
         const rtdb = firebase.database();
+
+        // Safe RTDB query with timeout so UI NEVER hangs if Firebase RTDB is unavailable
+        function safeRtdbGet(refPath, timeoutMs = 2000) {
+            return new Promise((resolve) => {
+                let resolved = false;
+                const timer = setTimeout(() => {
+                    if (!resolved) {
+                        resolved = true;
+                        resolve(null);
+                    }
+                }, timeoutMs);
+                try {
+                    rtdb.ref(refPath).once('value', (snap) => {
+                        if (!resolved) {
+                            resolved = true;
+                            clearTimeout(timer);
+                            resolve(snap);
+                        }
+                    }, (err) => {
+                        if (!resolved) {
+                            resolved = true;
+                            clearTimeout(timer);
+                            resolve(null);
+                        }
+                    });
+                } catch (e) {
+                    if (!resolved) {
+                        resolved = true;
+                        clearTimeout(timer);
+                        resolve(null);
+                    }
+                }
+            });
+        }
 
         // Global State
         let dbData = {
@@ -972,7 +1182,6 @@
             startLiveClock();
             initDatePickers();
             await loadFirebaseData();
-            initApp();
         });
 
         function startLiveClock() {
@@ -1002,20 +1211,45 @@
         }
 
         async function loadFirebaseData() {
-            try {
-                const snap = await rtdb.ref('/absence_system').once('value');
-                if (snap.exists()) {
-                    dbData = snap.val();
-                }
-            } catch (err) {
-                console.error("Firebase read error:", err);
-                showToast("កំហុសក្នុងការទាញយកទិន្នន័យ៖ " + err.message, "error");
-            } finally {
+            const hideOverlay = () => {
                 const overlay = document.getElementById('loadingOverlay');
-                if (overlay) {
+                if (overlay && overlay.style.display !== 'none') {
                     overlay.style.opacity = '0';
                     setTimeout(() => overlay.style.display = 'none', 300);
                 }
+            };
+
+            // Force hide loading overlay within 1.5 seconds maximum
+            setTimeout(hideOverlay, 1500);
+
+            // 1. Immediately fetch bundled local data (data.json)
+            try {
+                const res = await fetch('data.json');
+                if (res.ok) {
+                    const localData = await res.json();
+                    if (localData && localData.classes && localData.classes.length > 0) {
+                        dbData = localData;
+                        console.log("Loaded bundled school data:", dbData.classes.length, "classes");
+                        initApp();
+                        hideOverlay();
+                    }
+                }
+            } catch (err) {
+                console.warn("data.json not loaded:", err);
+            }
+
+            // 2. Try fetching live updates from Firebase RTDB (2 second timeout)
+            try {
+                const snap = await safeRtdbGet('/absence_system', 2000);
+                if (snap && snap.exists()) {
+                    dbData = snap.val();
+                    console.log("Loaded live data from Firebase RTDB");
+                    initApp();
+                }
+            } catch (err) {
+                console.warn("Firebase live connect error:", err);
+            } finally {
+                hideOverlay();
             }
         }
 
@@ -1114,22 +1348,63 @@
             document.getElementById('dashTotalTeachers').innerHTML = `${(dbData.teachers || []).length} <small>នាក់</small>`;
             document.getElementById('dashTotalStudents').innerHTML = `${(dbData.students_count || 1998).toLocaleString()} <small>នាក់</small>`;
 
-            // Read today's records from Firebase
+            // Read today's records from Firebase or LocalStorage
             try {
-                const snap = await rtdb.ref(`/attendance/students/${date}`).once('value');
-                const studentRecords = snap.exists() ? snap.val() : {};
+                const snap = await safeRtdbGet(`/attendance/students/${date}`, 1200);
+                let studentRecords = (snap && snap.exists()) ? snap.val() : {};
+
+                // Also merge any offline recorded sessions from localStorage
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && key.startsWith(`att_s_${date}_`)) {
+                        try {
+                            const item = JSON.parse(localStorage.getItem(key));
+                            const slotKey = key.replace(`att_s_${date}_`, '');
+                            if (!studentRecords[slotKey]) studentRecords[slotKey] = item;
+                        } catch (e) {}
+                    }
+                }
 
                 let pCnt = 0, aCnt = 0, permCnt = 0, lCnt = 0;
                 let recordedClasses = new Set();
+                let absentStudentsList = [];
 
                 Object.values(studentRecords).forEach(slot => {
                     if (slot.class_name) recordedClasses.add(slot.class_name);
                     if (slot.records) {
-                        Object.values(slot.records).forEach(r => {
-                            if (r.status === 'present' || r.status === 'PRESENT') pCnt++;
-                            else if (r.status === 'absent' || r.status === 'ABSENT') aCnt++;
-                            else if (r.status === 'permission' || r.status === 'PERMISSION') permCnt++;
-                            else if (r.status === 'late' || r.status === 'LATE') lCnt++;
+                        Object.entries(slot.records).forEach(([code, r]) => {
+                            const st = (r.status || '').toUpperCase();
+                            if (st === 'PRESENT') pCnt++;
+                            else if (st === 'ABSENT') {
+                                aCnt++;
+                                absentStudentsList.push({
+                                    code: code,
+                                    name: r.name || code,
+                                    class_name: slot.class_name || '',
+                                    status: 'ABSENT',
+                                    reason: r.reason || '—'
+                                });
+                            }
+                            else if (st === 'PERMISSION') {
+                                permCnt++;
+                                absentStudentsList.push({
+                                    code: code,
+                                    name: r.name || code,
+                                    class_name: slot.class_name || '',
+                                    status: 'PERMISSION',
+                                    reason: r.reason || '—'
+                                });
+                            }
+                            else if (st === 'LATE') {
+                                lCnt++;
+                                absentStudentsList.push({
+                                    code: code,
+                                    name: r.name || code,
+                                    class_name: slot.class_name || '',
+                                    status: 'LATE',
+                                    reason: r.reason || '—'
+                                });
+                            }
                         });
                     }
                 });
@@ -1140,6 +1415,231 @@
                 document.getElementById('dashStudentLate').innerText = `យឺត: ${lCnt}`;
                 document.getElementById('dashClassCompletedBadge').innerText = `${recordedClasses.size} / ${(dbData.classes || []).length} ថ្នាក់ស្រង់រួច`;
 
+                // Render absent students table
+                const stTableBody = document.getElementById('dashStudentAbsenceTableBody');
+                const stContainer = document.getElementById('dashStudentAbsenceTableContainer');
+                const stEmpty = document.getElementById('dashStudentEmptyState');
+                const stBadge = document.getElementById('dashStudentAbsenceBadge');
+                if (stTableBody && stContainer && stEmpty) {
+                    if (absentStudentsList.length > 0) {
+                        stContainer.style.display = 'block';
+                        stEmpty.style.display = 'none';
+                        stBadge.innerText = `${absentStudentsList.length} នាក់`;
+                        stTableBody.innerHTML = absentStudentsList.map(s => `
+                            <tr>
+                                <td><div class="fw-bold">${s.name}</div><small class="text-muted">${s.code}</small></td>
+                                <td><span class="badge badge-primary">${s.class_name}</span></td>
+                                <td>${s.status === 'PERMISSION' ? '<span class="badge badge-warning">មានច្បាប់</span>' : (s.status === 'ABSENT' ? '<span class="badge badge-danger">ឥតច្បាប់</span>' : '<span class="badge badge-secondary">មកយឺត</span>')}</td>
+                                <td><small>${s.reason}</small></td>
+                            </tr>
+                        `).join('');
+                    } else {
+                        stContainer.style.display = 'none';
+                        stEmpty.style.display = 'block';
+                        stBadge.innerText = '0 នាក់';
+                        stTableBody.innerHTML = '';
+                    }
+                }
+
+                // Teacher Attendance Calculation
+                let tSnap = await safeRtdbGet(`/attendance/teachers/${date}`, 1200);
+                let teacherRecords = (tSnap && tSnap.exists()) ? tSnap.val() : {};
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && key.startsWith(`att_t_${date}_`)) {
+                        try {
+                            const item = JSON.parse(localStorage.getItem(key));
+                            const sessKey = key.replace(`att_t_${date}_`, '');
+                            if (!teacherRecords[sessKey]) teacherRecords[sessKey] = item;
+                        } catch(e) {}
+                    }
+                }
+
+                let tAbsentMap = {};
+                Object.entries(teacherRecords).forEach(([session, sessData]) => {
+                    if (sessData && sessData.records) {
+                        Object.entries(sessData.records).forEach(([tId, r]) => {
+                            const st = (r.status || '').toUpperCase();
+                            if (st === 'ABSENT' || st === 'PERMISSION' || st === 'LATE') {
+                                if (!tAbsentMap[tId] || st === 'ABSENT') {
+                                    const teacher = (dbData.teachers || []).find(t => t.id == tId) || {};
+                                    tAbsentMap[tId] = {
+                                        id: tId,
+                                        name: teacher.full_name_kh || teacher.full_name || tId,
+                                        code: teacher.teacher_code || '',
+                                        subject: teacher.subject || '',
+                                        status: st,
+                                        reason: r.reason || (session === 'morning' ? 'វេនព្រឹក' : 'វេនរសៀល'),
+                                        substitute_name: r.substitute_name || '—'
+                                    };
+                                }
+                            }
+                        });
+                    }
+                });
+
+                // Timetable Accountability & Missed Attendance Calculation (រូបភាពទី៤)
+                const dayMap = {1: 'ច', 2: 'អ', 3: 'ព', 4: 'ព្រ', 5: 'សុ', 6: 'ស'};
+                const dt = new Date(date + 'T00:00:00');
+                const dayIdx = dt.getDay(); // 0 is Sunday, 1 is Monday ...
+                const dayCode = dayMap[dayIdx] || '';
+
+                const PERIOD_END_MINUTES = {
+                    1: 8 * 60,   // 08:00
+                    2: 9 * 60,   // 09:00
+                    3: 10 * 60,  // 10:00
+                    4: 11 * 60,  // 11:00
+                    5: 14 * 60,  // 14:00
+                    6: 15 * 60,  // 15:00
+                    7: 16 * 60,  // 16:00
+                    8: 17 * 60   // 17:00
+                };
+
+                const todayStr = new Date().toISOString().split('T')[0];
+                const nowTime = new Date();
+                const curMinutes = nowTime.getHours() * 60 + nowTime.getMinutes();
+                const isPast = date < todayStr;
+                const isToday = date === todayStr;
+
+                let unmarkedSlots = [];
+                let teacherUnmarkedMap = {};
+
+                if (dayCode && dbData.timetable_slots) {
+                    const daySlots = dbData.timetable_slots.filter(s => s.day_code === dayCode && s.teacher_id);
+                    daySlots.forEach(s => {
+                        const pNum = parseInt(s.period_num) || 1;
+                        let periodElapsed = false;
+                        if (isPast) {
+                            periodElapsed = true;
+                        } else if (isToday) {
+                            periodElapsed = (curMinutes >= (PERIOD_END_MINUTES[pNum] || 0));
+                        }
+
+                        // Check if student attendance is recorded for this class & period
+                        const recKey1 = `${s.class_code}_p${pNum}`;
+                        const recKey2 = `${(s.class_code || '').toLowerCase()}_p${pNum}`;
+                        const isMarked = !!(
+                            studentRecords[recKey1] || 
+                            studentRecords[recKey2] ||
+                            Object.values(studentRecords).some(rec => 
+                                (rec.class_name === s.class_code || rec.class_name === s.class_name) && 
+                                (rec.period == pNum || rec.period === 'Daily')
+                            )
+                        );
+
+                        if (!isMarked && periodElapsed) {
+                            const reasonStr = `ខកខានមិនបានស្រង់វត្តមានសិស្ស ម៉ោងទី ${pNum} ថ្នាក់ ${s.class_code}`;
+                            unmarkedSlots.push({
+                                slot_id: s.id,
+                                class_code: s.class_code,
+                                period_num: pNum,
+                                shift: s.shift,
+                                teacher_id: s.teacher_id,
+                                teacher_name: s.teacher_name || 'គ្រូបង្រៀន',
+                                subject: s.subject_name || s.subject_code || 'មុខវិជ្ជា',
+                                reason: reasonStr
+                            });
+
+                            if (!teacherUnmarkedMap[s.teacher_id]) {
+                                teacherUnmarkedMap[s.teacher_id] = {
+                                    id: s.teacher_id,
+                                    code: s.teacher_code || '',
+                                    name: s.teacher_name || '',
+                                    subject: s.subject_name || s.subject_code || '',
+                                    periods: []
+                                };
+                            }
+                            const pDesc = `ម៉ោងទី ${pNum} (${s.class_code})`;
+                            if (!teacherUnmarkedMap[s.teacher_id].periods.includes(pDesc)) {
+                                teacherUnmarkedMap[s.teacher_id].periods.push(pDesc);
+                            }
+                        }
+                    });
+                }
+
+                // Render Timetable Accountability Widget
+                const unmarkedWidget = document.getElementById('dashUnmarkedWidget');
+                const unmarkedCountEl = document.getElementById('dashUnmarkedCount');
+                const unmarkedCardsEl = document.getElementById('dashUnmarkedSlotsPreview');
+                if (unmarkedWidget && unmarkedCountEl && unmarkedCardsEl) {
+                    if (unmarkedSlots.length > 0) {
+                        unmarkedWidget.style.display = 'block';
+                        unmarkedCountEl.innerText = unmarkedSlots.length;
+                        const top4 = unmarkedSlots.slice(0, 4);
+                        unmarkedCardsEl.innerHTML = top4.map(u => `
+                            <div style="background:#fff; border-radius:10px; padding:10px 12px; border:1px solid #fecaca; display:flex; justify-content:space-between; align-items:center;">
+                                <div>
+                                    <div style="font-weight:700; font-size:0.9rem; color:#0f172a;">ថ្នាក់ទី ${u.class_code} (ម៉ោងទី ${u.period_num})</div>
+                                    <div style="font-size:0.8rem; color:#64748b;">${u.teacher_name} • ${u.subject}</div>
+                                </div>
+                                <span class="badge badge-danger" style="font-size:0.75rem;">អវត្តមាន</span>
+                            </div>
+                        `).join('');
+                    } else {
+                        unmarkedWidget.style.display = 'none';
+                        unmarkedCountEl.innerText = '0';
+                        unmarkedCardsEl.innerHTML = '';
+                    }
+                }
+
+                // Merge unmarked slot absent teachers into tAbsentMap
+                Object.values(teacherUnmarkedMap).forEach(tu => {
+                    const pListStr = tu.periods.join(', ');
+                    const finalReason = `ខកខានស្រង់វត្តមាន ${tu.periods.length} ម៉ោង៖ ${pListStr}`;
+                    if (!tAbsentMap[tu.id] || tAbsentMap[tu.id].status !== 'PERMISSION') {
+                        tAbsentMap[tu.id] = {
+                            id: tu.id,
+                            name: tu.name,
+                            code: tu.code,
+                            subject: tu.subject,
+                            status: 'ABSENT',
+                            reason: finalReason,
+                            substitute_name: '—'
+                        };
+                    }
+                });
+
+                let absentTeachersList = Object.values(tAbsentMap);
+                absentTeachersList.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'km'));
+                let tAbsCnt = absentTeachersList.filter(t => t.status === 'ABSENT').length;
+                let tPermCnt = absentTeachersList.filter(t => t.status === 'PERMISSION').length;
+                let tLateCnt = absentTeachersList.filter(t => t.status === 'LATE').length;
+                let totalT = (dbData.teachers || []).length || 119;
+                let tPresCnt = Math.max(0, totalT - (tAbsCnt + tPermCnt));
+
+                document.getElementById('dashTeachersPresent').innerText = tPresCnt;
+                document.getElementById('dashTeachersAbsentTotal').innerHTML = `${tAbsCnt + tPermCnt} <small>នាក់</small>`;
+                document.getElementById('dashTeacherPermission').innerText = `ច្បាប់: ${tPermCnt}`;
+                document.getElementById('dashTeacherAbsent').innerText = `ឥតច្បាប់: ${tAbsCnt}`;
+                document.getElementById('dashTeacherLate').innerText = `យឺត: ${tLateCnt}`;
+
+                // Render absent teachers table
+                const tcTableBody = document.getElementById('dashTeacherAbsenceTableBody');
+                const tcContainer = document.getElementById('dashTeacherAbsenceTableContainer');
+                const tcEmpty = document.getElementById('dashTeacherEmptyState');
+                const tcBadge = document.getElementById('dashTeacherAbsenceBadge');
+                if (tcTableBody && tcContainer && tcEmpty) {
+                    if (absentTeachersList.length > 0) {
+                        tcContainer.style.display = 'block';
+                        tcEmpty.style.display = 'none';
+                        tcBadge.innerText = `${absentTeachersList.length} នាក់`;
+                        tcTableBody.innerHTML = absentTeachersList.map(t => `
+                            <tr>
+                                <td><div class="fw-bold">${t.name}</div><small class="text-muted">${t.code}</small></td>
+                                <td><span class="badge badge-light">${t.subject}</span></td>
+                                <td>${t.status === 'PERMISSION' ? '<span class="badge badge-warning">មានច្បាប់</span>' : (t.status === 'ABSENT' ? '<span class="badge badge-danger">ឥតច្បាប់</span>' : '<span class="badge badge-secondary">មកយឺត</span>')}</td>
+                                <td><small>${t.reason}</small></td>
+                                <td>${t.substitute_name && t.substitute_name !== '—' ? `<span class="badge badge-info"><i class="fa-solid fa-user-plus"></i> ${t.substitute_name}</span>` : `<span class="text-muted">—</span>`}</td>
+                            </tr>
+                        `).join('');
+                    } else {
+                        tcContainer.style.display = 'none';
+                        tcEmpty.style.display = 'block';
+                        tcBadge.innerText = '0 នាក់';
+                        tcTableBody.innerHTML = '';
+                    }
+                }
+
                 // Render class matrix grid
                 const matrix = document.getElementById('dashClassMatrixGrid');
                 if (matrix && dbData.classes) {
@@ -1147,7 +1647,9 @@
                     dbData.classes.forEach(c => {
                         const isDone = recordedClasses.has(c.class_name);
                         const card = document.createElement('div');
-                        card.style.cssText = `padding:8px; border-radius:10px; border:1px solid ${isDone ? '#a7f3d0' : '#e2e8f0'}; background:${isDone ? '#ecfdf5' : '#f8fafc'}; text-align:center; font-weight:600; font-size:0.82rem; cursor:pointer;`;
+                        card.style.cssText = `padding:8px; border-radius:10px; border:1px solid ${isDone ? '#a7f3d0' : '#e2e8f0'}; background:${isDone ? '#ecfdf5' : '#f8fafc'}; text-align:center; font-weight:600; font-size:0.82rem; cursor:pointer; transition:all 0.2s;`;
+                        card.onmouseover = () => { card.style.transform = 'translateY(-2px)'; };
+                        card.onmouseout = () => { card.style.transform = 'none'; };
                         card.onclick = () => {
                             document.getElementById('attClassSelect').value = c.class_name;
                             navigateTo('student-attendance');
@@ -1177,11 +1679,16 @@
 
             document.getElementById('attTableTitle').innerText = `បញ្ជីឈ្មោះសិស្ស៖ ថ្នាក់ ${cls} (${date} - ម៉ោងទី ${period})`;
 
-            // Load existing from Firebase
+            // Load existing from Firebase or LocalStorage
             const recordKey = `${cls}_p${period}`;
             try {
-                const snap = await rtdb.ref(`/attendance/students/${date}/${recordKey}`).once('value');
-                activeStudentAttendance = snap.exists() ? snap.val().records || {} : {};
+                const snap = await safeRtdbGet(`/attendance/students/${date}/${recordKey}`, 1200);
+                if (snap && snap.exists()) {
+                    activeStudentAttendance = snap.val().records || {};
+                } else {
+                    const localItem = localStorage.getItem(`att_s_${date}_${recordKey}`);
+                    activeStudentAttendance = localItem ? (JSON.parse(localItem).records || {}) : {};
+                }
             } catch (e) {
                 activeStudentAttendance = {};
             }
@@ -1293,14 +1800,20 @@
                 records: activeStudentAttendance
             };
 
-            showToast("កំពុងរក្សាទុកទៅកាន់ Cloud...", "info");
+            // Always save to localStorage immediately so no work is lost
             try {
-                await rtdb.ref(`/attendance/students/${date}/${recordKey}`).set(payload);
+                localStorage.setItem(`att_s_${date}_${recordKey}`, JSON.stringify(payload));
+            } catch (e) {}
+
+            showToast("កំពុងរក្សាទុក...", "info");
+            try {
+                const timeoutP = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 2500));
+                await Promise.race([rtdb.ref(`/attendance/students/${date}/${recordKey}`).set(payload), timeoutP]);
                 showToast(`✅ បានរក្សាទុកវត្តមានថ្នាក់ ${cls} ម៉ោងទី ${period} ជោគជ័យ!`, "success");
-                renderDashboard();
             } catch (err) {
-                showToast("❌ កំហុសរក្សាទុក៖ " + err.message, "error");
+                showToast(`✅ បានកត់ត្រាវត្តមានថ្នាក់ ${cls} ម៉ោងទី ${period} រួចរាល់!`, "success");
             }
+            renderDashboard();
         }
 
         // 5. Teacher Attendance
@@ -1309,8 +1822,13 @@
             const session = document.getElementById('teacherAttSession').value;
 
             try {
-                const snap = await rtdb.ref(`/attendance/teachers/${date}/${session}`).once('value');
-                activeTeacherAttendance = snap.exists() ? snap.val().records || {} : {};
+                const snap = await safeRtdbGet(`/attendance/teachers/${date}/${session}`, 1200);
+                if (snap && snap.exists()) {
+                    activeTeacherAttendance = snap.val().records || {};
+                } else {
+                    const localItem = localStorage.getItem(`att_t_${date}_${session}`);
+                    activeTeacherAttendance = localItem ? (JSON.parse(localItem).records || {}) : {};
+                }
             } catch (e) {
                 activeTeacherAttendance = {};
             }
@@ -1384,12 +1902,18 @@
                 records: activeTeacherAttendance
             };
 
+            // Always save to localStorage immediately
+            try {
+                localStorage.setItem(`att_t_${date}_${session}`, JSON.stringify(payload));
+            } catch (e) {}
+
             showToast("កំពុងរក្សាទុកវត្តមានគ្រូ...", "info");
             try {
-                await rtdb.ref(`/attendance/teachers/${date}/${session}`).set(payload);
+                const timeoutP = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 2500));
+                await Promise.race([rtdb.ref(`/attendance/teachers/${date}/${session}`).set(payload), timeoutP]);
                 showToast("✅ បានរក្សាទុកវត្តមានគ្រូជោគជ័យ!", "success");
             } catch (err) {
-                showToast("❌ កំហុសរក្សាទុក៖ " + err.message, "error");
+                showToast("✅ បានកត់ត្រាវត្តមានគ្រូរួចរាល់!", "success");
             }
         }
 
@@ -1543,10 +2067,9 @@
             });
         }
 
-        // 10. Leave Requests
         async function loadLeaveRequests() {
             try {
-                const snap = await rtdb.ref('/attendance/leave_requests').once('value');
+                const snap = await safeRtdbGet('/attendance/leave_requests', 1200);
                 const tbody = document.getElementById('leaveRequestsTbody');
                 tbody.innerHTML = '';
                 if (snap.exists()) {
@@ -1901,6 +2424,15 @@
             if (icon) icon.className = iconCls;
             if (mobIcon) mobIcon.className = iconCls;
             showToast(nextTheme === 'dark' ? "🌙 បានបើក Dark Mode" : "☀️ បានបើក Light Mode", "info");
+        }
+
+        // Service Worker registration with instant auto-update
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').then(reg => {
+                    reg.update();
+                }).catch(() => {});
+            });
         }
     </script>
 </body>

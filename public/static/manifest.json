@@ -1,22 +1,50 @@
 {
-  "name": "ប្រព័ន្ធអវត្តមានគ្រូ-សិស្ស | SchoolSM",
-  "short_name": "អវត្តមានសាលា",
-  "description": "កម្មវិធីគ្រប់គ្រងអវត្តមានសិស្ស និងគ្រូបង្រៀន - វិទ្យាល័យ ហ៊ុន សែន កំពង់កន្ទួត",
+  "id": "/portal",
+  "name": "ប្រព័ន្ធគ្រប់គ្រងអវត្តមានសិស្ស-គ្រូ | វិទ្យាល័យ ហ៊ុន សែន កំពង់កន្ទួត",
+  "short_name": "វត្តមានសាលា",
+  "description": "កម្មវិធីស្រង់វត្តមានសិស្ស ពិនិត្យកាលវិភាគ និងសុំច្បាប់សម្រាប់លោកគ្រូ-អ្នកគ្រូ - វិទ្យាល័យ ហ៊ុន សែន កំពង់កន្ទួត",
   "start_url": "/portal",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#2563eb",
   "orientation": "portrait",
+  "background_color": "#0f172a",
+  "theme_color": "#1e3a8a",
+  "lang": "km",
+  "categories": ["education", "productivity"],
   "icons": [
     {
-      "src": "/static/images/icon-192.png",
+      "src": "/static/icons/icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
-      "src": "/static/images/icon-512.png",
+      "src": "/static/icons/icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/icons/icon-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "ស្រង់វត្តមានម៉ោងនេះ",
+      "short_name": "ស្រង់វត្តមាន",
+      "description": "បើកទំព័រស្រង់វត្តមានសិស្សតាមម៉ោងបង្រៀនបច្ចុប្បន្ន",
+      "url": "/portal/attendance",
+      "icons": [{ "src": "/static/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "កាលវិភាគបង្រៀន",
+      "short_name": "កាលវិភាគ",
+      "description": "ពិនិត្យកាលវិភាគបង្រៀនប្រចាំសប្តាហ៍",
+      "url": "/timetable",
+      "icons": [{ "src": "/static/icons/icon-192.png", "sizes": "192x192" }]
     }
   ]
 }

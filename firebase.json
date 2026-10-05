@@ -1,11 +1,25 @@
-﻿{
+{
   "hosting": {
-    "site": "school-timetable-67972",
+    "site": "kkhs-absence",
     "public": "public",
     "ignore": [
       "firebase.json",
       "**/.*",
-      "**/node_modules/**"
+      "**/node_modules/**",
+      "**/*.apk",
+      "**/*.exe",
+      "**/apk/**"
+    ],
+    "headers": [
+      {
+        "source": "**",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate"
+          }
+        ]
+      }
     ],
     "rewrites": [
       {

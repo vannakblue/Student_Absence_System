@@ -5,6 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ចូលប្រើប្រាស់ប្រព័ន្ធ (Login) | {{ global_school_name_kh }}</title>
     
+    <!-- PWA & Mobile Web App Metas -->
+    <meta name="theme-color" content="#1e1b4b">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="វត្តមានសិស្ស">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='icons/icon-192.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/apple-touch-icon.png') }}">
+
     <!-- Google Fonts: Kantumruy Pro & Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -449,12 +459,12 @@
             <div class="quick-accounts">
                 <div class="quick-accounts-title">ចុចដើម្បីបំពេញគណនីគំរូដោយស្វ័យប្រវត្តិ (Quick Fill)</div>
                 <div class="account-chips">
-                    <div class="account-chip" onclick="fillCredentials('admin', 'admin123')">
+                    <div class="account-chip" onclick="fillCredentials('admin', '1627')">
                         <div class="chip-left">
                             <i class="fa-solid fa-shield-halved" style="color:#2563eb;"></i>
                             <div>
                                 <div class="chip-role">គណនី Admin (នាយកសាលា/រដ្ឋបាល)</div>
-                                <div class="chip-sub">Username: admin • Password: admin123</div>
+                                <div class="chip-sub">Username: admin • Password: 1627</div>
                             </div>
                         </div>
                         <span class="chip-btn">បំពេញភ្លាម</span>
@@ -478,9 +488,24 @@
             គ្រូបង្រៀនសូមប្រើប្រាស់ <strong>អត្តលេខមន្ត្រីរាជការផ្ទាល់ខ្លួន</strong> ជា Username<br>
             និងលេខសម្ងាត់លំនាំដើម <strong>123456</strong>។
         </div>
+
+        <!-- Android APK Download Button -->
+        <div style="text-align: center; margin-top: 4px;">
+            <a href="{{ url_for('download_apk') }}" id="loginApkDownloadBtn" style="display: inline-flex; align-items: center; gap: 8px; background: rgba(255, 255, 255, 0.12); backdrop-filter: blur(8px); border: 1px solid rgba(255, 255, 255, 0.25); color: #93c5fd; padding: 10px 18px; border-radius: 14px; font-size: 0.88rem; font-weight: 600; text-decoration: none; transition: all 0.2s ease;">
+                <i class="fa-brands fa-android" style="font-size: 1.25rem; color: #34d399;"></i>
+                <span>ទាញយក App ទូរសព្ទ Android (.APK)</span>
+            </a>
+        </div>
     </div>
 
     <script>
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').catch(() => {});
+            });
+        }
+
         // Toggle Password Visibility
         const toggleBtn = document.getElementById('togglePasswordBtn');
         const pwdInput = document.getElementById('passwordInput');

@@ -1,5 +1,6 @@
-﻿{
+{
   "projects": {
-    "default": "school-timetable-67972"
+    "default": "kkhs-absence",
+    "schoolsm": "schoolsm"
   }
 }

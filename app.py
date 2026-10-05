@@ -9,7 +9,7 @@ import json
 import socket
 import io
 import qrcode
-from datetime import datetime
+from datetime import datetime, timedelta
 
 if sys.platform == "win32":
     try:
@@ -37,11 +37,39 @@ db.init_default_users()
 
 @app.context_processor
 def inject_school_info():
+    in_maint, maint_msg = db.is_system_in_maintenance()
     return {
         "global_school_name_kh": db.get_setting("school_name_kh", "វិទ្យាល័យ ហ៊ុន សែន កំពង់កន្ទួត"),
         "global_school_name_en": db.get_setting("school_name_en", "Hun Sen Kampong Kantuot High School"),
-        "current_user": session.get("user")
+        "current_user": session.get("user"),
+        "is_maintenance_mode": in_maint,
+        "maintenance_message": maint_msg
     }
+
+
+@app.before_request
+def check_maintenance():
+    in_maint, maint_msg = db.is_system_in_maintenance()
+    if not in_maint:
+        return None
+
+    # Static assets, login/logout, or admin users are allowed
+    if request.path.startswith("/static/") or request.path in ("/login", "/logout"):
+        return None
+
+    user = session.get("user")
+    if user and user.get("role") == "admin":
+        return None
+
+    # Block non-admins
+    if request.path.startswith("/api/"):
+        return jsonify({
+            "success": False,
+            "maintenance": True,
+            "message": f"ប្រព័ន្ធកំពុងស្ថិតក្រោមការថែទាំ (Maintenance Mode)៖ {maint_msg}"
+        }), 503
+
+    return render_template("maintenance.html", maintenance_message=maint_msg), 503
 
 
 def login_required(role=None):
@@ -248,6 +276,83 @@ def portal_page():
     )
 
 
+@app.route("/sw.js")
+def service_worker_file():
+    """បម្រើឯកសារ Service Worker នៅ Root Scope សម្រាប់ PWA Offline & Mobile Cache"""
+    response = send_file(os.path.join(app.root_path, "static", "sw.js"), mimetype="application/javascript")
+    response.headers["Service-Worker-Allowed"] = "/"
+    response.headers["Cache-Control"] = "no-cache"
+    return response
+
+
+@app.route("/manifest.json")
+def pwa_manifest_file():
+    """បម្រើឯកសារ PWA Web Manifest នៅ Root Scope"""
+    return send_file(os.path.join(app.root_path, "static", "manifest.json"), mimetype="application/manifest+json")
+
+
+@app.route("/download/apk")
+@app.route("/portal/apk")
+def download_apk():
+    """ទាញយកឯកសារ Android APK ដោយផ្ទាល់សម្រាប់ដំឡើងលើទូរសព្ទ"""
+    apk_path = os.path.join(app.root_path, "static", "apk", "StudentAbsenceSystem.apk")
+    if not os.path.exists(apk_path):
+        try:
+            import build_apk
+            build_apk.build_apk()
+        except Exception as e:
+            app.logger.warning(f"Could not build APK on-demand: {e}")
+
+    if os.path.exists(apk_path):
+        return send_file(
+            apk_path,
+            as_attachment=True,
+            download_name="StudentAbsenceSystem.apk",
+            mimetype="application/vnd.android.package-archive"
+        )
+    else:
+        flash("សូមអភ័យទោស មិនទាន់រកឃើញឯកសារ APK នៅក្នុងប្រព័ន្ធនៅឡើយទេ", "danger")
+        return redirect(url_for("portal_page"))
+
+
+@app.route("/api/qr/apk")
+def api_qr_apk():
+    """បង្កើតរូបភាព QR Code សម្រាប់ Scan ទាញយក APK លើទូរសព្ទដៃភ្លាមៗ"""
+    apk_url = request.host_url.rstrip("/") + url_for("download_apk")
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_M,
+        box_size=8,
+        border=2
+    )
+    qr.add_data(apk_url)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="#1e3a8a", back_color="white")
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    return send_file(buf, mimetype="image/png")
+
+
+@app.route("/api/qr/portal")
+def api_qr_portal():
+    """បង្កើតរូបភាព QR Code សម្រាប់ Scan បើក Teacher Mobile Portal លើទូរសព្ទ"""
+    portal_url = request.host_url.rstrip("/") + url_for("portal_page")
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_M,
+        box_size=8,
+        border=2
+    )
+    qr.add_data(portal_url)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="#1e3a8a", back_color="white")
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    return send_file(buf, mimetype="image/png")
+
+
 @app.route("/portal/attendance")
 @login_required()
 def portal_attendance_page():
@@ -278,9 +383,11 @@ def portal_attendance_page():
 
         # Check if submission is allowed right now
         sub_count = submission_audit.get("submission_count", 0)
+        window_minutes = db.get_period_deadline_minutes(slot["period_num"])
+
         if window_phase == "first_30":
             can_submit = True
-            submit_help_text = "លោកគ្រូ-អ្នកគ្រូ អាចបញ្ចូល ឬកែប្រែបានច្រើនដងក្នុង ៣០ នាទីដំបូងនេះ"
+            submit_help_text = f"លោកគ្រូ-អ្នកគ្រូ អាចបញ្ចូល ឬកែប្រែបានច្រើនដងក្នុង {window_minutes} នាទីដំបូងនេះ"
         else:
             if sub_count == 0:
                 can_submit = True
@@ -476,9 +583,15 @@ def student_attendance_page():
     date_str = request.args.get("date", datetime.now().strftime("%Y-%m-%d"))
     shift = request.args.get("shift", "Morning")
     period = request.args.get("period", "Daily")
+    teacher_id = request.args.get("teacher_id", type=int)
 
     current_class = db.get_class_by_id(class_id)
     students_att = db.get_student_attendance(class_id, date_str, shift, period)
+    all_teachers = db.get_teachers(active_only=True)
+
+    # Check if there is a scheduled teacher according to timetable
+    scheduled_slot = db.get_scheduled_teacher_for_slot(class_id, date_str, period, shift)
+    selected_teacher_id = teacher_id or (scheduled_slot["teacher_id"] if scheduled_slot else None)
 
     return render_template(
         "student_attendance.html",
@@ -488,7 +601,10 @@ def student_attendance_page():
         date=date_str,
         shift=shift,
         period=period,
-        attendance_list=students_att
+        attendance_list=students_att,
+        all_teachers=all_teachers,
+        scheduled_slot=scheduled_slot,
+        selected_teacher_id=selected_teacher_id
     )
 
 
@@ -546,7 +662,18 @@ def reports_page():
 @login_required(role="admin")
 def settings_page():
     settings = db.get_all_settings()
-    return render_template("settings.html", settings=settings)
+    classes = db.get_classes()
+    suspended_status = db.get_suspended_status()
+    holidays = db.get_holidays()
+    vacations = db.get_vacations()
+    return render_template(
+        "settings.html",
+        settings=settings,
+        classes=classes,
+        suspended_status=suspended_status,
+        holidays=holidays,
+        vacations=vacations
+    )
 
 
 # -------------------------------------------------------------
@@ -560,8 +687,16 @@ def api_dashboard_stats():
 
 
 @app.route("/api/teacher-attendance", methods=["GET", "POST"])
+@login_required()
 def api_teacher_attendance():
+    user = session.get("user")
     if request.method == "POST":
+        if not user or user.get("role") != "admin":
+            return jsonify({
+                "success": False, 
+                "message": "លោកគ្រូ-អ្នកគ្រូមិនអាចចុះវត្តមាន ឬអវត្តមានឱ្យគ្រូដទៃបានទេ។ មានតែ Admin ប៉ុណ្ណោះដែលអាចកត់ត្រាបាន!"
+            }), 403
+
         data = request.get_json() or {}
         date_str = data.get("date")
         shift = data.get("shift", "Morning")
@@ -591,7 +726,8 @@ def api_student_attendance():
         period = data.get("period", "Daily")
         records = data.get("records", [])
 
-        if not class_id or not date_str or not records:
+        # Note: records can be empty if 100% of students are present
+        if not class_id or not date_str or records is None:
             return jsonify({"success": False, "message": "ទិន្នន័យមិនគ្រប់គ្រាន់"}), 400
 
         user = session.get("user")
@@ -615,6 +751,39 @@ def api_student_attendance():
                 "submission_count": sub_count
             }), status_code
 
+        # Admin Proxy Support: Admin can mark attendance on behalf of a teacher (e.g. broken phone)
+        on_behalf_of_teacher_id = data.get("on_behalf_of_teacher_id") or (data.get("teacher_id") if is_admin else None)
+        proxy_reason = data.get("proxy_reason", "").strip() if is_admin else ""
+
+        proxy_teacher = None
+        if is_admin and on_behalf_of_teacher_id:
+            try:
+                proxy_teacher = db.get_teacher_by_id(int(on_behalf_of_teacher_id))
+            except Exception:
+                proxy_teacher = None
+
+        if proxy_teacher:
+            teacher_id = proxy_teacher["id"]
+            p_teacher_name = proxy_teacher["full_name_kh"]
+            reason_suffix = f" (មូលហេតុ៖ {proxy_reason})" if proxy_reason else " (ជំនួសគ្រូ)"
+            recorded_by = f"Admin (ជំនួស៖ {p_teacher_name}){reason_suffix}"
+            audit_notes = f"Recorded by Admin on behalf of {p_teacher_name}{reason_suffix}"
+            audit_phase = "admin_proxy"
+        elif is_admin:
+            recorded_by = f"Admin{f' (មូលហេតុ៖ {proxy_reason})' if proxy_reason else ''}"
+            audit_notes = f"Recorded by Admin{f' (មូលហេតុ៖ {proxy_reason})' if proxy_reason else ''}"
+            audit_phase = "admin"
+        else:
+            recorded_by = user.get("full_name_kh", "Teacher") if user else "Teacher"
+            audit_notes = f"Recorded by {recorded_by}"
+            audit_phase = phase
+
+        # Filter strictly to absent/permission/late records to ensure sparse storage
+        absent_records = [
+            r for r in records 
+            if r.get("status") in ("ABSENT", "PERMISSION", "LATE")
+        ]
+
         # Extract period_num
         period_num = 1
         if "Session " in str(period):
@@ -625,10 +794,8 @@ def api_student_attendance():
         elif str(period).isdigit():
             period_num = int(period)
 
-        recorded_by = user.get("full_name_kh", "Teacher") if user else "Teacher"
-
-        # Save student attendance
-        db.save_student_attendance(class_id, date_str, shift, period, records, recorded_by=recorded_by)
+        # Save student attendance (stores strictly absent students)
+        db.save_student_attendance(class_id, date_str, shift, period, absent_records, recorded_by=recorded_by)
 
         # Record audit log
         audit_count = db.record_attendance_audit(
@@ -638,19 +805,31 @@ def api_student_attendance():
             period_str=period,
             period_num=period_num,
             teacher_id=teacher_id,
-            phase=phase,
+            phase=audit_phase,
             ip_address=request.remote_addr,
-            notes=f"Recorded by {recorded_by}"
+            notes=audit_notes
         )
+
+        # If recorded by Admin on behalf of a teacher, auto-reconcile timetable accountability
+        # so this teacher is credited as PRESENT and not marked absent in teacher attendance
+        if is_admin and proxy_teacher:
+            try:
+                db.calculate_teacher_attendance_from_slots(date_str)
+            except Exception as rec_err:
+                app.logger.warning(f"Teacher attendance auto-reconcile error: {rec_err}")
 
         # Trigger Telegram Alerts in background / try-except
         try:
-            teacher_name = user.get("full_name_kh", "") if user else ""
-            subject_name = ""
-            if teacher_id:
-                t_obj = db.get_teacher_by_id(teacher_id)
-                if t_obj:
-                    subject_name = t_obj.get("subject", "")
+            if proxy_teacher:
+                teacher_name = f"{proxy_teacher['full_name_kh']} (Admin ចុះជំនួស: {proxy_reason or 'ទូរសព្ទមានបញ្ហា'})"
+                subject_name = proxy_teacher.get("subject", "")
+            else:
+                teacher_name = user.get("full_name_kh", "") if user else ""
+                subject_name = ""
+                if teacher_id:
+                    t_obj = db.get_teacher_by_id(teacher_id)
+                    if t_obj:
+                        subject_name = t_obj.get("subject", "")
 
             p_info = db.get_current_period_info()
             period_label = p_info["period"]["label"] if p_info.get("period") else period
@@ -662,16 +841,27 @@ def api_student_attendance():
                 period_label=period_label,
                 teacher_name=teacher_name,
                 subject_name=subject_name,
-                absent_records=records
+                absent_records=absent_records
             )
         except Exception as tg_err:
             app.logger.warning(f"Telegram alert error: {tg_err}")
 
+        if proxy_teacher:
+            resp_msg = f"បានរក្សាទុកវត្តមានសិស្សដោយជោគជ័យ (ចុះជំនួសលោកគ្រូ-អ្នកគ្រូ {proxy_teacher['full_name_kh']})!"
+            if len(absent_records) == 0:
+                resp_msg += " (សិស្សមានវត្តមាន ១០០% គ្មានអវត្តមាន)"
+        else:
+            resp_msg = "បានរក្សាទុកវត្តមានសិស្សដោយជោគជ័យ!"
+            if len(absent_records) == 0:
+                resp_msg = "បានរក្សាទុកវត្តមានសិស្សដោយជោគជ័យ (សិស្សមានវត្តមាន ១០០% គ្មានអវត្តមាន)!"
+
         return jsonify({
             "success": True,
-            "message": "បានរក្សាទុកវត្តមានសិស្សដោយជោគជ័យ!",
-            "phase": phase,
-            "submission_count": audit_count
+            "message": resp_msg,
+            "phase": audit_phase,
+            "submission_count": audit_count,
+            "absent_count": len(absent_records),
+            "proxy_teacher_id": proxy_teacher["id"] if proxy_teacher else None
         })
 
     class_id = request.args.get("class_id", type=int)
@@ -882,6 +1072,7 @@ def api_classes():
 
 
 @app.route("/api/leave-requests", methods=["GET", "POST"])
+@login_required()
 def api_leave_requests():
     if request.method == "POST":
         data = request.get_json() or {}
@@ -897,15 +1088,24 @@ def api_leave_requests():
 
         user = session.get("user")
         is_admin = bool(user and user.get("role") == "admin")
+
+        # Strict isolation: A teacher can NEVER request leave for another teacher!
+        if user and user.get("role") == "teacher" and person_type == "TEACHER":
+            if int(person_id) != user.get("teacher_id"):
+                return jsonify({
+                    "success": False, 
+                    "message": "លោកគ្រូ-អ្នកគ្រូមិនអាចស្នើសុំច្បាប់ជំនួសគ្រូដទៃបានទេ!"
+                }), 403
+
         status = "Approved" if is_admin else data.get("status", "Pending")
         approved_by = "Admin" if is_admin else "រង់ចាំការអនុម័ត"
 
         affected_slots = []
         warning_msg = None
         if person_type == "TEACHER":
-            # ផ្ទៀងផ្ទាត់ម៉ោងកំណត់ និងកាលវិភាគបង្រៀនរបស់គ្រូ
+            # ផ្ទៀងផ្ទាត់ម៉ោងកំណត់ និងកាលវិភាគបង្រៀនរបស់គ្រូ (កំណត់ព្រំដែនកាលបរិច្ឆេទសម្រាប់គ្រូ)
             is_valid, msg, affected_slots = db.validate_teacher_leave_eligibility(
-                int(person_id), start_date, end_date
+                int(person_id), start_date, end_date, is_admin=is_admin
             )
             if not is_valid:
                 return jsonify({"success": False, "message": msg}), 400
@@ -963,15 +1163,34 @@ def api_teacher_leave_eligibility(teacher_id):
     if not start_date:
         return jsonify({"success": False, "message": "សូមជ្រើសរើសកាលបរិច្ឆេទ"}), 400
 
-    is_valid, msg, affected_slots = db.validate_teacher_leave_eligibility(
-        teacher_id, start_date, end_date
-    )
+    user = session.get("user")
+    is_admin = bool(user and user.get("role") == "admin")
+
+    now = datetime.now()
+    today_str = now.strftime("%Y-%m-%d")
     cutoff = db.get_setting("teacher_leave_cutoff_time", "17:00") or "17:00"
+    is_cutoff_passed = now.strftime("%H:%M") >= cutoff
+
+    tomorrow_dt = now.date() + timedelta(days=1)
+    if tomorrow_dt.weekday() == 6:
+        max_dt = now.date() + timedelta(days=2)
+    else:
+        max_dt = tomorrow_dt
+    max_date_str = max_dt.strftime("%Y-%m-%d")
+    min_date_str = max_date_str if is_cutoff_passed else today_str
+
+    is_valid, msg, affected_slots = db.validate_teacher_leave_eligibility(
+        teacher_id, start_date, end_date, is_admin=is_admin
+    )
     return jsonify({
         "success": True,
         "eligible": is_valid,
         "message": msg if not is_valid else (msg or "មានម៉ោងបង្រៀនត្រឹមត្រូវ"),
         "cutoff_time": cutoff,
+        "is_cutoff_passed": is_cutoff_passed,
+        "today_date": today_str,
+        "min_date": min_date_str if not is_admin else today_str,
+        "max_date": max_date_str if not is_admin else None,
         "affected_slots": affected_slots,
         "total_slots": len(affected_slots)
     })
@@ -1056,6 +1275,127 @@ def api_settings_save():
     for key, val in data.items():
         db.set_setting(key, val)
     return jsonify({"success": True, "message": "បានរក្សាទុកការកំណត់ជោគជ័យ!"})
+
+
+# -------------------------------------------------------------
+# Admin System Controls (Maintenance, Holidays, Vacations, Suspensions)
+# -------------------------------------------------------------
+@app.route("/api/settings/maintenance/toggle", methods=["POST"])
+@login_required(role="admin")
+def api_maintenance_toggle():
+    data = request.get_json() or {}
+    mode = str(data.get("mode", "0"))
+    msg = data.get("message", "").strip()
+    db.set_setting("maintenance_mode", mode)
+    if msg:
+        db.set_setting("maintenance_message", msg)
+    status_kh = "បើកដំណើរការ (ON)" if mode == "1" else "បិទ (OFF)"
+    return jsonify({
+        "success": True,
+        "mode": mode,
+        "message": f"បានកំណត់ Maintenance Mode ទៅជា៖ {status_kh}"
+    })
+
+
+@app.route("/api/holidays", methods=["GET", "POST"])
+@login_required(role="admin")
+def api_holidays():
+    if request.method == "POST":
+        data = request.get_json() or {}
+        h_name = data.get("holiday_name", "").strip()
+        h_date = data.get("holiday_date", "").strip()
+        notes = data.get("notes", "").strip()
+        if not h_name or not h_date:
+            return jsonify({"success": False, "message": "សូមបញ្ចូលឈ្មោះ និងកាលបរិច្ឆេទថ្ងៃឈប់សម្រាក"}), 400
+        new_id = db.add_holiday(h_name, h_date, notes=notes)
+        return jsonify({"success": True, "message": f"បានបន្ថែមថ្ងៃឈប់សម្រាក «{h_name}» ដោយជោគជ័យ!", "id": new_id})
+
+    holidays = db.get_holidays()
+    return jsonify({"success": True, "data": holidays})
+
+
+@app.route("/api/holidays/<int:holiday_id>", methods=["DELETE"])
+@login_required(role="admin")
+def api_delete_holiday(holiday_id):
+    db.delete_holiday(holiday_id)
+    return jsonify({"success": True, "message": "បានលុបថ្ងៃឈប់សម្រាកជោគជ័យ!"})
+
+
+@app.route("/api/holidays/seed", methods=["POST"])
+@login_required(role="admin")
+def api_seed_holidays():
+    count = db.seed_cambodian_holidays()
+    return jsonify({"success": True, "message": f"បានបញ្ចូលថ្ងៃបុណ្យជាតិផ្លូវការចំនួន {count} ថ្ងៃដោយជោគជ័យ!"})
+
+
+@app.route("/api/vacations", methods=["GET", "POST"])
+@login_required(role="admin")
+def api_vacations():
+    if request.method == "POST":
+        data = request.get_json() or {}
+        title = data.get("title", "").strip()
+        start_date = data.get("start_date", "").strip()
+        end_date = data.get("end_date", "").strip()
+        notes = data.get("notes", "").strip()
+        if not title or not start_date or not end_date:
+            return jsonify({"success": False, "message": "សូមបញ្ចូលឈ្មោះ និងកាលបរិច្ឆេទចាប់ផ្តើម-បញ្ចប់"}), 400
+        if start_date > end_date:
+            return jsonify({"success": False, "message": "កាលបរិច្ឆេទចាប់ផ្តើម មិនអាចធំជាងកាលបរិច្ឆេទបញ្ចប់ទេ"}), 400
+        new_id = db.add_vacation(title, start_date, end_date, notes=notes)
+        return jsonify({"success": True, "message": f"បានបន្ថែមថ្ងៃវិស្សមកាល «{title}» ដោយជោគជ័យ!", "id": new_id})
+
+    vacations = db.get_vacations()
+    return jsonify({"success": True, "data": vacations})
+
+
+@app.route("/api/vacations/<int:vacation_id>", methods=["DELETE"])
+@login_required(role="admin")
+def api_delete_vacation(vacation_id):
+    db.delete_vacation(vacation_id)
+    return jsonify({"success": True, "message": "បានលុបថ្ងៃវិស្សមកាលជោគជ័យ!"})
+
+
+@app.route("/api/classes/suspend-toggle", methods=["POST"])
+@login_required(role="admin")
+def api_suspend_toggle():
+    data = request.get_json() or {}
+    target_type = data.get("type") # 'grade' or 'class'
+    target_id = data.get("id")     # grade_level or class_id
+    action = data.get("action")     # 'suspend' or 'unsuspend'
+    reason = data.get("reason", "").strip()
+
+    if target_type == "grade":
+        if action == "suspend":
+            db.suspend_grade(int(target_id), reason=reason)
+            return jsonify({"success": True, "message": f"បានផ្អាកដំណើរការកម្រិតថ្នាក់ទី {target_id} ជាបណ្តោះអាសន្ន!"})
+        else:
+            db.unsuspend_grade(int(target_id))
+            return jsonify({"success": True, "message": f"បានបើកដំណើរការកម្រិតថ្នាក់ទី {target_id} ឡើងវិញ!"})
+    elif target_type == "class":
+        if action == "suspend":
+            db.suspend_class(int(target_id), reason=reason)
+            return jsonify({"success": True, "message": f"បានផ្អាកដំណើរការថ្នាក់រៀនជាបណ្តោះអាសន្ន!"})
+        else:
+            db.unsuspend_class(int(target_id))
+            return jsonify({"success": True, "message": f"បានបើកដំណើរការថ្នាក់រៀនឡើងវិញ!"})
+    return jsonify({"success": False, "message": "ទិន្នន័យមិនត្រឹមត្រូវ"}), 400
+
+
+@app.route("/api/system/control-status", methods=["GET"])
+@login_required(role="admin")
+def api_system_control_status():
+    in_maint, maint_msg = db.is_system_in_maintenance()
+    susp = db.get_suspended_status()
+    holidays = db.get_holidays()
+    vacations = db.get_vacations()
+    return jsonify({
+        "success": True,
+        "maintenance_mode": in_maint,
+        "maintenance_message": maint_msg,
+        "suspensions": susp,
+        "holidays_count": len(holidays),
+        "vacations_count": len(vacations)
+    })
 
 
 @app.route("/api/sync/test-sheets", methods=["POST"])
@@ -1261,12 +1601,13 @@ import threading
 import time
 
 def background_period_checker_loop():
-    """ដើរឆែកម៉ោងបង្រៀន និងរំលឹកគ្រូដែលភ្លេចស្រង់វត្តមានរៀងរាល់ ៦០ វិនាទីម្តង"""
+    """ដើរឆែកម៉ោងបង្រៀន (រំលឹកគ្រូមិនបានស្រង់) និងបញ្ជូនរបាយការណ៍ស្វ័យប្រវត្តិតាមម៉ោងកំណត់រៀងរាល់ ៦០ វិនាទីម្តង"""
     while True:
         try:
             telegram_service.check_and_dispatch_period_attendance()
+            telegram_service.check_and_dispatch_scheduled_daily_reports()
         except Exception as e:
-            app.logger.warning(f"Background period check error: {e}")
+            app.logger.warning(f"Background worker error: {e}")
         time.sleep(60)
 
 # Start background thread once when starting app

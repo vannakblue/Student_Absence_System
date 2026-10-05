@@ -31,7 +31,7 @@ class TestKkhsGoogleSheetsBridge(unittest.TestCase):
     def test_02_admin_endpoints_with_session(self):
         """ផ្ទៀងផ្ទាត់ Admin អាចដំណើរការ API sync kkhs-to-sheets និង sheets-to-timetable"""
         # Login as Admin
-        res_login = self.client.post("/login", data={"username": "admin", "password": "admin123"})
+        res_login = self.client.post("/login", data={"username": "admin", "password": "1627"})
         self.assertEqual(res_login.status_code, 302)
 
         # Test pull from Google Sheets endpoint

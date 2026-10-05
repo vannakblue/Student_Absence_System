@@ -37,7 +37,7 @@ class TestKkhsSync(unittest.TestCase):
     def test_03_api_sync_endpoints(self):
         """សាកល្បង API Endpoints សម្រាប់ Admin"""
         # Login as Admin
-        res_login = self.client.post("/login", data={"username": "admin", "password": "admin123"})
+        res_login = self.client.post("/login", data={"username": "admin", "password": "1627"})
         self.assertEqual(res_login.status_code, 302)
 
         # Test connection endpoint

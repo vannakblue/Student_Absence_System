@@ -194,6 +194,8 @@
             document.getElementById('teacherSelectGroup').style.display = 'none';
             document.getElementById('studentSelectGroup').style.display = '';
             document.getElementById('adminLeaveFeedback').style.display = 'none';
+            document.getElementById('leaveStartDate').removeAttribute('max');
+            document.getElementById('leaveEndDate').removeAttribute('max');
         }
     }
 
@@ -202,19 +204,24 @@
     async function checkAdminLeaveEligibility() {
         const ptype = document.getElementById('leavePersonType').value;
         const feedback = document.getElementById('adminLeaveFeedback');
+        const startInput = document.getElementById('leaveStartDate');
+        const endInput = document.getElementById('leaveEndDate');
+
         if (ptype !== 'TEACHER') {
             feedback.style.display = 'none';
+            startInput.removeAttribute('max');
+            endInput.removeAttribute('max');
             return;
         }
 
         const tid = document.getElementById('leaveTeacherId').value;
-        const start = document.getElementById('leaveStartDate').value;
-        let end = document.getElementById('leaveEndDate').value;
+        let start = startInput.value;
+        let end = endInput.value;
 
         if (!tid || !start) return;
         if (!end || end < start) {
             end = start;
-            document.getElementById('leaveEndDate').value = start;
+            endInput.value = start;
         }
 
         feedback.style.display = 'block';
@@ -226,6 +233,18 @@
         try {
             const res = await fetch(`/api/teacher/${tid}/leave-eligibility?start_date=${start}&end_date=${end}`);
             const data = await res.json();
+
+            if (data.min_date) {
+                startInput.min = data.min_date;
+                endInput.min = data.min_date;
+            }
+            if (data.max_date) {
+                startInput.max = data.max_date;
+                endInput.max = data.max_date;
+            } else {
+                startInput.removeAttribute('max');
+                endInput.removeAttribute('max');
+            }
 
             if (data.eligible) {
                 feedback.style.background = '#f0fdf4';

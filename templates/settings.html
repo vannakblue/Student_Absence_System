@@ -1,419 +1,726 @@
 {% extends "base.html" %}
 
-{% block title %}ការកំណត់ Google Sheets & រចនាសម្ព័ន្ធប្រព័ន្ធ{% endblock %}
+{% block title %}ការកំណត់ប្រព័ន្ធ & រចនាសម្ព័ន្ធសាលារៀន{% endblock %}
 
 {% block content %}
 <div class="settings-page">
     <div class="page-header-row" style="margin-bottom: 24px;">
         <div>
-            <h1 class="page-title"><i class="fa-solid fa-sliders text-primary"></i> ការកំណត់ Google Sheets & រចនាសម្ព័ន្ធសាលារៀន</h1>
-            <p class="page-subtitle">កំណត់ការតភ្ជាប់ទៅកាន់ Google Sheets API, គណនី Service Account និងព័ត៌មានរចនាសម្ព័ន្ធផ្លូវការនៃសាលារៀន</p>
+            <h1 class="page-title"><i class="fa-solid fa-sliders text-primary"></i> មជ្ឈមណ្ឌលកំណត់ប្រព័ន្ធ (Admin Control Center)</h1>
+            <p class="page-subtitle">គ្រប់គ្រង Maintenance Mode, ផ្អាកថ្នាក់រៀន, វិស្សមកាល, ថ្ងៃឈប់សម្រាក, Deadline ម៉ោងសិក្សា, និងការបែងចែក Telegram</p>
         </div>
     </div>
 
+    <!-- Quick Navigation Pills -->
+    <div class="nav-pills-bar mb-4" style="display:flex; gap:10px; flex-wrap:wrap; background:#f8fafc; padding:12px; border-radius:14px; border:1px solid #e2e8f0;">
+        <a href="#maintenanceSection" class="btn btn-sm btn-outline" style="border-radius:20px; font-weight:600;"><i class="fa-solid fa-screwdriver-wrench text-warning"></i> Maintenance Mode</a>
+        <a href="#classSuspensionSection" class="btn btn-sm btn-outline" style="border-radius:20px; font-weight:600;"><i class="fa-solid fa-ban text-danger"></i> ផ្អាកដំណើរការថ្នាក់រៀន</a>
+        <a href="#vacationHolidaySection" class="btn btn-sm btn-outline" style="border-radius:20px; font-weight:600;"><i class="fa-solid fa-umbrella-beach text-success"></i> វិស្សមកាល & ថ្ងៃឈប់សម្រាក</a>
+        <a href="#periodDeadlineSection" class="btn btn-sm btn-outline" style="border-radius:20px; font-weight:600;"><i class="fa-solid fa-stopwatch text-primary"></i> ម៉ោង Deadline ទាំង ៨</a>
+        <a href="#telegramRoutingSection" class="btn btn-sm btn-outline" style="border-radius:20px; font-weight:600;"><i class="fa-brands fa-telegram text-info"></i> បែងចែកគោលដៅ Telegram</a>
+        <a href="#dailyScheduleSection" class="btn btn-sm btn-outline" style="border-radius:20px; font-weight:600;"><i class="fa-solid fa-calendar-check text-warning"></i> ម៉ោងបញ្ជូនរបាយការណ៍</a>
+        <a href="#cloudSyncSection" class="btn btn-sm btn-outline" style="border-radius:20px; font-weight:600;"><i class="fa-brands fa-google text-success"></i> Google Sheets & KKHS</a>
+    </div>
+
     <div class="grid-2-col">
-        <!-- Card 1: Google Sheets Configuration -->
-        <div class="card">
+        <!-- ========================================================= -->
+        <!-- CARD 1: MAINTENANCE MODE CONTROL                          -->
+        <!-- ========================================================= -->
+        <div class="card" id="maintenanceSection" style="grid-column: 1 / -1; border-left: 5px solid {% if settings.maintenance_mode == '1' %}#ef4444{% else %}#10b981{% endif %};">
             <div class="card-header">
                 <div class="card-title">
-                    <i class="fa-brands fa-google text-success"></i>
-                    <span>Google Sheets Synchronization (Cloud Database)</span>
+                    <i class="fa-solid fa-screwdriver-wrench {% if settings.maintenance_mode == '1' %}text-danger{% else %}text-success{% endif %}"></i>
+                    <span>របៀបថែទាំប្រព័ន្ធបណ្តោះអាសន្ន (System Maintenance Mode)</span>
                 </div>
-                <span class="badge badge-primary">gspread API (Connected)</span>
+                <div>
+                    {% if settings.maintenance_mode == '1' %}
+                    <span class="badge" style="background:#fee2e2; color:#b91c1c; font-weight:700; font-size:0.85rem; padding:6px 12px; border-radius:20px;">
+                        <i class="fa-solid fa-circle-dot fa-fade"></i> កំពុងបើក (MAINTENANCE ON)
+                    </span>
+                    {% else %}
+                    <span class="badge" style="background:#dcfce7; color:#15803d; font-weight:700; font-size:0.85rem; padding:6px 12px; border-radius:20px;">
+                        <i class="fa-solid fa-circle-check"></i> ដំណើរការធម្មតា (OFF)
+                    </span>
+                    {% endif %}
+                </div>
             </div>
             <div class="card-body">
-                <div class="alert alert-info mb-3">
-                    <i class="fa-solid fa-circle-check" style="font-size:1.2rem; color:#16a34a;"></i>
-                    <div style="font-size:0.88rem; line-height:1.5;">
-                        <strong>ប្រព័ន្ធ Google Sheets ភ្ជាប់រួចរាល់៖</strong><br>
-                        បានតភ្ជាប់ជាមួយ Spreadsheet ផ្លូវការ <strong>SchoolSM 2026-2027</strong> តាមរយៈ Google Service Account JSON ដោយស្វ័យប្រវត្តិ។
-                    </div>
+                <div class="alert mb-3" style="background:{% if settings.maintenance_mode == '1' %}#fef2f2; border-color:#fecaca; color:#991b1b;{% else %}#f0fdf4; border-color:#bbf7d0; color:#166534;{% endif %} font-size:0.88rem; line-height:1.6;">
+                    <i class="fa-solid {% if settings.maintenance_mode == '1' %}fa-triangle-exclamation text-danger{% else %}fa-circle-info text-success{% endif %}" style="font-size:1.2rem; margin-right:8px;"></i>
+                    <strong>គោលការណ៍ Maintenance Mode៖</strong> ពេលបើក <strong>ON</strong>, គ្រូបង្រៀន និងសាធារណជន មិនអាចចូលដំណើរការ ឬស្រង់វត្តមានបានឡើយ ដោយប្រព័ន្ធនឹងបង្ហាញផ្ទាំងជូនដំណឹង Maintenance Page ជាភាសាខ្មែរ។ មានតែគណនី Administrator ប៉ុណ្ណោះដែលអាចចូលប្រើប្រាស់ និងកំណត់ប្រព័ន្ធបាន។
                 </div>
 
-                <form id="googleSheetsForm" onsubmit="handleSaveSettings(event)">
+                <form id="maintenanceForm" onsubmit="handleSaveMaintenance(event)">
                     <div class="form-group mb-3">
-                        <label class="form-label">Google Spreadsheet ID</label>
-                        <input type="text" name="google_sheet_id" id="googleSheetId" class="form-control" 
-                               value="{{ settings.google_sheet_id or '1RnTas3BW3UfhwqMPhR7rU7b1FPEw35Xt-CL0aTJ2XkE' }}" 
-                               placeholder="1RnTas3BW3UfhwqMPhR7rU7b1FPEw35Xt-CL0aTJ2XkE">
-                        <small class="text-muted">ID នៃ Google Sheet របស់សាលា៖ <code>1RnTas3BW3UfhwqMPhR7rU7b1FPEw35Xt-CL0aTJ2XkE</code></small>
+                        <label class="form-label font-weight-bold">សារពន្យល់ពេលថែទាំ (Maintenance Message)</label>
+                        <textarea name="maintenance_message" id="maintenanceMessage" class="form-control" rows="2" placeholder="បញ្ចូលសារជូនដំណឹងទៅកាន់លោកគ្រូ-អ្នកគ្រូ...">{{ settings.maintenance_message or 'ប្រព័ន្ធកំពុងស្ថិតក្រោមការថែទាំ និងកែលម្អបច្ចេកទេសបណ្តោះអាសន្ន។ សូមអភ័យទោសចំពោះការរំខាន!' }}</textarea>
+                        <small class="text-muted">សារនេះនឹងបង្ហាញលើផ្ទាំង Maintenance Screen នៅពេលដែលគ្រូ ឬអ្នកប្រើប្រាស់ព្យាយាមចូលប្រព័ន្ធ</small>
                     </div>
 
-                    <div class="form-group mb-3">
-                        <label class="form-label">ឈ្មោះឯកសារ Credentials (Service Account JSON)</label>
-                        <input type="text" name="google_credentials_file" id="googleCredsFile" class="form-control" 
-                               value="{{ settings.google_credentials_file or 'google_service_account.json' }}" 
-                               placeholder="google_service_account.json">
-                        <small class="text-muted">គណនី Service Account៖ <code>firebase-adminsdk-fbsvc@schoolsm.iam.gserviceaccount.com</code></small>
-                    </div>
-
-                    <div class="form-group mb-3">
-                        <label class="form-label">Google Drive Folder ID</label>
-                        <input type="text" name="google_drive_folder_id" class="form-control" 
-                               value="{{ settings.google_drive_folder_id or '1WGYYh07JnfyRzimtuFKAAGCzWjAI-rQa' }}">
-                    </div>
-
-                    <div class="d-flex gap-2 mt-4 flex-wrap">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fa-solid fa-floppy-disk"></i> រក្សាទុកការកំណត់
+                    <div class="d-flex gap-2 flex-wrap align-center">
+                        {% if settings.maintenance_mode == '1' %}
+                        <button type="button" class="btn btn-success" onclick="toggleMaintenanceMode('0')" style="background:#16a34a; border-color:#15803d;">
+                            <i class="fa-solid fa-power-off"></i> បិទ Maintenance (ត្រឡប់មកធម្មតាវិញ)
                         </button>
-                        <button type="button" class="btn btn-outline" onclick="testGoogleSheetsConnection()">
-                            <i class="fa-solid fa-plug"></i> តេស្តការតភ្ជាប់
+                        {% else %}
+                        <button type="button" class="btn btn-danger" onclick="toggleMaintenanceMode('1')" style="background:#dc2626; border-color:#b91c1c;">
+                            <i class="fa-solid fa-triangle-exclamation"></i> បើក Maintenance Mode (រារាំងគ្រូភ្លាមៗ)
                         </button>
-                        <button type="button" class="btn btn-accent" onclick="triggerGoogleSheetsSync()">
-                            <i class="fa-solid fa-cloud-arrow-up"></i> Sync ទៅ Sheets ឥឡូវនេះ
-                        </button>
-                    </div>
-                </form>
-
-                <div class="mt-4 pt-3 border-top">
-                    <div class="text-muted small mb-1">កាលបរិច្ឆេទ Sync ចុងក្រោយ៖</div>
-                    <div class="fw-bold text-primary" id="lastSyncDisplay">{{ settings.last_sync_time or 'Never' }}</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Card 1.5: KKHS Cloud Timetable Synchronization (kkhs.web.app) -->
-        <div class="card">
-            <div class="card-header">
-                <div class="card-title">
-                    <i class="fa-solid fa-cloud-arrow-down text-primary"></i>
-                    <span>KKHS Timetable Synchronization (kkhs.web.app)</span>
-                </div>
-                <span class="badge badge-primary" style="background:#eff6ff; color:#2563eb;">Firebase & Google Sheets Bridge</span>
-            </div>
-            <div class="card-body">
-                <div class="alert alert-info mb-3" style="background:#f0fdf4; border-color:#bbf7d0; color:#166534;">
-                    <i class="fa-solid fa-circle-check" style="font-size:1.2rem; color:#16a34a;"></i>
-                    <div style="font-size:0.88rem; line-height:1.5;">
-                        <strong>ប្រព័ន្ធកាលវិភាគអនឡាញផ្លូវការ kkhs.web.app និង Google Sheets Bridge៖</strong><br>
-                        អនុញ្ញាតឱ្យ Admin ធ្វើសមកាលកម្មទាញយកកាលវិភាគរួម ៤០ ថ្នាក់, គ្រូបង្រៀន ១១៩ នាក់, និងម៉ោងបង្រៀន ១,១៨៨ ម៉ោង ព្រមទាំង Backup ទៅកាន់ Google Sheets និងទាញយកមក Local Database ប្រើប្រាស់ជាអចិន្ត្រៃយ៍សម្រាប់គ្រូបង្រៀនយកអវត្តមានសិស្ស។
-                    </div>
-                </div>
-
-                <form id="kkhsSyncForm" onsubmit="handleSaveSettings(event)">
-                    <div class="form-group mb-3">
-                        <label class="form-label">តំណភ្ជាប់ប្រព័ន្ធកាលវិភាគ (Web App URL)</label>
-                        <input type="text" class="form-control" value="https://kkhs.web.app" readonly style="background:#f8fafc;">
-                    </div>
-
-                    <div class="form-group mb-3">
-                        <label class="form-label">Firebase Realtime Database Endpoint</label>
-                        <input type="text" name="kkhs_firebase_url" id="kkhsFirebaseUrl" class="form-control" 
-                               value="{{ settings.kkhs_firebase_url or 'https://school-timetable-67972-default-rtdb.asia-southeast1.firebasedatabase.app' }}">
-                        <small class="text-muted">Cloud REST API endpoint សម្រាប់ទាញយកទិន្នន័យកាលវិភាគរួម</small>
-                    </div>
-
-                    <!-- Action Buttons -->
-                    <div class="d-flex gap-2 mt-3 flex-wrap">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fa-solid fa-floppy-disk"></i> រក្សាទុកការកំណត់
-                        </button>
-                        <button type="button" class="btn btn-outline" onclick="testKkhsConnectionSettings()">
-                            <i class="fa-solid fa-plug"></i> តេស្តការតភ្ជាប់ kkhs
-                        </button>
-                        <button type="button" class="btn btn-primary" onclick="triggerKkhsSyncSettings()" style="background:#2563eb; border-color:#2563eb;">
-                            <i class="fa-solid fa-rotate"></i> Sync ផ្ទាល់ពី kkhs
-                        </button>
-                    </div>
-                </form>
-
-                <!-- Google Sheets Bridge Section -->
-                <div class="mt-4 pt-3 border-top" style="background:#f8fafc; margin:-10px -20px -20px -20px; padding:18px 20px; border-radius:0 0 12px 12px;">
-                    <div class="d-flex justify-between align-center mb-2 flex-wrap gap-2">
-                        <h4 style="margin:0; font-size:0.95rem; font-weight:700; color:#1e293b;">
-                            <i class="fa-brands fa-google text-success"></i> Google Sheets Backup & Permanent Timetable Bridge
-                        </h4>
-                        {% if settings.google_sheet_id %}
-                        <a href="https://docs.google.com/spreadsheets/d/{{ settings.google_sheet_id }}" target="_blank" class="btn btn-sm btn-outline" style="font-size:0.78rem; text-decoration:none;">
-                            <i class="fa-solid fa-arrow-up-right-from-square"></i> បើកមើល Google Sheets
-                        </a>
                         {% endif %}
-                    </div>
-                    <p style="font-size:0.83rem; color:#64748b; margin-bottom:12px;">
-                        Backup ទិន្នន័យកាលវិភាគពី <code>kkhs.web.app</code> ចូលទៅក្នុង Google Sheets ក្នុងសន្លឹកកិច្ចការ <code>🗓️ កាលវិភាគរួម (KKHS Backup)</code> រួចទាញយកមកកាន់ប្រព័ន្ធ Student_Absence_System សម្រាប់ប្រើប្រាស់ជាអចិន្ត្រៃយ៍។
-                    </p>
-
-                    <div class="d-flex gap-2 flex-wrap">
-                        <button type="button" class="btn btn-outline" onclick="triggerKkhsToSheetsBackup()" style="border-color:#16a34a; color:#15803d; background:#fff; font-weight:600;">
-                            <i class="fa-brands fa-google text-success"></i> 1. Backup ពី kkhs ទៅ Google Sheets
-                        </button>
-                        <button type="button" class="btn btn-accent" onclick="triggerSheetsToLocalPull()" style="font-weight:600;">
-                            <i class="fa-solid fa-cloud-arrow-down"></i> 2. ទាញយកពី Sheets មក Local DB
-                        </button>
-                        <button type="button" class="btn btn-primary" onclick="triggerSheetsToFirestoreSync()" style="background:#f59e0b; border-color:#d97706; color:#fff; font-weight:600;">
-                            <i class="fa-solid fa-fire text-white"></i> 3. Sync ពី Sheets ទៅ Firestore
-                        </button>
-                        <button type="button" class="btn btn-outline" onclick="testFirestoreConnectionSettings()" style="border-color:#94a3b8; color:#475569;">
-                            <i class="fa-solid fa-plug"></i> តេស្ត Firestore
-                        </button>
-                    </div>
-
-                    <div class="row mt-3" style="display:flex; gap:16px; flex-wrap:wrap; font-size:0.82rem;">
-                        <div>
-                            <span class="text-muted">កាលបរិច្ឆេទ Sync ផ្ទាល់ចុងក្រោយ៖</span>
-                            <strong class="text-primary" id="lastKkhsSyncDisplay">{{ settings.kkhs_last_sync_time or 'មិនទាន់ Sync' }}</strong>
-                        </div>
-                        <div>
-                            <span class="text-muted">Backup ទៅ Sheets ចុងក្រោយ៖</span>
-                            <strong class="text-success" id="lastKkhsSheetsBackupDisplay">{{ settings.kkhs_sheets_last_backup_time or 'មិនទាន់ Backup' }}</strong>
-                        </div>
-                        <div>
-                            <span class="text-muted">ទាញយកពី Sheets មក Local ចុងក្រោយ៖</span>
-                            <strong class="text-info" id="lastKkhsSheetsPullDisplay">{{ settings.kkhs_sheets_last_pull_time or 'មិនទាន់ទាញយក' }}</strong>
-                        </div>
-                        <div>
-                            <span class="text-muted">Sync ទៅ Firestore ចុងក្រោយ៖</span>
-                            <strong class="text-warning" id="lastFirestoreSyncDisplay" style="color:#d97706;">{{ settings.firestore_last_sync_time or 'មិនទាន់ Sync' }}</strong>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Card 2: Official School Profile & Structure -->
-        <div class="card">
-            <div class="card-header">
-                <div class="card-title">
-                    <i class="fa-solid fa-school text-primary"></i>
-                    <span>រចនាសម្ព័ន្ធផ្លូវការនៃសាលារៀន (School Structure)</span>
-                </div>
-            </div>
-            <div class="card-body">
-                <form id="schoolProfileForm" onsubmit="handleSaveSettings(event)">
-                    <div class="row" style="display:flex; gap:12px; margin-bottom:12px;">
-                        <div style="flex:1;">
-                            <label class="form-label">ក្រសួងសាមី</label>
-                            <input type="text" name="ministry_name" class="form-control" 
-                                   value="{{ settings.ministry_name or 'ក្រសួងអប់រំ យុវជន និងកីឡា' }}">
-                        </div>
-                        <div style="flex:1;">
-                            <label class="form-label">មន្ទីរអប់រំ (POE)</label>
-                            <input type="text" name="poe_name" class="form-control" 
-                                   value="{{ settings.poe_name or 'មន្ទីរអប់រំ យុវជន និងកីឡា ខេត្តកណ្តាល' }}">
-                        </div>
-                    </div>
-
-                    <div class="row" style="display:flex; gap:12px; margin-bottom:12px;">
-                        <div style="flex:1;">
-                            <label class="form-label">ការិយាល័យអប់រំ (DOE)</label>
-                            <input type="text" name="doe_name" class="form-control" 
-                                   value="{{ settings.doe_name or 'ការិយាល័យអប់រំ យុវជន និងកីឡា ស្រុកកណ្តាលស្ទឹង' }}">
-                        </div>
-                        <div style="flex:1;">
-                            <label class="form-label">កូដសាលារៀន (School Code)</label>
-                            <input type="text" name="school_code" class="form-control" 
-                                   value="{{ settings.school_code or '08010306901' }}">
-                        </div>
-                    </div>
-
-                    <div class="form-group mb-3">
-                        <label class="form-label">ឈ្មោះសាលារៀន (ភាសាខ្មែរ)</label>
-                        <input type="text" name="school_name_kh" class="form-control" 
-                               value="{{ settings.school_name_kh or 'វិទ្យាល័យ ហ៊ុន សែន កំពង់កន្ទួត' }}">
-                    </div>
-
-                    <div class="form-group mb-3">
-                        <label class="form-label">ឈ្មោះសាលារៀន (អក្សរឡាតាំង)</label>
-                        <input type="text" name="school_name_en" class="form-control" 
-                               value="{{ settings.school_name_en or 'Hun Sen Kampong Kantuot High School' }}">
-                    </div>
-
-                    <div class="row" style="display:flex; gap:12px; margin-bottom:12px;">
-                        <div style="flex:1;">
-                            <label class="form-label">នាយកសាលា (Principal)</label>
-                            <input type="text" name="principal_name" class="form-control" 
-                                   value="{{ settings.principal_name or 'លោកបណ្ឌិត សុខ ចាន់ថន' }}">
-                        </div>
-                        <div style="flex:1;">
-                            <label class="form-label">ឆ្នាំសិក្សា</label>
-                            <input type="text" name="academic_year" class="form-control" 
-                                   value="{{ settings.academic_year or '2026-2027' }}">
-                        </div>
-                    </div>
-
-                    <div class="form-group mb-3">
-                        <label class="form-label">បាវចនាសាលា (Motto)</label>
-                        <input type="text" name="school_motto" class="form-control" 
-                               value="{{ settings.school_motto or 'ចំណេះដឹង វិន័យ សីលធម៌ គុណធម៌' }}">
-                    </div>
-
-                    <div class="row" style="display:flex; gap:12px; margin-bottom:12px;">
-                        <div style="flex:1;">
-                            <label class="form-label">លេខទូរស័ព្ទទំនាក់ទំនង</label>
-                            <input type="text" name="school_phone" class="form-control" 
-                                   value="{{ settings.school_phone or '023 888 999 / 012 345 678' }}">
-                        </div>
-                        <div style="flex:1;">
-                            <label class="form-label">អ៊ីមែលផ្លូវការ</label>
-                            <input type="text" name="school_email" class="form-control" 
-                                   value="{{ settings.school_email or 'info@schoolsm.edu.kh' }}">
-                        </div>
-                    </div>
-
-                    <div class="mt-3">
                         <button type="submit" class="btn btn-primary">
-                            <i class="fa-solid fa-floppy-disk"></i> រក្សាទុកព័ត៌មានរចនាសម្ព័ន្ធសាលា
+                            <i class="fa-solid fa-floppy-disk"></i> រក្សាទុកសារពន្យល់
                         </button>
-                    </div>
-                </form>
-
-                <div class="mt-4 pt-3 border-top">
-                    <div class="card-title mb-2">
-                        <i class="fa-solid fa-database text-info"></i>
-                        <span>ស្ថានភាពមូលដ្ឋានទិន្នន័យ (SQLite Database)</span>
-                    </div>
-                    <p class="text-muted small">
-                        ប្រព័ន្ធកំពុងដំណើរការលើឯកសារ SQLite ឈ្មោះ <code>attendance.db</code> ក្នុងម៉ាស៊ីន (៤០ ថ្នាក់រៀន, ១១៩ គ្រូបង្រៀន, ១,៩៩៨ សិស្សានុសិស្ស, ១៧ មុខវិជ្ជា, ១,១៨៨ ម៉ោងកាលវិភាគ)។
-                        ដំណើរការ Offline យ៉ាងរលូន និង Sync ឡើង Google Sheets ផ្លូវការបានគ្រប់ពេលវេលា។
-                    </p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Card 3: Telegram Bot & Automated Notifications -->
-        <div class="card" style="grid-column: 1 / -1; margin-top: 16px;">
-            <div class="card-header">
-                <div class="card-title">
-                    <i class="fa-brands fa-telegram text-info"></i>
-                    <span>ការកំណត់ Telegram Bot & ប្រព័ន្ធផ្ញើរបាយការណ៍ស្វ័យប្រវត្តិ</span>
-                </div>
-                <span class="badge badge-primary">Telegram Bot API</span>
-            </div>
-            <div class="card-body">
-                <div class="alert alert-info mb-3">
-                    <i class="fa-brands fa-telegram" style="font-size:1.3rem; color:#0284c7;"></i>
-                    <div style="font-size:0.88rem; line-height:1.5;">
-                        <strong>ប្រព័ន្ធដំណឹងស្វ័យប្រវត្តិតាម Telegram៖</strong><br>
-                        • <strong>របាយការណ៍ប្រចាំថ្ងៃ៖</strong> ផ្ញើសេចក្តីរាយការណ៍អវត្តមានសរុបនៃសិស្ស និងគ្រូប្រចាំថ្ងៃ ទៅកាន់ Telegram Admin/គណៈគ្រប់គ្រងសាលា។<br>
-                        • <strong>របាយការណ៍តាមម៉ោង៖</strong> ផ្ញើដំណឹងជាបុគ្គលទៅកាន់អាណាព្យាបាលសិស្សដែលអវត្តមានភ្លាមៗ និងផ្ញើបញ្ជីសង្ខេបទៅកាន់ Group គ្រូបន្ទុកថ្នាក់។
-                    </div>
-                </div>
-
-                <form id="telegramSettingsForm" onsubmit="handleSaveSettings(event)">
-                    <div class="grid-2-col">
-                        <div class="form-group mb-3">
-                            <label class="form-label">Telegram Bot Token</label>
-                            <input type="text" name="telegram_bot_token" id="telegramBotToken" class="form-control" 
-                                   value="{{ settings.telegram_bot_token or '' }}" 
-                                   placeholder="ឧ. 123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ">
-                            <small class="text-muted">ទទួលបានពី <code>@BotFather</code> ក្នុងកម្មវិធី Telegram</small>
-                        </div>
-                        <div class="form-group mb-3">
-                            <label class="form-label">Telegram Admin Chat ID (ទទួលរបាយការណ៍ប្រចាំថ្ងៃ)</label>
-                            <input type="text" name="telegram_admin_chat_id" id="telegramAdminChatId" class="form-control" 
-                                   value="{{ settings.telegram_admin_chat_id or '' }}" 
-                                   placeholder="ឧ. -1001234567890 ឬ 987654321">
-                            <small class="text-muted">Chat ID ឬ Group ID របស់ Admin សម្រាប់ទទួលរបាយការណ៍សរុប</small>
-                        </div>
-                        <div class="form-group mb-3">
-                            <label class="form-label">Telegram Leave Admin Chat ID (ទទួលពាក្យសុំច្បាប់ & ប៊ូតុងអនុម័ត)</label>
-                            <input type="text" name="telegram_leave_admin_chat_id" id="telegramLeaveAdminChatId" class="form-control" 
-                                   value="{{ settings.telegram_leave_admin_chat_id or '' }}" 
-                                   placeholder="ទុកនៅទទេបើប្រើ Chat ID តែមួយជាមួយ Admin ខាងលើ">
-                            <small class="text-muted">Telegram Chat ID របស់គណៈគ្រប់គ្រងដែលមានសិទ្ធិអនុម័តច្បាប់ (ប៊ូតុងចុច)</small>
-                        </div>
-                        <div class="form-group mb-3">
-                            <label class="form-label">ម៉ោងរំលឹកគ្រូខកខានស្រង់វត្តមាន (នាទីក្រោយចូលរៀន)</label>
-                            <input type="number" name="telegram_period_reminder_minutes" id="telegramReminderMinutes" class="form-control" 
-                                   value="{{ settings.telegram_period_reminder_minutes or '30' }}" min="5" max="55">
-                            <small class="text-muted">ប្រព័ន្ធនឹងដើរពិនិត្យរៀងរាល់ម៉ោងចូលរៀន បើហួស (ឧ. ៣០ នាទី) មិនទាន់ស្រង់ នឹងបាញ់សារព្រមានទៅ Admin</small>
-                        </div>
-                    </div>
-
-                    <div class="form-group mb-3 p-3" style="background:#f1f5f9; border-radius:12px; border:1px solid #cbd5e1;">
-                        <label class="form-label fw-bold"><i class="fa-solid fa-link text-primary"></i> Telegram Webhook URL (សម្រាប់ការចុចប៊ូតុង ✅ អនុម័ត / ❌ បដិសេធ លើ Telegram)</label>
-                        <div class="d-flex gap-2">
-                            <input type="text" name="telegram_webhook_url" id="telegramWebhookUrl" class="form-control" 
-                                   value="{{ settings.telegram_webhook_url or '' }}" 
-                                   placeholder="ឧ. https://your-server-domain.com/api/telegram/webhook">
-                            <button type="button" class="btn btn-outline" onclick="setTelegramWebhook()">
-                                <i class="fa-solid fa-cloud-arrow-up"></i> ភ្ជាប់ Webhook
-                            </button>
-                            <button type="button" class="btn btn-outline" onclick="checkTelegramWebhookInfo()">
-                                <i class="fa-solid fa-circle-info"></i> Webhook Info
-                            </button>
-                        </div>
-                        <small class="text-muted">Telegram ទាមទារ Public HTTPS URL (ឧ. URL លើ Render ឬ Cloud Server) ដើម្បីហៅ Callback មកកាន់ Endpoint <code>/api/telegram/webhook</code></small>
-                    </div>
-
-                    <div style="display:flex; flex-wrap:wrap; gap:20px; margin: 15px 0; padding: 12px; background:#f8fafc; border-radius:12px; border:1px solid #e2e8f0;">
-                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-weight:600; font-size:0.9rem;">
-                            <input type="checkbox" name="telegram_notify_absence" value="1" {% if settings.telegram_notify_absence != '0' %}checked{% endif %}>
-                            <span>បើកដំណើរការផ្ញើរបាយការណ៍សិស្ស-គ្រូប្រចាំថ្ងៃ (Daily Admin Report)</span>
-                        </label>
-                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-weight:600; font-size:0.9rem;">
-                            <input type="checkbox" name="telegram_notify_parent" value="1" {% if settings.telegram_notify_parent != '0' %}checked{% endif %}>
-                            <span>ផ្ញើដំណឹងតាមម៉ោងទៅអាណាព្យាបាលសិស្សម្នាក់ៗ (Parent Alert)</span>
-                        </label>
-                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-weight:600; font-size:0.9rem;">
-                            <input type="checkbox" name="telegram_notify_homeroom" value="1" {% if settings.telegram_notify_homeroom != '0' %}checked{% endif %}>
-                            <span>ផ្ញើបញ្ជីអវត្តមានតាមម៉ោងទៅ Telegram Group គ្រូបន្ទុកថ្នាក់ (Homeroom Group Alert)</span>
-                        </label>
-                    </div>
-
-                    <div class="d-flex gap-2 mt-4 flex-wrap">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fa-solid fa-floppy-disk"></i> រក្សាទុកការកំណត់ Telegram
-                        </button>
-                        <button type="button" class="btn btn-outline" onclick="testTelegramBot()">
-                            <i class="fa-brands fa-telegram text-primary"></i> តេស្តផ្ញើសារសាកល្បង Telegram
-                        </button>
-                        <button type="button" class="btn btn-accent" onclick="triggerDailyReportNow()">
-                            <i class="fa-solid fa-paper-plane"></i> ផ្ញើរបាយការណ៍ប្រចាំថ្ងៃឥឡូវនេះ
-                        </button>
-                        <button type="button" class="btn btn-warning" onclick="triggerPeriodCheckNow()">
-                            <i class="fa-solid fa-clock-rotate-left"></i> តេស្តឆែកម៉ោងបង្រៀន (៣០ នាទី)
-                        </button>
+                        <a href="{{ url_for('static', filename='../portal') }}" target="_blank" class="btn btn-outline" style="text-decoration:none;">
+                            <i class="fa-solid fa-arrow-up-right-from-square"></i> មើលផ្ទាំងគ្រូ (Preview Portal)
+                        </a>
                     </div>
                 </form>
             </div>
         </div>
 
-        <!-- Card 4: Teacher Leave Request Policy & Cutoff Time -->
-        <div class="card" style="grid-column: 1 / -1; margin-top: 16px;">
+        <!-- ========================================================= -->
+        <!-- CARD 2: CLASS & GRADE SUSPENSION CONTROLS                 -->
+        <!-- ========================================================= -->
+        <div class="card" id="classSuspensionSection" style="grid-column: 1 / -1;">
             <div class="card-header">
                 <div class="card-title">
-                    <i class="fa-solid fa-calendar-check text-warning"></i>
-                    <span>គោលការណ៍សុំច្បាប់របស់គ្រូបង្រៀន (Teacher Leave Request Policy)</span>
+                    <i class="fa-solid fa-ban text-danger"></i>
+                    <span>ផ្អាកដំណើរការថ្នាក់រៀនបណ្តោះអាសន្ន (Class & Grade Suspension)</span>
                 </div>
-                <span class="badge badge-primary" style="background:#fef3c7; color:#b45309;">Timetable & Time Rules</span>
+                <span class="badge badge-primary" style="background:#fef2f2; color:#991b1b;">Temporary Pause Rules</span>
             </div>
             <div class="card-body">
-                <div class="alert alert-info mb-3" style="background:#fffbeb; border-color:#fde68a; color:#92400e;">
-                    <i class="fa-solid fa-circle-info" style="font-size:1.3rem; color:#d97706;"></i>
-                    <div style="font-size:0.88rem; line-height:1.5;">
-                        <strong>គោលការណ៍កំណត់ដោយ Admin៖</strong><br>
-                        • <strong>សុំច្បាប់សម្រាប់ថ្ងៃនេះ (Today)៖</strong> គ្រូអាចសុំច្បាប់បានលុះត្រាតែមានម៉ោងបង្រៀនថ្ងៃនេះ និងធ្វើឡើងមុនម៉ោងកំណត់ខាងក្រោម (ឧទាហរណ៍៖ ម៉ោង ១៧:០០ / ៥:០០ រសៀល)។<br>
-                        • <strong>សុំច្បាប់សម្រាប់ថ្ងៃបន្ទាប់ (Future Days)៖</strong> គ្រូអាចសុំច្បាប់បានតែថ្ងៃដែលគាត់មានម៉ោងបង្រៀនក្នុងកាលវិភាគ (Timetable) ប៉ុណ្ណោះ។<br>
-                        • <strong>ថ្ងៃកន្លងផុត ឬគ្មានម៉ោងបង្រៀន៖</strong> ប្រព័ន្ធនឹងបដិសេធស្វ័យប្រវត្តិ។
+                <p style="font-size:0.87rem; color:#475569; margin-bottom:16px;">
+                    Admin អាចផ្អាកដំណើរការថ្នាក់រៀនតាម <strong>កម្រិតថ្នាក់ (Grades 7-12)</strong> ឬតាម <strong>ថ្នាក់ជាក់លាក់ (Specific Class)</strong>។ ថ្នាក់ដែលត្រូវបានផ្អាក គ្រូមិនអាចស្រង់វត្តមានបានឡើយ ហើយប្រព័ន្ធនឹងមិនបញ្ជូនសារព្រមានភ្លេចស្រង់វត្តមានសម្រាប់ថ្នាក់ទាំងនោះឡើយ។
+                </p>
+
+                <!-- Part 1: Grade Level Suspensions -->
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:14px; padding:16px; margin-bottom:20px;">
+                    <h4 style="margin:0 0 10px 0; font-size:0.95rem; font-weight:700; color:#1e293b;">
+                        <i class="fa-solid fa-layer-group text-primary"></i> ១. ផ្អាកដំណើរការតាមកម្រិតថ្នាក់ (Grade Level Suspension)
+                    </h4>
+                    <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                        {% set susp_grades = suspended_status.suspended_grades or [] %}
+                        {% for g in [7, 8, 9, 10, 11, 12] %}
+                        {% set is_g_susp = (g in susp_grades) %}
+                        <div style="flex:1; min-width:140px; background:#ffffff; border:1px solid {% if is_g_susp %}#fca5a5{% else %}#cbd5e1{% endif %}; border-radius:12px; padding:12px; text-align:center;">
+                            <div style="font-size:1.05rem; font-weight:700; color:#0f172a; margin-bottom:4px;">ថ្នាក់ទី {{ g }}</div>
+                            <div class="mb-2">
+                                {% if is_g_susp %}
+                                <span class="badge" style="background:#fee2e2; color:#b91c1c; font-size:0.75rem;">ផ្អាកដំណើរការ</span>
+                                {% else %}
+                                <span class="badge" style="background:#f0fdf4; color:#166534; font-size:0.75rem;">ធម្មតា</span>
+                                {% endif %}
+                            </div>
+                            {% if is_g_susp %}
+                            <button type="button" class="btn btn-sm btn-outline" onclick="toggleGradeSuspension({{ g }}, 'unsuspend')" style="font-size:0.78rem; width:100%; border-color:#16a34a; color:#15803d;">
+                                <i class="fa-solid fa-play"></i> បើកឡើងវិញ
+                            </button>
+                            {% else %}
+                            <button type="button" class="btn btn-sm btn-outline" onclick="promptSuspendGrade({{ g }})" style="font-size:0.78rem; width:100%; border-color:#ef4444; color:#b91c1c;">
+                                <i class="fa-solid fa-pause"></i> ផ្អាកថ្នាក់ទី {{ g }}
+                            </button>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
                     </div>
                 </div>
 
-                <form id="teacherLeavePolicyForm" onsubmit="handleSaveSettings(event)">
-                    <div class="grid-2-col">
-                        <div class="form-group mb-3">
-                            <label class="form-label font-weight-bold">ម៉ោងកំណត់ចុងក្រោយសម្រាប់សុំច្បាប់ថ្ងៃនេះ (Cutoff Time)</label>
-                            <input type="time" name="teacher_leave_cutoff_time" id="teacherLeaveCutoffTime" class="form-control" 
-                                   value="{{ settings.teacher_leave_cutoff_time or '17:00' }}" required>
-                            <small class="text-muted">ប្រសិនបើផុតម៉ោងនេះ គ្រូមិនអាចសុំច្បាប់សម្រាប់ថ្ងៃនេះបានទៀតទេ (លំនាំដើម៖ <code>17:00</code>)</small>
+                <!-- Part 2: Specific Class Suspension -->
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:14px; padding:16px;">
+                    <h4 style="margin:0 0 10px 0; font-size:0.95rem; font-weight:700; color:#1e293b;">
+                        <i class="fa-solid fa-chalkboard-user text-primary"></i> ២. ផ្អាកដំណើរការថ្នាក់រៀនជាក់លាក់ (Specific Class)
+                    </h4>
+                    
+                    <form id="classSuspendForm" onsubmit="handleClassSuspension(event)" class="row" style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; margin-bottom:16px;">
+                        <div style="flex:1; min-width:180px;">
+                            <label class="form-label" style="font-size:0.85rem; font-weight:600;">ជ្រើសរើសថ្នាក់រៀន</label>
+                            <select name="class_id" id="suspendClassSelect" class="form-control" required>
+                                <option value="">-- ជ្រើសរើសថ្នាក់ --</option>
+                                {% for c in classes %}
+                                <option value="{{ c.id }}">{{ c.class_name }} (បន្ទប់ {{ c.room_number or '-' }})</option>
+                                {% endfor %}
+                            </select>
                         </div>
-                        <div class="form-group mb-3">
-                            <label class="form-label font-weight-bold">ការត្រួតពិនិត្យកាលវិភាគបង្រៀន (Strict Timetable Check)</label>
-                            <div style="margin-top:8px;">
-                                <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-weight:600; font-size:0.9rem;">
-                                    <input type="checkbox" name="teacher_leave_require_schedule" value="1" {% if settings.teacher_leave_require_schedule != '0' %}checked{% endif %}>
-                                    <span>អនុញ្ញាតឱ្យសុំច្បាប់បានតែថ្ងៃដែលមានម៉ោងបង្រៀនក្នុងកាលវិភាគប៉ុណ្ណោះ</span>
-                                </label>
+                        <div style="flex:2; min-width:240px;">
+                            <label class="form-label" style="font-size:0.85rem; font-weight:600;">មូលហេតុនៃការផ្អាក (Reason)</label>
+                            <input type="text" name="reason" id="suspendReasonInput" class="form-control" placeholder="ឧ. ប្រឡងឆមាស, ដំណើរទស្សនកិច្ច, ទិវាកីឡា..." required>
+                        </div>
+                        <div style="flex:0 0 auto;">
+                            <button type="submit" class="btn btn-danger" style="background:#dc2626; border-color:#b91c1c;">
+                                <i class="fa-solid fa-pause"></i> ផ្អាកថ្នាក់នេះ
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Table of Suspended Classes -->
+                    <div class="table-responsive" style="max-height:220px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:10px; background:#fff;">
+                        <table class="table" style="margin:0; font-size:0.85rem;">
+                            <thead style="background:#f1f5f9; position:sticky; top:0;">
+                                <tr>
+                                    <th>ថ្នាក់រៀន</th>
+                                    <th>កម្រិត</th>
+                                    <th>ស្ថានភាព</th>
+                                    <th>មូលហេតុផ្អាក</th>
+                                    <th style="text-align:right;">សកម្មភាព</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% set susp_classes = suspended_status.classes | selectattr('is_effectively_suspended') | list %}
+                                {% if susp_classes %}
+                                    {% for c in susp_classes %}
+                                    <tr>
+                                        <td><strong>{{ c.class_name }}</strong></td>
+                                        <td>ថ្នាក់ទី {{ c.grade_level }}</td>
+                                        <td>
+                                            {% if c.is_grade_suspended %}
+                                            <span class="badge" style="background:#fef3c7; color:#92400e;">ផ្អាកតាមកម្រិតថ្នាក់ទី {{ c.grade_level }}</span>
+                                            {% else %}
+                                            <span class="badge" style="background:#fee2e2; color:#b91c1c;">ផ្អាកថ្នាក់ជាក់លាក់</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-muted">{{ c.effective_reason }}</td>
+                                        <td style="text-align:right;">
+                                            {% if not c.is_grade_suspended %}
+                                            <button type="button" class="btn btn-sm btn-outline" onclick="unsuspendSpecificClass({{ c.id }})" style="font-size:0.75rem; color:#15803d; border-color:#16a34a;">
+                                                <i class="fa-solid fa-play"></i> បើកដំណើរការវិញ
+                                            </button>
+                                            {% else %}
+                                            <small class="text-muted">(គ្រប់គ្រងតាមកម្រិតថ្នាក់)</small>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="5" class="text-center text-muted" style="padding:16px;">
+                                            <i class="fa-solid fa-circle-check text-success"></i> គ្មានថ្នាក់រៀនណាមួយត្រូវបានផ្អាកឡើយ (ដំណើរការធម្មតាគ្រប់ថ្នាក់)
+                                        </td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================================= -->
+        <!-- CARD 3: VACATIONS & HOLIDAYS MANAGEMENT                   -->
+        <!-- ========================================================= -->
+        <div class="card" id="vacationHolidaySection" style="grid-column: 1 / -1;">
+            <div class="card-header">
+                <div class="card-title">
+                    <i class="fa-solid fa-umbrella-beach text-success"></i>
+                    <span>ថ្ងៃវិស្សមកាល & ថ្ងៃឈប់សម្រាកបុណ្យជាតិ (Vacations & Holidays)</span>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline" onclick="triggerSeedHolidays()" style="border-color:#16a34a; color:#15803d; font-weight:600;">
+                    <i class="fa-solid fa-seedling text-success"></i> បញ្ចូលថ្ងៃបុណ្យជាតិផ្លូវការស្វ័យប្រវត្ត (Seed 22 Holidays)
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info mb-3" style="font-size:0.87rem; line-height:1.5;">
+                    <i class="fa-solid fa-circle-info" style="font-size:1.15rem; color:#0284c7; margin-right:6px;"></i>
+                    <strong>ការរារាំងស្វ័យប្រវត្តិ៖</strong> ក្នុងថ្ងៃវិស្សមកាល និងថ្ងៃឈប់សម្រាកបុណ្យជាតិ លោកគ្រូ-អ្នកគ្រូ <strong>មិនអាចស្រង់វត្តមានសិស្ស ឬគ្រូបានឡើយ</strong> ហើយប្រព័ន្ធនឹងមិនបញ្ជូនសាររំលឹកគ្រូមិនបានស្រង់វត្តមានក្នុងថ្ងៃទាំងនោះឡើយ។
+                </div>
+
+                <div class="grid-2-col" style="gap:20px;">
+                    <!-- Subcard A: School Vacations (ថ្ងៃវិស្សមកាល ចាប់ពីថ្ងៃណាដល់ថ្ងៃណា) -->
+                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:14px; padding:18px;">
+                        <h4 style="margin:0 0 12px 0; font-size:0.95rem; font-weight:700; color:#1e293b;">
+                            <i class="fa-solid fa-sun text-warning"></i> ថ្ងៃវិស្សមកាល (School Vacations: ពីថ្ងៃណា ដល់ថ្ងៃណា)
+                        </h4>
+
+                        <form id="addVacationForm" onsubmit="handleSaveVacation(event)" style="margin-bottom:16px;">
+                            <div class="form-group mb-2">
+                                <label class="form-label" style="font-size:0.82rem; font-weight:600;">ឈ្មោះវិស្សមកាល</label>
+                                <input type="text" name="title" id="vacationTitleInput" class="form-control" placeholder="ឧ. វិស្សមកាលតូច ឬ វិស្សមកាលធំ" required>
+                            </div>
+                            <div class="row" style="display:flex; gap:10px; margin-bottom:10px;">
+                                <div style="flex:1;">
+                                    <label class="form-label" style="font-size:0.82rem; font-weight:600;">ចាប់ពីថ្ងៃទី</label>
+                                    <input type="date" name="start_date" id="vacationStartInput" class="form-control" required>
+                                </div>
+                                <div style="flex:1;">
+                                    <label class="form-label" style="font-size:0.82rem; font-weight:600;">ដល់ថ្ងៃទី</label>
+                                    <input type="date" name="end_date" id="vacationEndInput" class="form-control" required>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-sm btn-primary" style="width:100%;">
+                                <i class="fa-solid fa-plus"></i> បន្ថែមថ្ងៃវិស្សមកាល
+                            </button>
+                        </form>
+
+                        <div class="table-responsive" style="max-height:220px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; background:#fff;">
+                            <table class="table" style="margin:0; font-size:0.82rem;">
+                                <thead style="background:#f1f5f9; position:sticky; top:0;">
+                                    <tr>
+                                        <th>ឈ្មោះវិស្សមកាល</th>
+                                        <th>កាលបរិច្ឆេទ (ពី - ដល់)</th>
+                                        <th>សកម្មភាព</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% if vacations %}
+                                        {% for v in vacations %}
+                                        <tr>
+                                            <td><strong>{{ v.title }}</strong></td>
+                                            <td>{{ v.start_date }} ដល់ {{ v.end_date }}</td>
+                                            <td>
+                                                <button type="button" class="btn btn-sm btn-outline text-danger" onclick="handleDeleteVacation({{ v.id }})" style="padding:2px 6px; font-size:0.75rem;">
+                                                    <i class="fa-solid fa-trash"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    {% else %}
+                                        <tr>
+                                            <td colspan="3" class="text-center text-muted" style="padding:12px;">មិនទាន់មានទិន្នន័យវិស្សមកាល</td>
+                                        </tr>
+                                    {% endif %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Subcard B: School Holidays (ថ្ងៃឈប់សម្រាកផ្លូវការ) -->
+                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:14px; padding:18px;">
+                        <h4 style="margin:0 0 12px 0; font-size:0.95rem; font-weight:700; color:#1e293b;">
+                            <i class="fa-solid fa-flag text-danger"></i> ថ្ងៃឈប់សម្រាកបុណ្យជាតិផ្លូវការ (Official Holidays)
+                        </h4>
+
+                        <form id="addHolidayForm" onsubmit="handleSaveHoliday(event)" style="margin-bottom:16px;">
+                            <div class="row" style="display:flex; gap:10px; margin-bottom:10px;">
+                                <div style="flex:2;">
+                                    <label class="form-label" style="font-size:0.82rem; font-weight:600;">ឈ្មោះថ្ងៃបុណ្យ/ឈប់សម្រាក</label>
+                                    <input type="text" name="holiday_name" id="holidayNameInput" class="form-control" placeholder="ឧ. ពិធីបុណ្យភ្ជុំបិណ្ឌ" required>
+                                </div>
+                                <div style="flex:1.5;">
+                                    <label class="form-label" style="font-size:0.82rem; font-weight:600;">កាលបរិច្ឆេទ</label>
+                                    <input type="date" name="holiday_date" id="holidayDateInput" class="form-control" required>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-sm btn-primary" style="width:100%;">
+                                <i class="fa-solid fa-plus"></i> បន្ថែមថ្ងៃឈប់សម្រាក
+                            </button>
+                        </form>
+
+                        <div class="table-responsive" style="max-height:220px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; background:#fff;">
+                            <table class="table" style="margin:0; font-size:0.82rem;">
+                                <thead style="background:#f1f5f9; position:sticky; top:0;">
+                                    <tr>
+                                        <th>ឈ្មោះថ្ងៃឈប់សម្រាក</th>
+                                        <th>កាលបរិច្ឆេទ</th>
+                                        <th>សកម្មភាព</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% if holidays %}
+                                        {% for h in holidays %}
+                                        <tr>
+                                            <td><strong>{{ h.holiday_name }}</strong></td>
+                                            <td><code>{{ h.holiday_date }}</code></td>
+                                            <td>
+                                                <button type="button" class="btn btn-sm btn-outline text-danger" onclick="handleDeleteHoliday({{ h.id }})" style="padding:2px 6px; font-size:0.75rem;">
+                                                    <i class="fa-solid fa-trash"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    {% else %}
+                                        <tr>
+                                            <td colspan="3" class="text-center text-muted" style="padding:12px;">មិនទាន់មានទិន្នន័យ (ចុះ Seed ថ្ងៃបុណ្យខាងលើ)</td>
+                                        </tr>
+                                    {% endif %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================================= -->
+        <!-- CARD 4: 8-PERIOD DEADLINE MATRIX (ម៉ោង Deadline ទាំង ៨ម៉ោង) -->
+        <!-- ========================================================= -->
+        <div class="card" id="periodDeadlineSection" style="grid-column: 1 / -1;">
+            <div class="card-header">
+                <div class="card-title">
+                    <i class="fa-solid fa-stopwatch text-primary"></i>
+                    <span>ម៉ោង Deadline តាមម៉ោងនីមួយៗទាំង ៨ ម៉ោង (8-Period Deadlines)</span>
+                </div>
+                <div class="d-flex gap-2">
+                    <span class="badge badge-primary">ចន្លោះអនុញ្ញាតកែប្រែវត្តមាន</span>
+                </div>
+            </div>
+            <div class="card-body">
+                <p style="font-size:0.87rem; color:#475569; margin-bottom:14px;">
+                    Admin មានសិទ្ធិកំណត់ Deadline សម្រាប់ <strong>ម៉ោងនីមួយៗទាំង ៨ ម៉ោងដាច់ដោយឡែកពីគ្នា</strong> (ឧ. ២៥ ឬ ៣០ នាទី ក្រោយចូលរៀន)។ ក្នុងចន្លោះ Deadline នេះ គ្រូអាចបញ្ចូល និងកែប្រែវត្តមានបានច្រើនដង។ បើផុត Deadline គ្រូអាចបញ្ចូលបានតែ ១ ដងគត់ (បើមិនទាន់ស្រង់) ហើយប្រព័ន្ធនឹងបញ្ជូនសារព្រមានភ្លេចស្រង់វត្តមានទៅ Telegram ភ្លាមៗ។
+                </p>
+
+                <!-- Quick Preset Bar -->
+                <div class="d-flex align-center gap-2 mb-3 p-2" style="background:#f1f5f9; border-radius:10px; flex-wrap:wrap;">
+                    <span style="font-size:0.83rem; font-weight:700; color:#334155;">ជម្រើសរហ័ស (Quick Presets)៖</span>
+                    <button type="button" class="btn btn-sm btn-outline" onclick="applyDeadlinePreset(20)">20 នាទី</button>
+                    <button type="button" class="btn btn-sm btn-outline" style="border-color:#2563eb; color:#2563eb; font-weight:700;" onclick="applyDeadlinePreset(25)">25 នាទី</button>
+                    <button type="button" class="btn btn-sm btn-outline" style="border-color:#16a34a; color:#15803d; font-weight:700;" onclick="applyDeadlinePreset(30)">30 នាទី (ស្តង់ដារ)</button>
+                    <button type="button" class="btn btn-sm btn-outline" onclick="applyDeadlinePreset(35)">35 នាទី</button>
+                    <button type="button" class="btn btn-sm btn-outline" onclick="applyDeadlinePreset(40)">40 នាទី</button>
+                </div>
+
+                <form id="periodDeadlinesForm" onsubmit="handleSaveSettings(event)">
+                    <div class="row" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:14px; margin-bottom:18px;">
+                        <!-- Morning Shift -->
+                        <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:14px;">
+                            <h5 style="margin:0 0 10px 0; color:#166534; font-weight:700;"><i class="fa-solid fa-sun"></i> វេនពេលព្រឹក (Morning)</h5>
+                            
+                            <div class="form-group mb-2">
+                                <label class="form-label" style="font-size:0.82rem;">ម៉ោងទី ១ (០៧:០០ - ០៨:០០)</label>
+                                <div class="d-flex align-center gap-2">
+                                    <input type="number" name="period_1_deadline_minutes" class="form-control deadline-input" value="{{ settings.period_1_deadline_minutes or '30' }}" min="5" max="60" required>
+                                    <span style="font-size:0.85rem; font-weight:600;">នាទី</span>
+                                </div>
+                            </div>
+
+                            <div class="form-group mb-2">
+                                <label class="form-label" style="font-size:0.82rem;">ម៉ោងទី ២ (០៨:០០ - ០៩:០០)</label>
+                                <div class="d-flex align-center gap-2">
+                                    <input type="number" name="period_2_deadline_minutes" class="form-control deadline-input" value="{{ settings.period_2_deadline_minutes or '30' }}" min="5" max="60" required>
+                                    <span style="font-size:0.85rem; font-weight:600;">នាទី</span>
+                                </div>
+                            </div>
+
+                            <div class="form-group mb-2">
+                                <label class="form-label" style="font-size:0.82rem;">ម៉ោងទី ៣ (០៩:០០ - ១០:០០)</label>
+                                <div class="d-flex align-center gap-2">
+                                    <input type="number" name="period_3_deadline_minutes" class="form-control deadline-input" value="{{ settings.period_3_deadline_minutes or '30' }}" min="5" max="60" required>
+                                    <span style="font-size:0.85rem; font-weight:600;">នាទី</span>
+                                </div>
+                            </div>
+
+                            <div class="form-group mb-1">
+                                <label class="form-label" style="font-size:0.82rem;">ម៉ោងទី ៤ (១០:០០ - ១១:០០)</label>
+                                <div class="d-flex align-center gap-2">
+                                    <input type="number" name="period_4_deadline_minutes" class="form-control deadline-input" value="{{ settings.period_4_deadline_minutes or '30' }}" min="5" max="60" required>
+                                    <span style="font-size:0.85rem; font-weight:600;">នាទី</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Afternoon Shift -->
+                        <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:12px; padding:14px;">
+                            <h5 style="margin:0 0 10px 0; color:#1e40af; font-weight:700;"><i class="fa-solid fa-cloud-sun"></i> វេនពេលរសៀល (Afternoon)</h5>
+
+                            <div class="form-group mb-2">
+                                <label class="form-label" style="font-size:0.82rem;">ម៉ោងទី ១ / Period 5 (១៣:០០ - ១៤:០០)</label>
+                                <div class="d-flex align-center gap-2">
+                                    <input type="number" name="period_5_deadline_minutes" class="form-control deadline-input" value="{{ settings.period_5_deadline_minutes or '30' }}" min="5" max="60" required>
+                                    <span style="font-size:0.85rem; font-weight:600;">នាទី</span>
+                                </div>
+                            </div>
+
+                            <div class="form-group mb-2">
+                                <label class="form-label" style="font-size:0.82rem;">ម៉ោងទី ២ / Period 6 (១៤:០០ - ១៥:០០)</label>
+                                <div class="d-flex align-center gap-2">
+                                    <input type="number" name="period_6_deadline_minutes" class="form-control deadline-input" value="{{ settings.period_6_deadline_minutes or '30' }}" min="5" max="60" required>
+                                    <span style="font-size:0.85rem; font-weight:600;">នាទី</span>
+                                </div>
+                            </div>
+
+                            <div class="form-group mb-2">
+                                <label class="form-label" style="font-size:0.82rem;">ម៉ោងទី ៣ / Period 7 (១៥:០០ - ១៦:០០)</label>
+                                <div class="d-flex align-center gap-2">
+                                    <input type="number" name="period_7_deadline_minutes" class="form-control deadline-input" value="{{ settings.period_7_deadline_minutes or '30' }}" min="5" max="60" required>
+                                    <span style="font-size:0.85rem; font-weight:600;">នាទី</span>
+                                </div>
+                            </div>
+
+                            <div class="form-group mb-1">
+                                <label class="form-label" style="font-size:0.82rem;">ម៉ោងទី ៤ / Period 8 (១៦:០០ - ១៧:០០)</label>
+                                <div class="d-flex align-center gap-2">
+                                    <input type="number" name="period_8_deadline_minutes" class="form-control deadline-input" value="{{ settings.period_8_deadline_minutes or '30' }}" min="5" max="60" required>
+                                    <span style="font-size:0.85rem; font-weight:600;">នាទី</span>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="mt-3">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fa-solid fa-floppy-disk"></i> រក្សាទុកម៉ោង Deadline ទាំង ៨
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- ========================================================= -->
+        <!-- CARD 5: TELEGRAM DESTINATION ROUTING MATRIX               -->
+        <!-- ========================================================= -->
+        <div class="card" id="telegramRoutingSection" style="grid-column: 1 / -1;">
+            <div class="card-header">
+                <div class="card-title">
+                    <i class="fa-brands fa-telegram text-info"></i>
+                    <span>ការបែងចែកគោលដៅ Telegram ដាច់ពីគ្នា (Telegram Destination Routing)</span>
+                </div>
+                <span class="badge badge-primary">Multi-Chat Routing</span>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info mb-3" style="font-size:0.88rem; line-height:1.6;">
+                    <i class="fa-brands fa-telegram" style="font-size:1.3rem; color:#0284c7; margin-right:8px;"></i>
+                    <strong>ការបែងចែកសារស្វ័យប្រវត្តិតាមមុខសញ្ញា៖</strong><br>
+                    • <strong>អ្នកទទួលសារមិនបានស្រង់៖</strong> បញ្ជី Chat IDs ទទួលសារបន្ទាន់ពេលគ្រូភ្លេចស្រង់វត្តមាន។<br>
+                    • <strong>អ្នកទទួលសំណើសុំច្បាប់ & អនុម័ត៖</strong> បញ្ជី Chat IDs គណៈគ្រប់គ្រងដែលមានប៊ូតុងចុចអនុម័ត/បដិសេធ។<br>
+                    • <strong>របាយការណ៍សិស្ស vs របាយការណ៍គ្រូ៖</strong> កំណត់ Chat ID ដាច់ពីគ្នា (សិស្សទៅវិន័យ គ្រូទៅនាយក)។<br>
+                    • <strong>អវត្តមានតាមម៉ោង សិស្ស vs គ្រូ៖</strong> កំណត់ Chat ID ដាច់ពីគ្នាដើម្បីតាមដានតាមម៉ោងនីមួយៗ។
+                </div>
+
+                <form id="telegramRoutingForm" onsubmit="handleSaveSettings(event)">
+                    <!-- Bot Credentials -->
+                    <div class="grid-2-col mb-3">
+                        <div class="form-group">
+                            <label class="form-label font-weight-bold">Telegram Bot Token</label>
+                            <input type="text" name="telegram_bot_token" id="telegramBotToken" class="form-control" 
+                                   value="{{ settings.telegram_bot_token or '' }}" 
+                                   placeholder="123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ">
+                            <small class="text-muted">ទទួលបានពី <code>@BotFather</code></small>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label font-weight-bold">Telegram Admin Chat ID (មេ / Fallback)</label>
+                            <input type="text" name="telegram_admin_chat_id" id="telegramAdminChatId" class="form-control" 
+                                   value="{{ settings.telegram_admin_chat_id or '' }}" 
+                                   placeholder="-1001234567890 ឬ 987654321">
+                            <small class="text-muted">Chat ID ឬ Group ID សំខាន់សម្រាប់ Admin</small>
+                        </div>
+                    </div>
+
+                    <!-- Missed Attendance & Leave Approver Multi-Recipients -->
+                    <div class="grid-2-col mb-3">
+                        <div class="form-group" style="background:#fff7ed; border:1px solid #ffedd5; border-radius:12px; padding:14px;">
+                            <label class="form-label font-weight-bold" style="color:#9a3412;">
+                                <i class="fa-solid fa-triangle-exclamation text-warning"></i> បញ្ជីអ្នកទទួលសាររាយការណ៍មិនបានស្រង់ (Missed Alerts)
+                            </label>
+                            <textarea name="telegram_unrecorded_alert_chat_ids" id="telegramUnrecordedChatIds" class="form-control" rows="3" placeholder="-1001234567890, 987654321">{{ settings.telegram_unrecorded_alert_chat_ids or '' }}</textarea>
+                            <small class="text-muted">អាចដាក់ Chat IDs ច្រើនដោយខណ្ឌដោយក្បៀស (,) ឬចុះបន្ទាត់ (គ្រូចាំថ្ងៃ, គណៈគ្រប់គ្រង, Admin)</small>
+                        </div>
+
+                        <div class="form-group" style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:14px;">
+                            <label class="form-label font-weight-bold" style="color:#166534;">
+                                <i class="fa-solid fa-stamp text-success"></i> អ្នកទទួលសំណើសុំច្បាប់ និងអនុម័ត (Leave Approvers)
+                            </label>
+                            <textarea name="telegram_leave_approver_chat_ids" id="telegramLeaveApproverChatIds" class="form-control" rows="3" placeholder="-1001234567890, 987654321">{{ settings.telegram_leave_approver_chat_ids or '' }}</textarea>
+                            <small class="text-muted">បញ្ជី Chat IDs គណៈគ្រប់គ្រងដែលទទួលបានប៊ូតុងចុច <strong>✅ អនុម័ត / ❌ បដិសេធ</strong></small>
+                        </div>
+                    </div>
+
+                    <!-- Daily Reports Separate Destinations -->
+                    <div class="grid-2-col mb-3">
+                        <div class="form-group">
+                            <label class="form-label font-weight-bold">
+                                <i class="fa-solid fa-user-graduate text-primary"></i> របាយការណ៍សិស្សប្រចាំថ្ងៃ (Student Daily Report Chat ID)
+                            </label>
+                            <input type="text" name="telegram_daily_student_report_chat_id" class="form-control" 
+                                   value="{{ settings.telegram_daily_student_report_chat_id or '' }}" 
+                                   placeholder="ទុកនៅទទេបើផ្ញើទៅ Admin Chat ID ខាងលើ">
+                            <small class="text-muted">បញ្ជូនរបាយការណ៍សិស្សអវត្តមានប្រចាំថ្ងៃទៅ Group វិន័យ/ការិយាល័យសិក្សា</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label font-weight-bold">
+                                <i class="fa-solid fa-chalkboard-user text-success"></i> របាយការណ៍គ្រូប្រចាំថ្ងៃ (Teacher Daily Report Chat ID)
+                            </label>
+                            <input type="text" name="telegram_daily_teacher_report_chat_id" class="form-control" 
+                                   value="{{ settings.telegram_daily_teacher_report_chat_id or '' }}" 
+                                   placeholder="ទុកនៅទទេបើផ្ញើទៅ Admin Chat ID ខាងលើ">
+                            <small class="text-muted">បញ្ជូនរបាយការណ៍គ្រូអវត្តមាន និងសុំច្បាប់ប្រចាំថ្ងៃទៅ Group នាយកសាលា</small>
+                        </div>
+                    </div>
+
+                    <!-- Hourly Absences Separate Destinations -->
+                    <div class="grid-2-col mb-3">
+                        <div class="form-group">
+                            <label class="form-label font-weight-bold">
+                                <i class="fa-solid fa-clock text-info"></i> សិស្សអវត្តមានតាមម៉ោង (Hourly Student Absence Chat ID)
+                            </label>
+                            <input type="text" name="telegram_hourly_student_absence_chat_id" class="form-control" 
+                                   value="{{ settings.telegram_hourly_student_absence_chat_id or '' }}" 
+                                   placeholder="ឧ. -1001122334455">
+                            <small class="text-muted">ទទួលដំណឹងសិស្សអវត្តមានភ្លាមៗរៀងរាល់ម៉ោងសិក្សាដែលគ្រូស្រង់</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label font-weight-bold">
+                                <i class="fa-solid fa-user-xmark text-danger"></i> គ្រូអវត្តមានតាមម៉ោង (Hourly Teacher Absence Chat ID)
+                            </label>
+                            <input type="text" name="telegram_hourly_teacher_absence_chat_id" class="form-control" 
+                                   value="{{ settings.telegram_hourly_teacher_absence_chat_id or '' }}" 
+                                   placeholder="ឧ. -1009988776655">
+                            <small class="text-muted">ទទួលដំណឹងគ្រូអវត្តមាន ឬគ្រូខកខានមិនបានស្រង់វត្តមានតាមម៉ោង</small>
+                        </div>
+                    </div>
+
+                    <!-- Notification Toggles -->
+                    <div style="display:flex; flex-wrap:wrap; gap:20px; margin: 15px 0; padding: 14px; background:#f8fafc; border-radius:12px; border:1px solid #e2e8f0;">
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-weight:600; font-size:0.88rem;">
+                            <input type="checkbox" name="telegram_notify_absence" value="1" {% if settings.telegram_notify_absence != '0' %}checked{% endif %}>
+                            <span>បើកដំណើរការផ្ញើរបាយការណ៍សិស្ស-គ្រូប្រចាំថ្ងៃ (Daily Reports)</span>
+                        </label>
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-weight:600; font-size:0.88rem;">
+                            <input type="checkbox" name="telegram_notify_parent" value="1" {% if settings.telegram_notify_parent != '0' %}checked{% endif %}>
+                            <span>ផ្ញើដំណឹងតាមម៉ោងទៅអាណាព្យាបាលសិស្ស (Parent Alerts)</span>
+                        </label>
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-weight:600; font-size:0.88rem;">
+                            <input type="checkbox" name="telegram_notify_homeroom" value="1" {% if settings.telegram_notify_homeroom != '0' %}checked{% endif %}>
+                            <span>ផ្ញើបញ្ជីអវត្តមានតាមម៉ោងទៅ Telegram Group គ្រូបន្ទុកថ្នាក់</span>
+                        </label>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="d-flex gap-2 flex-wrap mt-3">
                         <button type="submit" class="btn btn-primary">
-                            <i class="fa-solid fa-floppy-disk"></i> រក្សាទុកគោលការណ៍សុំច្បាប់
+                            <i class="fa-solid fa-floppy-disk"></i> រក្សាទុកការកំណត់ Telegram
+                        </button>
+                        <button type="button" class="btn btn-outline" onclick="testTelegramBot()">
+                            <i class="fa-brands fa-telegram text-primary"></i> តេស្តផ្ញើសារ Bot
+                        </button>
+                        <button type="button" class="btn btn-outline" onclick="triggerDailyStudentReportNow()">
+                            <i class="fa-solid fa-user-graduate text-primary"></i> តេស្តផ្ញើរបាយការណ៍សិស្ស
+                        </button>
+                        <button type="button" class="btn btn-outline" onclick="triggerDailyTeacherReportNow()">
+                            <i class="fa-solid fa-chalkboard-user text-success"></i> តេស្តផ្ញើរបាយការណ៍គ្រូ
+                        </button>
+                        <button type="button" class="btn btn-warning" onclick="triggerPeriodCheckNow()">
+                            <i class="fa-solid fa-clock-rotate-left"></i> តេស្តឆែកម៉ោងសិក្សា
                         </button>
                     </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- ========================================================= -->
+        <!-- CARD 6: DAILY REPORT DISPATCH SCHEDULE BY DAY OF WEEK     -->
+        <!-- ========================================================= -->
+        <div class="card" id="dailyScheduleSection" style="grid-column: 1 / -1;">
+            <div class="card-header">
+                <div class="card-title">
+                    <i class="fa-solid fa-calendar-check text-warning"></i>
+                    <span>ម៉ោងបញ្ជូនរបាយការណ៍សិស្ស-គ្រូចាំថ្ងៃ តាមថ្ងៃនីមួយៗ (Daily Dispatch Schedule)</span>
+                </div>
+                <span class="badge badge-primary" style="background:#fef3c7; color:#92400e;">Automated Scheduled Cron</span>
+            </div>
+            <div class="card-body">
+                <p style="font-size:0.87rem; color:#475569; margin-bottom:14px;">
+                    កំណត់ម៉ោងបញ្ជូនរបាយការណ៍អវត្តមានប្រចាំថ្ងៃដោយស្វ័យប្រវត្តិ <strong>តាមថ្ងៃនីមួយៗផ្សេងៗគ្នា</strong>។ ឧទាហរណ៍៖ ថ្ងៃចន្ទដល់សុក្របញ្ជូននៅម៉ោង 17:15 រីឯថ្ងៃសៅរ៍បញ្ជូននៅម៉ោង 11:30 (កន្លះថ្ងៃ)។ ដាក់ "off" ប្រសិនបើមិនចង់ឱ្យបញ្ជូននៅថ្ងៃនោះ។
+                </p>
+
+                <form id="dailyScheduleForm" onsubmit="handleSaveSettings(event)">
+                    <div class="row" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:12px; margin-bottom:18px;">
+                        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:12px; text-align:center;">
+                            <label class="form-label" style="font-weight:700; color:#0f172a; font-size:0.88rem;">ថ្ងៃចន្ទ (Mon)</label>
+                            <input type="text" name="daily_report_time_mon" class="form-control text-center" value="{{ settings.daily_report_time_mon or '17:15' }}" placeholder="17:15">
+                        </div>
+
+                        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:12px; text-align:center;">
+                            <label class="form-label" style="font-weight:700; color:#0f172a; font-size:0.88rem;">ថ្ងៃអង្គារ (Tue)</label>
+                            <input type="text" name="daily_report_time_tue" class="form-control text-center" value="{{ settings.daily_report_time_tue or '17:15' }}" placeholder="17:15">
+                        </div>
+
+                        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:12px; text-align:center;">
+                            <label class="form-label" style="font-weight:700; color:#0f172a; font-size:0.88rem;">ថ្ងៃពុធ (Wed)</label>
+                            <input type="text" name="daily_report_time_wed" class="form-control text-center" value="{{ settings.daily_report_time_wed or '17:00' }}" placeholder="17:00">
+                        </div>
+
+                        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:12px; text-align:center;">
+                            <label class="form-label" style="font-weight:700; color:#0f172a; font-size:0.88rem;">ថ្ងៃព្រហស្បតិ៍ (Thu)</label>
+                            <input type="text" name="daily_report_time_thu" class="form-control text-center" value="{{ settings.daily_report_time_thu or '17:15' }}" placeholder="17:15">
+                        </div>
+
+                        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:12px; text-align:center;">
+                            <label class="form-label" style="font-weight:700; color:#0f172a; font-size:0.88rem;">ថ្ងៃសុក្រ (Fri)</label>
+                            <input type="text" name="daily_report_time_fri" class="form-control text-center" value="{{ settings.daily_report_time_fri or '17:00' }}" placeholder="17:00">
+                        </div>
+
+                        <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:10px; padding:12px; text-align:center;">
+                            <label class="form-label" style="font-weight:700; color:#92400e; font-size:0.88rem;">ថ្ងៃសៅរ៍ (Sat)</label>
+                            <input type="text" name="daily_report_time_sat" class="form-control text-center" value="{{ settings.daily_report_time_sat or '11:30' }}" placeholder="11:30">
+                            <small class="text-muted" style="font-size:0.72rem;">(កន្លះថ្ងៃ)</small>
+                        </div>
+
+                        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:12px; text-align:center;">
+                            <label class="form-label" style="font-weight:700; color:#64748b; font-size:0.88rem;">ថ្ងៃអាទិត្យ (Sun)</label>
+                            <input type="text" name="daily_report_time_sun" class="form-control text-center" value="{{ settings.daily_report_time_sun or 'off' }}" placeholder="off">
+                            <small class="text-muted" style="font-size:0.72rem;">(ឈប់សម្រាក)</small>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fa-solid fa-floppy-disk"></i> រក្សាទុកម៉ោងបញ្ជូនរបាយការណ៍
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- ========================================================= -->
+        <!-- CARD 7: GOOGLE SHEETS & KKHS CLOUD SYNCHRONIZATION        -->
+        <!-- ========================================================= -->
+        <div class="card" id="cloudSyncSection">
+            <div class="card-header">
+                <div class="card-title">
+                    <i class="fa-brands fa-google text-success"></i>
+                    <span>Google Sheets Synchronization</span>
+                </div>
+            </div>
+            <div class="card-body">
+                <form id="googleSheetsForm" onsubmit="handleSaveSettings(event)">
+                    <div class="form-group mb-3">
+                        <label class="form-label">Google Spreadsheet ID</label>
+                        <input type="text" name="google_sheet_id" id="googleSheetId" class="form-control" 
+                               value="{{ settings.google_sheet_id or '1RnTas3BW3UfhwqMPhR7rU7b1FPEw35Xt-CL0aTJ2XkE' }}">
+                    </div>
+
+                    <div class="form-group mb-3">
+                        <label class="form-label">Credentials JSON File</label>
+                        <input type="text" name="google_credentials_file" id="googleCredsFile" class="form-control" 
+                               value="{{ settings.google_credentials_file or 'google_service_account.json' }}">
+                    </div>
+
+                    <div class="d-flex gap-2 mt-3 flex-wrap">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fa-solid fa-floppy-disk"></i> រក្សាទុក
+                        </button>
+                        <button type="button" class="btn btn-outline" onclick="testGoogleSheetsConnection()">
+                            <i class="fa-solid fa-plug"></i> តេស្ត Sheets
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- ========================================================= -->
+        <!-- CARD 8: OFFICIAL SCHOOL PROFILE & STRUCTURE               -->
+        <!-- ========================================================= -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    <i class="fa-solid fa-school text-primary"></i>
+                    <span>ព័ត៌មានរចនាសម្ព័ន្ធសាលារៀន (School Profile)</span>
+                </div>
+            </div>
+            <div class="card-body">
+                <form id="schoolProfileForm" onsubmit="handleSaveSettings(event)">
+                    <div class="form-group mb-2">
+                        <label class="form-label font-weight-bold">ឈ្មោះសាលារៀន (ខ្មែរ)</label>
+                        <input type="text" name="school_name_kh" class="form-control" value="{{ settings.school_name_kh or 'វិទ្យាល័យ ហ៊ុន សែន កំពង់កន្ទួត' }}">
+                    </div>
+                    <div class="form-group mb-2">
+                        <label class="form-label font-weight-bold">នាយកសាលា</label>
+                        <input type="text" name="principal_name" class="form-control" value="{{ settings.principal_name or 'លោកបណ្ឌិត សុខ ចាន់ថន' }}">
+                    </div>
+                    <div class="form-group mb-3">
+                        <label class="form-label font-weight-bold">លេខទូរស័ព្ទសាលា</label>
+                        <input type="text" name="school_phone" class="form-control" value="{{ settings.school_phone or '023 888 999' }}">
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fa-solid fa-floppy-disk"></i> រក្សាទុកព័ត៌មានសាលា
+                    </button>
                 </form>
             </div>
         </div>
@@ -445,15 +752,223 @@
         .catch(err => alert('កំហុស៖ ' + err));
     }
 
+    function toggleMaintenanceMode(mode) {
+        const actionText = mode === '1' ? 'បើកដំណើរការ Maintenance Mode (រារាំងគ្រូមិនឱ្យចូល)' : 'បិទ Maintenance Mode (អនុញ្ញាតឱ្យចូលប្រើប្រាស់ធម្មតា)';
+        if (!confirm(`តើលោកអ្នកពិតជាចង់ ${actionText} មែនឬទេ?`)) return;
+
+        const msg = document.getElementById('maintenanceMessage').value.trim();
+        fetch('/api/settings/maintenance/toggle', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mode: mode, message: msg })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                window.location.reload();
+            } else {
+                alert('កំហុស៖ ' + data.message);
+            }
+        })
+        .catch(err => alert('កំហុស៖ ' + err));
+    }
+
+    function handleSaveMaintenance(e) {
+        e.preventDefault();
+        const msg = document.getElementById('maintenanceMessage').value.trim();
+        fetch('/api/settings/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ maintenance_message: msg })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (window.showToast) showToast('ជោគជ័យ!', 'បានរក្សាទុកសារ Maintenance រួចរាល់', 'success');
+            else alert('បានរក្សាទុកសារ Maintenance រួចរាល់');
+        })
+        .catch(err => alert('កំហុស៖ ' + err));
+    }
+
+    function promptSuspendGrade(grade) {
+        const reason = prompt(`សូមបញ្ចូលមូលហេតុនៃការផ្អាកដំណើរការកម្រិតថ្នាក់ទី ${grade}៖`, 'ផ្អាកដំណើរការបណ្តោះអាសន្ន');
+        if (reason === null) return;
+        toggleGradeSuspension(grade, 'suspend', reason);
+    }
+
+    function toggleGradeSuspension(grade, action, reason) {
+        fetch('/api/classes/suspend-toggle', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'grade', id: grade, action: action, reason: reason || '' })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                if (window.showToast) showToast('ជោគជ័យ!', data.message, 'success');
+                else alert(data.message);
+                setTimeout(() => window.location.reload(), 600);
+            } else {
+                alert('កំហុស៖ ' + data.message);
+            }
+        })
+        .catch(err => alert('កំហុស៖ ' + err));
+    }
+
+    function handleClassSuspension(e) {
+        e.preventDefault();
+        const classId = document.getElementById('suspendClassSelect').value;
+        const reason = document.getElementById('suspendReasonInput').value.trim();
+        if (!classId) {
+            alert('សូមជ្រើសរើសថ្នាក់រៀនជាមុនសិន');
+            return;
+        }
+
+        fetch('/api/classes/suspend-toggle', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'class', id: classId, action: 'suspend', reason: reason })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                if (window.showToast) showToast('ជោគជ័យ!', data.message, 'success');
+                else alert(data.message);
+                setTimeout(() => window.location.reload(), 600);
+            } else {
+                alert('កំហុស៖ ' + data.message);
+            }
+        })
+        .catch(err => alert('កំហុស៖ ' + err));
+    }
+
+    function unsuspendSpecificClass(classId) {
+        if (!confirm('តើអ្នកពិតជាចង់បើកដំណើរការថ្នាក់នេះឡើងវិញមែនទេ?')) return;
+        fetch('/api/classes/suspend-toggle', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'class', id: classId, action: 'unsuspend' })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                if (window.showToast) showToast('ជោគជ័យ!', data.message, 'success');
+                else alert(data.message);
+                setTimeout(() => window.location.reload(), 600);
+            } else {
+                alert('កំហុស៖ ' + data.message);
+            }
+        })
+        .catch(err => alert('កំហុស៖ ' + err));
+    }
+
+    function handleSaveVacation(e) {
+        e.preventDefault();
+        const title = document.getElementById('vacationTitleInput').value.trim();
+        const startDate = document.getElementById('vacationStartInput').value;
+        const endDate = document.getElementById('vacationEndInput').value;
+
+        fetch('/api/vacations', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title: title, start_date: startDate, end_date: endDate })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                if (window.showToast) showToast('ជោគជ័យ!', data.message, 'success');
+                else alert(data.message);
+                setTimeout(() => window.location.reload(), 600);
+            } else {
+                alert('កំហុស៖ ' + data.message);
+            }
+        })
+        .catch(err => alert('កំហុស៖ ' + err));
+    }
+
+    function handleDeleteVacation(id) {
+        if (!confirm('តើអ្នកពិតជាចង់លុបថ្ងៃវិស្សមកាលនេះមែនទេ?')) return;
+        fetch(`/api/vacations/${id}`, { method: 'DELETE' })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                if (window.showToast) showToast('ជោគជ័យ!', data.message, 'success');
+                else alert(data.message);
+                setTimeout(() => window.location.reload(), 600);
+            } else {
+                alert('កំហុស៖ ' + data.message);
+            }
+        })
+        .catch(err => alert('កំហុស៖ ' + err));
+    }
+
+    function handleSaveHoliday(e) {
+        e.preventDefault();
+        const name = document.getElementById('holidayNameInput').value.trim();
+        const dt = document.getElementById('holidayDateInput').value;
+
+        fetch('/api/holidays', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ holiday_name: name, holiday_date: dt })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                if (window.showToast) showToast('ជោគជ័យ!', data.message, 'success');
+                else alert(data.message);
+                setTimeout(() => window.location.reload(), 600);
+            } else {
+                alert('កំហុស៖ ' + data.message);
+            }
+        })
+        .catch(err => alert('កំហុស៖ ' + err));
+    }
+
+    function handleDeleteHoliday(id) {
+        if (!confirm('តើអ្នកពិតជាចង់លុបថ្ងៃឈប់សម្រាកនេះមែនទេ?')) return;
+        fetch(`/api/holidays/${id}`, { method: 'DELETE' })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                if (window.showToast) showToast('ជោគជ័យ!', data.message, 'success');
+                else alert(data.message);
+                setTimeout(() => window.location.reload(), 600);
+            } else {
+                alert('កំហុស៖ ' + data.message);
+            }
+        })
+        .catch(err => alert('កំហុស៖ ' + err));
+    }
+
+    function triggerSeedHolidays() {
+        if (!confirm('តើអ្នកចង់បញ្ចូលបញ្ជីថ្ងៃបុណ្យជាតិផ្លូវការរបស់កម្ពុជាចំនួន ២២ ថ្ងៃមែនទេ?')) return;
+        fetch('/api/holidays/seed', { method: 'POST' })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                window.location.reload();
+            } else {
+                alert('កំហុស៖ ' + data.message);
+            }
+        })
+        .catch(err => alert('កំហុស៖ ' + err));
+    }
+
+    function applyDeadlinePreset(mins) {
+        const inputs = document.querySelectorAll('.deadline-input');
+        inputs.forEach(input => input.value = mins);
+        if (window.showToast) showToast('បានអនុវត្ត', `បានកំណត់ ${mins} នាទីសម្រាប់គ្រប់ម៉ោងទាំងអស់ (សូមចុច រក្សាទុក ដើម្បីអនុវត្ត)`, 'info');
+    }
+
     function testTelegramBot() {
         const botToken = document.getElementById('telegramBotToken').value.trim();
         const chatId = document.getElementById('telegramAdminChatId').value.trim();
-
         if (!botToken || !chatId) {
             alert('សូមបញ្ចូល Bot Token និង Admin Chat ID ជាមុនសិន!');
             return;
         }
-
         if (window.showToast) showToast('កំពុងផ្ញើសារតេស្តទៅ Telegram...', 'info');
 
         fetch('/api/telegram/test', {
@@ -467,301 +982,60 @@
                 if (window.showToast) showToast('ជោគជ័យ!', data.message, 'success');
                 else alert(data.message);
             } else {
-                if (window.showToast) showToast('កំហុស!', data.message, 'danger');
-                else alert('កំហុសតេស្ត៖ ' + data.message);
+                alert('កំហុសផ្ញើសារ៖ ' + data.message);
             }
         })
         .catch(err => alert('កំហុស៖ ' + err));
     }
 
-    function triggerDailyReportNow() {
-        if (!confirm('តើអ្នកពិតជាចង់ផ្ញើរបាយការណ៍អវត្តមានប្រចាំថ្ងៃទៅ Telegram Admin ឥឡូវនេះមែនទេ?')) return;
-
-        if (window.showToast) showToast('កំពុងផ្ញើរបាយការណ៍ប្រចាំថ្ងៃ...', 'info');
-
+    function triggerDailyStudentReportNow() {
+        if (window.showToast) showToast('កំពុងផ្ញើរបាយការណ៍សិស្សប្រចាំថ្ងៃ...', 'info');
         fetch('/api/telegram/send-daily-report', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({})
+            body: JSON.stringify({ target: 'student' })
         })
         .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                if (window.showToast) showToast('ជោគជ័យ!', data.message, 'success');
-                else alert(data.message);
-            } else {
-                if (window.showToast) showToast('កំហុស!', data.message, 'danger');
-                else alert('កំហុស៖ ' + data.message);
-            }
+        .then(data => alert(data.message))
+        .catch(err => alert('កំហុស៖ ' + err));
+    }
+
+    function triggerDailyTeacherReportNow() {
+        if (window.showToast) showToast('កំពុងផ្ញើរបាយការណ៍គ្រូប្រចាំថ្ងៃ...', 'info');
+        fetch('/api/telegram/send-daily-report', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ target: 'teacher' })
         })
+        .then(res => res.json())
+        .then(data => alert(data.message))
         .catch(err => alert('កំហុស៖ ' + err));
     }
 
     function triggerPeriodCheckNow() {
-        if (window.showToast) showToast('កំពុងដើរពិនិត្យម៉ោងបង្រៀន...', 'info');
-
-        fetch('/api/telegram/trigger-period-check', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({})
-        })
+        if (window.showToast) showToast('កំពុងត្រួតពិនិត្យម៉ោងបង្រៀន...', 'info');
+        fetch('/api/telegram/trigger-period-check', { method: 'POST' })
         .then(res => res.json())
         .then(data => {
-            const res = data.result || {};
-            if (res.checked) {
-                const msg = `បានឆែក ${res.period || ''}៖ មិនទាន់ស្រង់ ${res.unmarked_count || 0} នាក់, ស្រង់រួច ${res.marked_count || 0} នាក់ (បានផ្ញើសារព្រមាន ${res.alerts_sent || 0})`;
-                if (window.showToast) showToast('លទ្ធផលពិនិត្យ', msg, 'success');
-                else alert(msg);
-            } else {
-                const msg = `មិនទាន់ដល់ពេល ឬក្រៅម៉ោងបង្រៀន៖ ${res.reason || ''}`;
-                if (window.showToast) showToast('ព័ត៌មាន', msg, 'info');
-                else alert(msg);
-            }
-        })
-        .catch(err => alert('កំហុស៖ ' + err));
-    }
-
-    function setTelegramWebhook() {
-        const url = document.getElementById('telegramWebhookUrl').value.trim();
-        if (!url) {
-            alert('សូមបញ្ចូល Telegram Webhook URL ជាមុនសិន!');
-            return;
-        }
-
-        if (window.showToast) showToast('កំពុងភ្ជាប់ Webhook ជាមួយ Telegram...', 'info');
-
-        fetch('/api/telegram/set-webhook', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ webhook_url: url })
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                if (window.showToast) showToast('ជោគជ័យ!', data.message, 'success');
-                else alert('✅ ' + data.message);
-            } else {
-                alert('❌ ' + data.message);
-            }
-        })
-        .catch(err => alert('កំហុស៖ ' + err));
-    }
-
-    function checkTelegramWebhookInfo() {
-        if (window.showToast) showToast('កំពុងទាញយកព័ត៌មាន Webhook...', 'info');
-
-        fetch('/api/telegram/webhook-info')
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                const info = data.info || {};
-                const url = info.url || '(មិនទាន់កំណត់ Webhook)';
-                const pending = info.pending_update_count || 0;
-                const lastErr = info.last_error_message || 'គ្មាន';
-                alert(`🌐 ព័ត៌មាន Webhook បច្ចុប្បន្ន៖\n• URL: ${url}\n• Updates កំពុងរង់ចាំ: ${pending}\n• កំហុសចុងក្រោយ: ${lastErr}`);
-            } else {
-                alert('❌ ' + data.message);
-            }
+            const r = data.result || {};
+            alert(`លទ្ធផលឆែកម៉ោង៖\n- Checked: ${r.checked}\n- Period: ${r.period || 'ក្រៅម៉ោង'}\n- Missed Slots: ${r.unmarked_count || 0}\n- Alerts Sent: ${r.alerts_sent || 0}`);
         })
         .catch(err => alert('កំហុស៖ ' + err));
     }
 
     function testGoogleSheetsConnection() {
-        const sheetId = document.getElementById('googleSheetId').value.trim();
-        if (window.showToast) showToast('កំពុងតេស្តការតភ្ជាប់ទៅកាន់ Google Sheets...', 'info');
-
-        fetch('/api/sync/test-sheets', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sheet_id: sheetId })
-        })
+        if (window.showToast) showToast('កំពុងតេស្តការតភ្ជាប់ Google Sheets...', 'info');
+        fetch('/api/sync/test-sheets', { method: 'POST' })
         .then(res => res.json())
         .then(data => {
             if (data.success) {
                 if (window.showToast) showToast('ជោគជ័យ!', data.message, 'success');
                 else alert(data.message);
             } else {
-                if (window.showToast) showToast('កំហុស!', data.message, 'danger');
-                else alert(data.message);
+                alert('កំហុស Sheets៖ ' + data.message);
             }
         })
         .catch(err => alert('កំហុស៖ ' + err));
-    }
-
-    function triggerGoogleSheetsSync() {
-        if (window.showToast) showToast('កំពុង Sync ទិន្នន័យទាំងអស់ទៅកាន់ Google Sheets...', 'info');
-
-        fetch('/api/sync/push-sheets', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({})
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                if (window.showToast) showToast('ជោគជ័យ!', data.message, 'success');
-                else alert(data.message);
-                if (data.sync_time) {
-                    const disp = document.getElementById('lastSyncDisplay');
-                    if (disp) disp.textContent = data.sync_time;
-                }
-            } else {
-                if (window.showToast) showToast('កំហុស!', data.message, 'danger');
-                else alert(data.message);
-            }
-        })
-        .catch(err => alert('កំហុស៖ ' + err));
-    }
-
-    function testKkhsConnectionSettings() {
-        if (window.showToast) showToast('កំពុងតេស្តការតភ្ជាប់ទៅកាន់ kkhs.web.app...', 'info');
-
-        fetch('/api/sync/test-kkhs', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                if (window.showToast) showToast('ជោគជ័យ!', data.message, 'success');
-                else alert(data.message);
-            } else {
-                if (window.showToast) showToast('កំហុស!', data.message, 'danger');
-                else alert(data.message);
-            }
-        })
-        .catch(err => alert('កំហុស៖ ' + err));
-    }
-
-    function triggerKkhsSyncSettings() {
-        if (!confirm('តើអ្នកពិតជាចង់ធ្វើសមកាលកម្មទាញយកកាលវិភាគថ្មីពី kkhs.web.app មែនឬទេ?')) return;
-        if (window.showToast) showToast('កំពុងទាញយកទិន្នន័យកាលវិភាគពី kkhs.web.app...', 'info');
-
-        fetch('/api/sync/kkhs', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ mode: 'merge' })
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                if (window.showToast) showToast('ជោគជ័យ!', data.message, 'success');
-                else alert(data.message);
-                if (data.sync_time) {
-                    const disp = document.getElementById('lastKkhsSyncDisplay');
-                    if (disp) disp.textContent = data.sync_time;
-                }
-            } else {
-                if (window.showToast) showToast('កំហុស!', data.message, 'danger');
-                else alert(data.message);
-            }
-        })
-        .catch(err => {
-            if (window.showToast) showToast('កំហុស!', err, 'danger');
-            else alert('កំហុស៖ ' + err);
-        });
-    }
-
-    function triggerKkhsToSheetsBackup() {
-        if (!confirm('តើអ្នកពិតជាចង់ Backup ទិន្នន័យកាលវិភាគពី kkhs.web.app ទៅកាន់ Google Sheets មែនឬទេ?')) return;
-        if (window.showToast) showToast('កំពុង Backup ទិន្នន័យកាលវិភាគទៅ Google Sheets...', 'info');
-
-        fetch('/api/sync/kkhs-to-sheets', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({})
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                if (window.showToast) showToast('ជោគជ័យ!', data.message, 'success');
-                else alert(data.message);
-                if (data.backup_time) {
-                    const disp = document.getElementById('lastKkhsSheetsBackupDisplay');
-                    if (disp) disp.textContent = data.backup_time;
-                }
-            } else {
-                if (window.showToast) showToast('កំហុស!', data.message, 'danger');
-                else alert(data.message);
-            }
-        })
-        .catch(err => alert('កំហុស៖ ' + err));
-    }
-
-    function triggerSheetsToLocalPull() {
-        if (!confirm('តើអ្នកពិតជាចង់ទាញយកកាលវិភាគពី Google Sheets Backup មកកាន់ Local Database មែនឬទេ?')) return;
-        if (window.showToast) showToast('កំពុងទាញយកទិន្នន័យកាលវិភាគពី Google Sheets...', 'info');
-
-        fetch('/api/sync/sheets-to-timetable', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ mode: 'merge' })
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                if (window.showToast) showToast('ជោគជ័យ!', data.message, 'success');
-                else alert(data.message);
-                if (data.pull_time) {
-                    const disp = document.getElementById('lastKkhsSheetsPullDisplay');
-                    if (disp) disp.textContent = data.pull_time;
-                }
-            } else {
-                if (window.showToast) showToast('កំហុស!', data.message, 'danger');
-                else alert(data.message);
-            }
-        })
-        .catch(err => alert('កំហុស៖ ' + err));
-    }
-
-    function triggerSheetsToFirestoreSync() {
-        if (!confirm('តើអ្នកពិតជាចង់ Sync ទិន្នន័យកាលវិភាគពី Google Sheets ទៅកាន់ Cloud Firestore មែនឬទេ?')) return;
-        if (window.showToast) showToast('កំពុង Sync ទិន្នន័យទៅកាន់ Cloud Firestore...', 'info');
-
-        fetch('/api/sync/sheets-to-firestore', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({})
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                if (window.showToast) showToast('ជោគជ័យ!', data.message, 'success');
-                else alert(data.message);
-                if (data.sync_time) {
-                    const disp = document.getElementById('lastFirestoreSyncDisplay');
-                    if (disp) disp.textContent = data.sync_time;
-                }
-            } else {
-                if (data.needs_creation) {
-                    alert('សេចក្តីជូនដំណឹង Cloud Firestore៖\n\n' + data.message);
-                } else {
-                    if (window.showToast) showToast('កំហុស!', data.message, 'danger');
-                    else alert(data.message);
-                }
-            }
-        })
-        .catch(err => alert('កំហុស៖ ' + err));
-    }
-
-    function testFirestoreConnectionSettings() {
-        if (window.showToast) showToast('កំពុងតេស្តការតភ្ជាប់ទៅកាន់ Cloud Firestore...', 'info');
-        fetch('/api/sync/test-firestore', { method: 'POST' })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                if (window.showToast) showToast('ជោគជ័យ!', data.message, 'success');
-                else alert(data.message);
-            } else {
-                if (data.needs_creation) {
-                    alert('សេចក្តីជូនដំណឹង Cloud Firestore៖\n\n' + data.message);
-                } else {
-                    if (window.showToast) showToast('កំហុស!', data.message, 'danger');
-                    else alert(data.message);
-                }
-            }
-        })
-        .catch(err => alert('កំហុសតភ្ជាប់៖ ' + err));
     }
 </script>
 {% endblock %}

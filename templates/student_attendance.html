@@ -19,6 +19,28 @@
         </div>
     </div>
 
+    <!-- Quick Tool Cards (មុខងាររហ័សប្រចាំថ្ងៃ) -->
+    <div class="quick-tools-banner mb-3">
+        <div class="tools-left">
+            <div class="tools-icon"><i class="fa-solid fa-bolt"></i></div>
+            <div>
+                <h4>មុខងាររហ័សប្រចាំថ្ងៃ (Daily Fast Actions)</h4>
+                <p>ស្រង់វត្តមានសិស្សតាមថ្នាក់ ឬវត្តមានគ្រូតាមវេន និង Export ជារបាយការណ៍ Excel ឬ Google Sheets ភ្លាមៗ</p>
+            </div>
+        </div>
+        <div class="tools-right">
+            <a href="{{ url_for('export_excel_students') }}" class="btn btn-outline">
+                <i class="fa-solid fa-file-excel text-success"></i> Export សិស្ស (.xlsx)
+            </a>
+            <a href="{{ url_for('export_excel_teachers') }}" class="btn btn-outline">
+                <i class="fa-solid fa-file-excel text-success"></i> Export គ្រូ (.xlsx)
+            </a>
+            <button type="button" onclick="triggerGoogleSheetsSync()" class="btn btn-accent" id="btnSyncNowStudent">
+                <i class="fa-solid fa-cloud-arrow-up"></i> Sync ទៅ Google Sheets
+            </button>
+        </div>
+    </div>
+
     <!-- Filter Control Bar -->
     <div class="filter-bar card">
         <form method="GET" action="{{ url_for('student_attendance_page') }}" class="filter-form" id="studentFilterForm">
@@ -44,10 +66,81 @@
                     <option value="FullDay" {% if shift == 'FullDay' %}selected{% endif %}>ពេញមួយថ្ងៃ (Full Day)</option>
                 </select>
             </div>
+            <div class="filter-group">
+                <label><i class="fa-solid fa-clock"></i> ម៉ោងសិក្សា (Session)</label>
+                <select name="period" class="form-control font-weight-bold" onchange="document.getElementById('studentFilterForm').submit()">
+                    <option value="Daily" {% if period == 'Daily' %}selected{% endif %}>ពេញមួយថ្ងៃ (Daily)</option>
+                    <option value="Session 1" {% if period == 'Session 1' %}selected{% endif %}>ម៉ោងទី ១ (Session 1)</option>
+                    <option value="Session 2" {% if period == 'Session 2' %}selected{% endif %}>ម៉ោងទី ២ (Session 2)</option>
+                    <option value="Session 3" {% if period == 'Session 3' %}selected{% endif %}>ម៉ោងទី ៣ (Session 3)</option>
+                    <option value="Session 4" {% if period == 'Session 4' %}selected{% endif %}>ម៉ោងទី ៤ (Session 4)</option>
+                    <option value="Session 5" {% if period == 'Session 5' %}selected{% endif %}>ម៉ោងទី ៥ (Session 5)</option>
+                </select>
+            </div>
             <div class="filter-stats-summary">
                 <span class="badge badge-primary">សរុបសិស្សក្នុងថ្នាក់: {{ attendance_list|length }} នាក់</span>
             </div>
         </form>
+    </div>
+
+    <!-- Proxy Attendance by Admin (ចុះវត្តមានសិស្សជំនួសគ្រូបង្រៀន) -->
+    <div class="card mt-3 proxy-admin-card" style="border: 1.5px solid #3b82f6; background: #eff6ff; border-radius: 10px; box-shadow: 0 2px 6px rgba(59,130,246,0.08);">
+        <div class="card-body p-3">
+            <div class="d-flex justify-between align-center flex-wrap gap-2 mb-2">
+                <div class="d-flex align-center gap-2">
+                    <input type="checkbox" id="chkProxyAttendance" class="form-check-input" style="width:20px; height:20px; cursor:pointer;"
+                           {% if selected_teacher_id %}checked{% endif %} onchange="toggleProxySection()">
+                    <label for="chkProxyAttendance" class="fw-bold text-primary mb-0" style="cursor:pointer; font-size:0.98rem;">
+                        <i class="fa-solid fa-handshake-angle text-primary"></i> ចុះវត្តមានសិស្សជំនួសគ្រូបង្រៀន (ករណីគ្រូខូចទូរសព្ទ ដាច់សេវា ឬមានបញ្ហាបច្ចេកទេស)
+                    </label>
+                </div>
+                <span class="badge badge-info" style="font-size:0.82rem; padding: 5px 10px;">
+                    <i class="fa-solid fa-shield-halved"></i> សិទ្ធិ Admin ស្រង់ជំនួសបានគ្រប់ពេល
+                </span>
+            </div>
+
+            {% if scheduled_slot %}
+            <div class="alert alert-info py-2 px-3 mb-2 small d-flex align-center justify-between" style="background:#dbeafe; border-color:#bfdbfe; color:#1e40af; border-radius:6px;">
+                <div>
+                    <i class="fa-solid fa-calendar-check text-primary"></i> 
+                    តាមកាលវិភាគ ម៉ោងនេះបង្រៀនដោយ៖ <strong>{{ scheduled_slot.full_name_kh }}</strong> (មុខវិជ្ជា៖ {{ scheduled_slot.subject }})
+                </div>
+                <button type="button" class="btn btn-xs btn-primary" onclick="setScheduledTeacher({{ scheduled_slot.teacher_id }}, '{{ scheduled_slot.full_name_kh }}')">
+                    <i class="fa-solid fa-check"></i> ជ្រើសរើសគ្រូរូបនេះ
+                </button>
+            </div>
+            {% endif %}
+
+            <div id="proxySectionFields" style="display: {% if selected_teacher_id %}block{% else %}none{% endif %}; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #bfdbfe;">
+                <div class="row g-3" style="display:flex; flex-wrap:wrap; gap:12px;">
+                    <div style="flex:1; min-width:260px;">
+                        <label class="form-label small fw-bold text-dark"><i class="fa-solid fa-chalkboard-user"></i> គ្រូបង្រៀនដែលត្រូវចុះជំនួស <span class="text-danger">*</span></label>
+                        <select id="selectProxyTeacher" class="form-control font-weight-bold">
+                            <option value="">-- សូមជ្រើសរើសលោកគ្រូ-អ្នកគ្រូ --</option>
+                            {% for t in all_teachers %}
+                            <option value="{{ t.id }}" {% if t.id == selected_teacher_id %}selected{% endif %}>
+                                {{ t.full_name_kh }} ({{ t.teacher_code }}) - មុខវិជ្ជា {{ t.subject }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div style="flex:1; min-width:260px;">
+                        <label class="form-label small fw-bold text-dark"><i class="fa-solid fa-circle-info"></i> មូលហេតុនៃការចុះជំនួស</label>
+                        <select id="selectProxyReasonPreset" class="form-control" onchange="handleProxyReasonChange(this.value)">
+                            <option value="ទូរសព្ទខូច / មានបញ្ហា">ទូរសព្ទខូច / មានបញ្ហា (Broken Phone)</option>
+                            <option value="ដាច់សេវា / គ្មានអ៊ីនធឺណិត">ដាច់សេវា / គ្មានអ៊ីនធឺណិត (No Network / Offline)</option>
+                            <option value="គ្រូមានធុរៈបន្ទាន់ / ឈឺ">គ្រូមានធុរៈបន្ទាន់ / ឈឺ (Emergency / Sick)</option>
+                            <option value="បញ្ហាបច្ចេកទេសផ្សេងៗ">បញ្ហាបច្ចេកទេសផ្សេងៗ (Technical Issue)</option>
+                            <option value="custom">មូលហេតុផ្សេងទៀត (បញ្ចូលផ្ទាល់)...</option>
+                        </select>
+                        <input type="text" id="inputProxyReasonCustom" class="form-control mt-1" placeholder="បញ្ចូលមូលហេតុជាក់ស្តែង..." style="display:none;">
+                    </div>
+                </div>
+                <div class="text-muted small mt-2">
+                    <i class="fa-solid fa-bell text-warning"></i> ចំណាំ៖ ការស្រង់វត្តមានជំនួសនេះ នឹងធ្វើបច្ចុប្បន្នភាពវត្តមានគ្រូក្នុងប្រព័ន្ធស្វ័យប្រវត្តិ (មិនកត់ត្រាគ្រូថាអវត្តមានឡើយ) និងផ្ញើរបាយការណ៍ជូន Telegram ដោយបញ្ជាក់ថា Admin បានជួយស្រង់ជំនួស។
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Students Attendance Table -->
@@ -193,6 +286,39 @@
         showToast('បានជ្រើសរើស "វត្តមានទាំងអស់" សម្រាប់សិស្សក្នុងថ្នាក់នេះ', 'info');
     });
 
+    function toggleProxySection() {
+        const chk = document.getElementById('chkProxyAttendance');
+        const fields = document.getElementById('proxySectionFields');
+        if (fields) {
+            fields.style.display = chk.checked ? 'block' : 'none';
+        }
+    }
+
+    function setScheduledTeacher(tid, tname) {
+        const chk = document.getElementById('chkProxyAttendance');
+        if (chk) {
+            chk.checked = true;
+            toggleProxySection();
+        }
+        const select = document.getElementById('selectProxyTeacher');
+        if (select) {
+            select.value = tid;
+        }
+        showToast('បានជ្រើសរើសគ្រូបង្រៀន៖ ' + tname, 'info');
+    }
+
+    function handleProxyReasonChange(val) {
+        const customInput = document.getElementById('inputProxyReasonCustom');
+        if (customInput) {
+            if (val === 'custom') {
+                customInput.style.display = 'block';
+                customInput.focus();
+            } else {
+                customInput.style.display = 'none';
+            }
+        }
+    }
+
     function saveStudentAttendanceDirect() {
         const rows = document.querySelectorAll('#studentAttendanceTable tbody tr[data-student-id]');
         const records = [];
@@ -218,6 +344,36 @@
             return;
         }
 
+        // Check if proxy attendance is enabled by Admin
+        const isProxy = document.getElementById('chkProxyAttendance')?.checked;
+        let proxyTeacherId = null;
+        let proxyReason = '';
+
+        if (isProxy) {
+            proxyTeacherId = document.getElementById('selectProxyTeacher')?.value;
+            if (!proxyTeacherId) {
+                showToast('សូមជ្រើសរើសលោកគ្រូ-អ្នកគ្រូដែលត្រូវចុះវត្តមានជំនួស!', 'warning');
+                document.getElementById('selectProxyTeacher')?.focus();
+                return;
+            }
+            const reasonPreset = document.getElementById('selectProxyReasonPreset')?.value;
+            if (reasonPreset === 'custom') {
+                proxyReason = document.getElementById('inputProxyReasonCustom')?.value.trim() || 'ផ្សេងៗ';
+            } else {
+                proxyReason = reasonPreset;
+            }
+        }
+
+        // Filter strictly to absent/permission/late students to ensure sparse payload
+        const absentRecords = records.filter(r => r.status !== 'PRESENT');
+
+        const saveBtn = document.getElementById('btnSaveStudentAttendance');
+        const origText = saveBtn ? saveBtn.innerHTML : '';
+        if (saveBtn) {
+            saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> កំពុងរក្សាទុក...';
+            saveBtn.disabled = true;
+        }
+
         fetch('/api/student-attendance', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -226,7 +382,9 @@
                 date: dateStr,
                 shift: shift,
                 period: period,
-                records: records
+                records: absentRecords,
+                on_behalf_of_teacher_id: proxyTeacherId ? parseInt(proxyTeacherId) : null,
+                proxy_reason: proxyReason
             })
         })
         .then(res => res.json())
@@ -239,6 +397,12 @@
         })
         .catch(err => {
             showToast('បរាជ័យក្នុងការរក្សាទុក៖ ' + err, 'danger');
+        })
+        .finally(() => {
+            if (saveBtn) {
+                saveBtn.innerHTML = origText;
+                saveBtn.disabled = false;
+            }
         });
     }
 

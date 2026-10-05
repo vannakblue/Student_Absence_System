@@ -584,6 +584,57 @@ class TestTimeWindowRules(unittest.TestCase):
         self.assertIn("mobile-portal-body", html)
         self.assertIn("ម៉ោងបង្រៀនថ្ងៃនេះ", html)
 
+    def test_configurable_attendance_window_less_and_more_than_30_minutes(self):
+        """ផ្ទៀងផ្ទាត់ការកំណត់ចន្លោះពេលម៉ោងសិក្សា៖ តិចជាង 30 នាទី ឬ ច្រើនជាង 30 នាទី"""
+        old_p1 = db.get_setting("period_1_deadline_minutes", "")
+        try:
+            # Clear specific period 1 override so global setting takes effect
+            db.set_setting("period_1_deadline_minutes", "")
+
+            # 1. Test Window = 15 minutes (< 30)
+            db.set_setting("attendance_window_minutes", "15")
+
+            # At 07:10 (10 mins into 07:00-08:00) -> Must be Phase 1
+            dt_10 = datetime(2026, 9, 21, 7, 10, 0)
+            info_10 = db.get_current_period_info(dt_10)
+            self.assertEqual(info_10["period"]["phase"], "first_30")
+            self.assertEqual(info_10["period"]["window_minutes"], 15)
+            self.assertIn("15 នាទីដំបូង", info_10["period"]["phase_kh"])
+
+            # At 07:20 (20 mins into 07:00-08:00) -> Must be Phase 2 (second_30) because > 15 mins
+            dt_20 = datetime(2026, 9, 21, 7, 20, 0)
+            info_20 = db.get_current_period_info(dt_20)
+            self.assertEqual(info_20["period"]["phase"], "second_30")
+
+            # 2. Test Window = 45 minutes (> 30)
+            db.set_setting("attendance_window_minutes", "45")
+
+            # At 07:40 (40 mins into 07:00-08:00) -> Must be Phase 1 because < 45 mins
+            dt_40 = datetime(2026, 9, 21, 7, 40, 0)
+            info_40 = db.get_current_period_info(dt_40)
+            self.assertEqual(info_40["period"]["phase"], "first_30")
+            self.assertEqual(info_40["period"]["window_minutes"], 45)
+            self.assertIn("45 នាទីដំបូង", info_40["period"]["phase_kh"])
+
+            # At 07:50 (50 mins into 07:00-08:00) -> Must be Phase 2 because > 45 mins
+            dt_50 = datetime(2026, 9, 21, 7, 50, 0)
+            info_50 = db.get_current_period_info(dt_50)
+            self.assertEqual(info_50["period"]["phase"], "second_30")
+
+            # 3. Test check_submission_window_rule with 15 mins
+            db.set_setting("attendance_window_minutes", "15")
+            can_sub, code, msg, phase, cnt = db.check_submission_window_rule(
+                class_id=9001, date_str="2026-09-21", shift="Morning", period_str="Session 1", current_dt=dt_10
+            )
+            self.assertTrue(can_sub)
+            self.assertEqual(phase, "first_30")
+            self.assertIn("15 នាទីដំបូង", msg)
+
+        finally:
+            # Restore standard settings
+            db.set_setting("period_1_deadline_minutes", old_p1)
+            db.set_setting("attendance_window_minutes", "30")
+
 
 if __name__ == "__main__":
     unittest.main()

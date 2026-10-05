@@ -19,6 +19,28 @@
         </div>
     </div>
 
+    <!-- Quick Tool Cards (មុខងាររហ័សប្រចាំថ្ងៃ) -->
+    <div class="quick-tools-banner mb-3">
+        <div class="tools-left">
+            <div class="tools-icon"><i class="fa-solid fa-bolt"></i></div>
+            <div>
+                <h4>មុខងាររហ័សប្រចាំថ្ងៃ (Daily Fast Actions)</h4>
+                <p>ស្រង់វត្តមានសិស្សតាមថ្នាក់ ឬវត្តមានគ្រូតាមវេន និង Export ជារបាយការណ៍ Excel ឬ Google Sheets ភ្លាមៗ</p>
+            </div>
+        </div>
+        <div class="tools-right">
+            <a href="{{ url_for('export_excel_students') }}" class="btn btn-outline">
+                <i class="fa-solid fa-file-excel text-success"></i> Export សិស្ស (.xlsx)
+            </a>
+            <a href="{{ url_for('export_excel_teachers') }}" class="btn btn-outline">
+                <i class="fa-solid fa-file-excel text-success"></i> Export គ្រូ (.xlsx)
+            </a>
+            <button type="button" onclick="triggerGoogleSheetsSync()" class="btn btn-accent" id="btnSyncNowTeacher">
+                <i class="fa-solid fa-cloud-arrow-up"></i> Sync ទៅ Google Sheets
+            </button>
+        </div>
+    </div>
+
     <!-- Rule Notification Banner -->
     <div class="alert alert-info d-flex align-center gap-3 mb-3" style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:12px; padding:14px 18px; color:#1e40af;">
         <i class="fa-solid fa-circle-info" style="font-size:24px; color:#2563eb;"></i>
@@ -99,6 +121,7 @@
                                 <th style="width: 200px;">ការស្រង់វត្តមានសិស្ស</th>
                                 <th style="width: 140px;">វត្តមានគ្រូ</th>
                                 <th>សេចក្តីលម្អិត / មូលហេតុ</th>
+                                <th style="width: 130px; text-align:center;">សកម្មភាព Admin</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -122,7 +145,7 @@
                                 <td>
                                     {% if s.is_marked %}
                                         <span class="badge badge-success" style="font-size:0.85rem; padding:6px 10px;">
-                                            <i class="fa-solid fa-circle-check"></i> បានស្រង់រួច ({{ s.student_attendance_count }} នាក់)
+                                             <i class="fa-solid fa-circle-check"></i> បានស្រង់រួច ({{ s.student_attendance_count }} នាក់)
                                         </span>
                                     {% else %}
                                         <span class="badge badge-danger" style="font-size:0.85rem; padding:6px 10px;">
@@ -148,10 +171,23 @@
                                 <td>
                                     <small class="text-muted">{{ s.status_reason }}</small>
                                 </td>
+                                <td class="text-center">
+                                    {% if not s.is_marked %}
+                                    <a href="{{ url_for('student_attendance_page', class_id=s.resolved_class_id, date=date, shift=s.shift, period='Session ' ~ s.period_num, teacher_id=s.teacher_id) }}" 
+                                       class="btn btn-sm btn-outline-primary" style="white-space:nowrap; padding:4px 8px; font-size:0.85rem;" title="ចុះវត្តមានសិស្សជំនួសគ្រូ (ឧ. ខូចទូរសព្ទ)">
+                                        <i class="fa-solid fa-user-pen"></i> ចុះជំនួស
+                                    </a>
+                                    {% else %}
+                                    <a href="{{ url_for('student_attendance_page', class_id=s.resolved_class_id, date=date, shift=s.shift, period='Session ' ~ s.period_num, teacher_id=s.teacher_id) }}" 
+                                       class="btn btn-sm btn-light" style="white-space:nowrap; padding:4px 8px; font-size:0.85rem;" title="ពិនិត្យ ឬកែប្រែវត្តមាន">
+                                        <i class="fa-solid fa-eye"></i> ពិនិត្យ
+                                    </a>
+                                    {% endif %}
+                                </td>
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="8" class="text-center py-4 text-muted">
+                                <td colspan="9" class="text-center py-4 text-muted">
                                     <i class="fa-solid fa-calendar-xmark" style="font-size:32px; margin-bottom:8px; display:block;"></i>
                                     មិនមានកាលវិភាគបង្រៀនសម្រាប់កាលបរិច្ឆេទនេះទេ (ថ្ងៃអាទិត្យ ឬថ្ងៃឈប់សម្រាក)
                                 </td>

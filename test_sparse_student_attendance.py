@@ -142,6 +142,142 @@ class TestSparseStudentAttendance(unittest.TestCase):
         self.assertEqual(count_after, 0, "Absence record should be deleted when changed to PRESENT")
         print("[OK] Absence record deleted cleanly when student changes to PRESENT.")
 
+    def test_04_teacher_cannot_mark_teacher_attendance(self):
+        """គ្រូមិនអាចចុះវត្តមាន ឬអវត្តមានឱ្យគ្រូដទៃបានទេ (ទាមទារ Admin)"""
+        with self.client.session_transaction() as sess:
+            sess["user"] = {
+                "id": 2,
+                "username": "teacher1",
+                "role": "teacher",
+                "teacher_id": 1,
+                "full_name_kh": "គ្រូ តេស្ត"
+            }
+
+        res = self.client.post("/api/teacher-attendance", json={
+            "date": "2026-09-22",
+            "shift": "Morning",
+            "period": "Session 1",
+            "records": [{"teacher_id": 2, "status": "ABSENT", "reason": "ឈឺ"}]
+        })
+
+        self.assertEqual(res.status_code, 403)
+        data = res.get_json()
+        self.assertFalse(data["success"])
+        self.assertIn("លោកគ្រូ-អ្នកគ្រូមិនអាចចុះវត្តមាន", data["message"])
+        print("[OK] Teacher strictly forbidden (403) from marking teacher attendance.")
+
+    def test_05_admin_can_mark_teacher_attendance(self):
+        """Admin មានសិទ្ធិពេញលេញក្នុងការចុះវត្តមានគ្រូ"""
+        with self.client.session_transaction() as sess:
+            sess["user"] = {
+                "id": 1,
+                "username": "admin",
+                "role": "admin",
+                "full_name_kh": "Admin"
+            }
+
+        teachers = db.get_teachers(active_only=True)
+        self.assertGreater(len(teachers), 0)
+        t = teachers[0]
+
+        res = self.client.post("/api/teacher-attendance", json={
+            "date": "2026-09-22",
+            "shift": "Morning",
+            "period": "Session 1",
+            "records": [{"teacher_id": t["id"], "status": "PRESENT", "reason": ""}]
+        })
+
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertTrue(data["success"])
+        print("[OK] Admin successfully marked teacher attendance (200).")
+
+    def test_06_teacher_cannot_request_leave_for_other_teacher(self):
+        """គ្រូមិនអាចដាក់ពាក្យសុំច្បាប់ជំនួសគ្រូដទៃបានទេ (403)"""
+        teachers = db.get_teachers(active_only=True)
+        self.assertGreaterEqual(len(teachers), 2)
+        t1 = teachers[0]
+        t2 = teachers[1]
+
+        with self.client.session_transaction() as sess:
+            sess["user"] = {
+                "id": 2,
+                "username": "teacher1",
+                "role": "teacher",
+                "teacher_id": t1["id"],
+                "full_name_kh": t1["full_name_kh"]
+            }
+
+        # Try to submit leave request for t2
+        res = self.client.post("/api/leave-requests", json={
+            "person_type": "TEACHER",
+            "person_id": t2["id"], # Attempting to request for another teacher!
+            "start_date": "2026-09-23",
+            "end_date": "2026-09-23",
+            "reason": "ឈឺ",
+            "status": "Pending"
+        })
+
+        self.assertEqual(res.status_code, 403)
+        data = res.get_json()
+        self.assertFalse(data["success"])
+        self.assertIn("មិនអាចស្នើសុំច្បាប់ជំនួសគ្រូដទៃបានទេ", data["message"])
+        print("[OK] Teacher prevented (403) from requesting leave for another teacher.")
+
+    def test_07_api_student_attendance_sparse_and_empty_list(self):
+        """ផ្ទៀងផ្ទាត់ /api/student-attendance ទទួល records: [] (សិស្សមក ១០០%) ដោយជោគជ័យ"""
+        with self.client.session_transaction() as sess:
+            sess["user"] = {
+                "id": 1,
+                "username": "admin",
+                "role": "admin",
+                "full_name_kh": "Admin"
+            }
+
+        classes = db.get_classes()
+        c = classes[0]
+        students = db.get_students(class_id=c["id"])
+        s1 = students[0]
+
+        test_date = "2026-09-25"
+        test_shift = "Morning"
+        test_period = "Session 1"
+
+        # 1. First mark 1 student absent
+        res1 = self.client.post("/api/student-attendance", json={
+            "class_id": c["id"],
+            "date": test_date,
+            "shift": test_shift,
+            "period": test_period,
+            "records": [{"student_id": s1["id"], "status": "ABSENT", "reason": "ឈឺ"}]
+        })
+        self.assertEqual(res1.status_code, 200)
+        self.assertEqual(res1.get_json()["absent_count"], 1)
+
+        # 2. Now submit with 100% present: records is empty []
+        res2 = self.client.post("/api/student-attendance", json={
+            "class_id": c["id"],
+            "date": test_date,
+            "shift": test_shift,
+            "period": test_period,
+            "records": []
+        })
+        self.assertEqual(res2.status_code, 200)
+        data2 = res2.get_json()
+        self.assertTrue(data2["success"])
+        self.assertEqual(data2["absent_count"], 0)
+        self.assertIn("១០០%", data2["message"])
+
+        # Verify DB: 0 rows in student_attendance
+        conn = db.get_db_connection()
+        cnt = conn.execute("""
+            SELECT COUNT(*) FROM student_attendance
+            WHERE class_id = ? AND date = ? AND shift = ? AND period = ?
+        """, (c["id"], test_date, test_shift, test_period)).fetchone()[0]
+        conn.close()
+        self.assertEqual(cnt, 0, "student_attendance should have 0 rows when all are present")
+        print("[OK] Empty records [] (100% present) handled with 200 OK and 0 database rows.")
+
 
 if __name__ == "__main__":
     unittest.main()

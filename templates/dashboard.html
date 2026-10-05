@@ -112,6 +112,31 @@
         </div>
     </div>
 
+    <!-- 40-Class Status Grid (ស្ថានភាពស្រង់វត្តមានតាមថ្នាក់រៀនទាំង ៤០ ថ្នាក់) -->
+    <div class="card mb-3">
+        <div class="card-header d-flex justify-between align-center">
+            <div class="card-title">
+                <i class="fa-solid fa-chalkboard text-primary"></i>
+                <span>ស្ថានភាពស្រង់វត្តមានតាមថ្នាក់រៀនទាំង ៤០ ថ្នាក់ (ប្រចាំថ្ងៃ)</span>
+            </div>
+            <span class="badge badge-primary">{{ stats.classes_recorded_count }} / {{ stats.total_classes }} ថ្នាក់ស្រង់រួច</span>
+        </div>
+        <div class="card-body">
+            <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap:10px;">
+                {% for c in stats.class_matrix %}
+                <a href="{{ url_for('student_attendance_page') }}?class_id={{ c.id }}" style="text-decoration:none; color:inherit;">
+                    <div style="padding:8px; border-radius:10px; border:1px solid {{ '#a7f3d0' if c.is_recorded else '#e2e8f0' }}; background:{{ '#ecfdf5' if c.is_recorded else '#f8fafc' }}; text-align:center; font-weight:600; font-size:0.82rem; cursor:pointer; transition:all 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">
+                        <div>{{ c.class_name }}</div>
+                        <small style="font-size:0.7rem; font-weight:400; color:{{ '#059669' if c.is_recorded else '#94a3b8' }};">
+                            {{ '✓ ស្រង់រួច' if c.is_recorded else 'រង់ចាំ' }}
+                        </small>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
     <!-- Timetable Accountability & Missed Attendance Alert Widget -->
     {% if stats.unmarked_slots_count > 0 %}
     <div class="card mb-3 border-danger" style="background:#fff5f5; border-left:5px solid #ef4444;">

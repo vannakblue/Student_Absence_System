@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ប្រព័ន្ធកំពុងស្ថិតក្រោមការថែទាំ | {{ global_school_name_kh }}</title>
+    
+    <!-- Google Fonts: Kantumruy Pro & Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Kantumruy+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --bg-gradient-start: #0f172a;
+            --bg-gradient-end: #1e293b;
+            --card-bg: rgba(30, 41, 59, 0.82);
+            --card-border: rgba(255, 255, 255, 0.12);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent-amber: #f59e0b;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Kantumruy Pro', 'Inter', -apple-system, sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
+            color: var(--text-main);
+            padding: 24px;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* Decorative background glowing spheres */
+        .glow-sphere-1 {
+            position: absolute;
+            width: 380px;
+            height: 380px;
+            background: radial-gradient(circle, rgba(37, 99, 235, 0.28) 0%, rgba(37, 99, 235, 0) 70%);
+            top: 10%;
+            left: 15%;
+            filter: blur(50px);
+            z-index: 0;
+            animation: pulse-glow 7s infinite alternate ease-in-out;
+        }
+
+        .glow-sphere-2 {
+            position: absolute;
+            width: 320px;
+            height: 320px;
+            background: radial-gradient(circle, rgba(245, 158, 11, 0.2) 0%, rgba(245, 158, 11, 0) 70%);
+            bottom: 15%;
+            right: 15%;
+            filter: blur(50px);
+            z-index: 0;
+            animation: pulse-glow 8s infinite alternate-reverse ease-in-out;
+        }
+
+        @keyframes pulse-glow {
+            0% { transform: scale(0.9) translate(0, 0); opacity: 0.7; }
+            100% { transform: scale(1.15) translate(20px, 20px); opacity: 1; }
+        }
+
+        .maintenance-card {
+            position: relative;
+            z-index: 1;
+            max-width: 580px;
+            width: 100%;
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--card-border);
+            border-radius: 24px;
+            padding: 44px 36px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
+            text-align: center;
+        }
+
+        .icon-container {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 96px;
+            height: 96px;
+            background: rgba(245, 158, 11, 0.12);
+            border: 2px solid rgba(245, 158, 11, 0.35);
+            border-radius: 50%;
+            margin-bottom: 24px;
+        }
+
+        .icon-container i.main-icon {
+            font-size: 2.75rem;
+            color: var(--accent-amber);
+            animation: rotate-wrench 4s ease-in-out infinite alternate;
+        }
+
+        @keyframes rotate-wrench {
+            0% { transform: rotate(-12deg); }
+            100% { transform: rotate(18deg); }
+        }
+
+        .badge-live {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(239, 68, 68, 0.15);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            padding: 6px 14px;
+            border-radius: 999px;
+            font-size: 0.84rem;
+            font-weight: 600;
+            margin-bottom: 18px;
+            letter-spacing: 0.3px;
+        }
+
+        .badge-live::before {
+            content: "";
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ef4444;
+            box-shadow: 0 0 8px #ef4444;
+            animation: blink 1.5s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        h1.title {
+            font-size: 1.65rem;
+            font-weight: 700;
+            line-height: 1.4;
+            color: #ffffff;
+            margin-bottom: 12px;
+        }
+
+        .school-name {
+            font-size: 0.95rem;
+            color: #38bdf8;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .message-box {
+            background: rgba(15, 23, 42, 0.65);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            padding: 18px 20px;
+            font-size: 0.92rem;
+            line-height: 1.7;
+            color: #e2e8f0;
+            margin-bottom: 28px;
+            text-align: left;
+        }
+
+        .info-grid {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-bottom: 30px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .info-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .info-item i {
+            color: #38bdf8;
+        }
+
+        .action-row {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 11px 22px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            border-radius: 12px;
+            text-decoration: none;
+            transition: all 0.25s ease;
+            cursor: pointer;
+            border: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            color: #ffffff;
+            box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.55);
+        }
+
+        .btn-outline {
+            background: rgba(255, 255, 255, 0.05);
+            color: #cbd5e1;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        .btn-outline:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+            transform: translateY(-2px);
+        }
+
+        .footer-note {
+            margin-top: 26px;
+            font-size: 0.78rem;
+            color: #64748b;
+        }
+    </style>
+</head>
+<body>
+    <div class="glow-sphere-1"></div>
+    <div class="glow-sphere-2"></div>
+
+    <div class="maintenance-card">
+        <div class="badge-live">
+            <span>កំពុងស្ថិតក្នុងការថែទាំ (Maintenance Mode)</span>
+        </div>
+
+        <div class="icon-container">
+            <i class="fa-solid fa-screwdriver-wrench main-icon"></i>
+        </div>
+
+        <h1 class="title">ប្រព័ន្ធកំពុងកែលម្អ និងថែទាំបច្ចេកទេស</h1>
+        <div class="school-name">
+            <i class="fa-solid fa-graduation-cap"></i> {{ global_school_name_kh }}
+        </div>
+
+        <div class="message-box">
+            <i class="fa-solid fa-circle-info" style="color: #f59e0b; margin-right: 6px;"></i>
+            {{ maintenance_message or 'ប្រព័ន្ធគ្រប់គ្រងអវត្តមានសិស្ស និងគ្រូបង្រៀន កំពុងត្រូវបានធ្វើបច្ចុប្បន្នភាព និងថែទាំសុវត្ថិភាពទិន្នន័យ។ លោកគ្រូ-អ្នកគ្រូ នឹងអាចចូលប្រើប្រាស់បានឡើងវិញនៅពេលដែលការថែទាំត្រូវបានបញ្ចប់។' }}
+        </div>
+
+        <div class="info-grid">
+            <div class="info-item">
+                <i class="fa-solid fa-shield-halved"></i>
+                <span>ទិន្នន័យត្រូវបានការពារសុវត្ថិភាព</span>
+            </div>
+            <div class="info-item">
+                <i class="fa-solid fa-headset"></i>
+                <span>ទាក់ទង Admin៖ 023 888 999</span>
+            </div>
+        </div>
+
+        <div class="action-row">
+            <a href="{{ url_for('login') }}" class="btn btn-primary">
+                <i class="fa-solid fa-lock"></i> ចូលគណនី Administrator
+            </a>
+            <button onclick="window.location.reload()" class="btn btn-outline">
+                <i class="fa-solid fa-rotate-right"></i> ផ្ទុកទំព័រឡើងវិញ (Refresh)
+            </button>
+        </div>
+
+        <div class="footer-note">
+            Student & Teacher Absence Management System • SchoolSM © 2026-2027
+        </div>
+    </div>
+</body>
+</html>
