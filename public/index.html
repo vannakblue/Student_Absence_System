@@ -191,6 +191,9 @@
                             <div style="padding:10px 16px; border-bottom:1px solid #f1f5f9; font-size:0.8rem; color:#64748b;">
                                 Username: <strong id="dropdownUsername" style="color:#0f172a; font-family:monospace;">admin</strong>
                             </div>
+                            <a href="javascript:void(0)" onclick="toggleUserRoleMode()" style="display:flex; align-items:center; gap:10px; padding:9px 16px; font-size:0.82rem; color:#334155; text-decoration:none; transition:background 0.15s;">
+                                <i class="fa-solid fa-user-shield text-warning" style="width:16px;"></i> <span id="dropdownRoleToggleText">ប្តូរសិទ្ធិ (Teacher/Admin)</span>
+                            </a>
                             <a href="javascript:void(0)" onclick="switchToMobilePortal()" style="display:flex; align-items:center; gap:10px; padding:9px 16px; font-size:0.82rem; color:#334155; text-decoration:none; transition:background 0.15s;">
                                 <i class="fa-solid fa-mobile-screen-button text-primary" style="width:16px;"></i> Teacher Mobile App
                             </a>
@@ -453,8 +456,8 @@
                                 <button type="button" class="btn btn-outline" onclick="markAllStudentsPresent()">
                                     <i class="fa-solid fa-check-double text-success"></i> វត្តមានទាំងអស់
                                 </button>
-                                <button type="button" class="btn btn-primary" onclick="saveStudentAttendanceCloud()">
-                                    <i class="fa-solid fa-floppy-disk"></i> រក្សាទុកទិន្នន័យ (Cloud Save)
+                                <button type="button" id="saveStudentAttBtn" class="btn btn-primary" onclick="saveStudentAttendanceCloud()">
+                                    <i class="fa-solid fa-floppy-disk"></i> <span id="saveStudentAttBtnText">រក្សាទុកទិន្នន័យ (Cloud Save)</span>
                                 </button>
                             </div>
                         </div>
@@ -496,17 +499,40 @@
                                 </div>
                                 <div class="filter-group">
                                     <label><i class="fa-solid fa-clock"></i> ម៉ោងទី (Period)</label>
-                                    <select id="attPeriodSelect" class="form-control" onchange="loadClassAttendanceTable()">
-                                        <option value="1">ម៉ោងទី ១ (ព្រឹក: 7:00 / រសៀល: 13:00)</option>
-                                        <option value="2">ម៉ោងទី ២ (ព្រឹក: 7:45 / រសៀល: 13:45)</option>
-                                        <option value="3">ម៉ោងទី ៣ (ព្រឹក: 8:45 / រសៀល: 14:45)</option>
-                                        <option value="4">ម៉ោងទី ៤ (ព្រឹក: 9:30 / រសៀល: 15:30)</option>
-                                        <option value="5">ម៉ោងទី ៥ (ព្រឹក: 10:15 / រសៀល: 16:15)</option>
+                                    <select id="attPeriodSelect" class="form-control font-weight-bold" onchange="loadClassAttendanceTable()">
+                                        <option value="1">ម៉ោងទី ១ (ព្រឹក: ០៧:០០ - ០៨:០០)</option>
+                                        <option value="2">ម៉ោងទី ២ (ព្រឹក: ០៨:០០ - ០៩:០០)</option>
+                                        <option value="3">ម៉ោងទី ៣ (ព្រឹក: ០៩:០០ - ១០:០០)</option>
+                                        <option value="4">ម៉ោងទី ៤ (ព្រឹក: ១០:០០ - ១១:០០)</option>
+                                        <option value="5">ម៉ោងទី ៥ (រសៀល: ១៣:០០ - ១៤:០០)</option>
+                                        <option value="6">ម៉ោងទី ៦ (រសៀល: ១៤:០០ - ១៥:០០)</option>
+                                        <option value="7">ម៉ោងទី ៧ (រសៀល: ១៥:០០ - ១៦:០០)</option>
+                                        <option value="8">ម៉ោងទី ៨ (រសៀល: ១៦:០០ - ១៧:០០)</option>
                                     </select>
                                 </div>
                                 <div class="filter-stats-summary" style="margin-left:auto;">
                                     <span class="badge badge-primary" id="attClassCountBadge">សរុបសិស្សក្នុងថ្នាក់: 0 នាក់</span>
                                 </div>
+                            </div>
+                        </div>
+
+                        <!-- Realtime 30-Minute Window Status Banner -->
+                        <div id="attTimeWindowBanner" class="card mt-3 mb-2" style="background:#f0fdf4; border:1.5px solid #86efac; border-radius:14px; padding:12px 18px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; transition:all 0.3s ease;">
+                            <div style="display:flex; align-items:center; gap:12px;">
+                                <span id="attPhaseIcon" style="font-size:1.5rem;">🟢</span>
+                                <div>
+                                    <div id="attPhaseTitle" style="font-weight:700; font-size:0.95rem; color:#166534;">ចន្លោះពេល ៣០ នាទីដំបូង (កែប្រែបានសេរី)</div>
+                                    <div id="attPhaseSubtitle" style="font-size:0.82rem; color:#15803d;">ម៉ោងបច្ចុប្បន្ន៖ <span id="attCurrentPeriodName">ម៉ោងទី...</span> • នៅសល់ <span id="attCountdownTimer" style="font-weight:800; font-family:monospace; font-size:0.95rem;">--:--</span></div>
+                                </div>
+                            </div>
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                <span id="attLockBadge" class="badge" style="background:#16a34a; color:#fff; font-size:0.82rem; padding:6px 14px; border-radius:20px; font-weight:700; display:inline-flex; align-items:center; gap:6px;">
+                                    <i class="fa-solid fa-lock-open" id="attLockIcon"></i> <span id="attLockBadgeText">កែប្រែបានសេរី</span>
+                                </span>
+                                <button type="button" id="roleToggleBtn" onclick="toggleUserRoleMode()" class="btn btn-sm" style="border:1.5px solid #cbd5e1; background:#ffffff; font-size:0.75rem; border-radius:18px; padding:5px 12px; cursor:pointer; font-weight:700; display:inline-flex; align-items:center; gap:6px; box-shadow:0 1px 3px rgba(0,0,0,0.06);" title="ចុចដើម្បីប្តូររវាងសិទ្ធិគ្រូបង្រៀន និង Administrator">
+                                    <i class="fa-solid fa-user-shield" id="roleToggleBtnIcon" style="color:#2563eb;"></i>
+                                    <span id="roleToggleBtnText">របៀប៖ គ្រូបង្រៀន</span>
+                                </button>
                             </div>
                         </div>
 
@@ -1037,6 +1063,10 @@
                         <button type="button" onclick="toggleTheme()" class="mobile-icon-btn" title="ប្តូរពណ៌ (Light/Dark Mode)" style="background:none; border:none; cursor:pointer; color:#fff; font-size:16px;">
                             <i class="fa-solid fa-moon" id="mobThemeIcon"></i>
                         </button>
+                        <!-- Role Toggle -->
+                        <button type="button" onclick="toggleUserRoleMode()" class="mobile-icon-btn" title="ប្តូរសិទ្ធិ (Teacher / Admin)" style="background:none; border:none; cursor:pointer; color:#fff; font-size:16px;">
+                            <i class="fa-solid fa-user-shield" id="mobRoleIcon"></i>
+                        </button>
                         <button type="button" onclick="switchToDesktopLayout()" class="mobile-icon-btn" title="ប្តូរទៅ Desktop Mode" style="background:none; border:none; cursor:pointer;">
                             <i class="fa-solid fa-desktop"></i>
                         </button>
@@ -1073,14 +1103,17 @@
                         </div>
                         <div style="text-align:right;">
                             <span id="mobActivePeriodBadge" class="badge" style="background:rgba(255,255,255,0.25); color:#fff; font-size:0.78rem; padding:4px 10px; border-radius:12px; font-weight:600;">
-                                ម៉ោងទី ១ (07:00 - 07:45)
+                                កំពុងគណនា...
                             </span>
                         </div>
                     </div>
 
                     <div style="margin-bottom:14px;">
                         <h4 id="mobSlotClassTitle" style="font-size:1.15rem; font-weight:700; margin-bottom:2px;">ម៉ោងទី... ថ្នាក់...</h4>
-                        <p id="mobSlotSubjectDesc" style="font-size:0.82rem; opacity:0.9;">មុខវិជ្ជា៖ ... | បន្ទប់៖ ...</p>
+                        <p id="mobSlotSubjectDesc" style="font-size:0.82rem; opacity:0.9; margin-bottom:6px;">មុខវិជ្ជា៖ ... | បន្ទប់៖ ...</p>
+                        <div id="mobPhaseCountdown" style="display:inline-flex; align-items:center; gap:6px; background:rgba(0,0,0,0.3); padding:4px 10px; border-radius:10px; font-size:0.78rem; font-weight:700; color:#fef08a;">
+                            <span id="mobPhaseIcon">🟢</span> <span id="mobPhaseText">៣០ នាទីដំបូង៖ នៅសល់ --:--</span>
+                        </div>
                     </div>
 
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
@@ -1171,7 +1204,12 @@
             users: [],
             settings: {}
         };
-        let currentUser = { username: 'admin', role: 'admin', full_name_kh: 'គណៈគ្រប់គ្រងសាលា' };
+        let currentUserRole = localStorage.getItem('app_user_role') || 'teacher';
+        let currentUser = {
+            username: (currentUserRole === 'admin') ? 'admin' : 'teacher',
+            role: currentUserRole,
+            full_name_kh: (currentUserRole === 'admin') ? 'គណៈគ្រប់គ្រងសាលា' : 'លោកគ្រូ-អ្នកគ្រូ'
+        };
         let activeStudentAttendance = {}; // { student_code: { status, reason } }
         let activeTeacherAttendance = {}; // { teacher_id: { status, substitute, reason } }
         let timetableViewType = 'class';
@@ -1179,10 +1217,47 @@
         // 2. Lifecycle
         window.addEventListener('DOMContentLoaded', async () => {
             initTheme();
+            syncUserRoleUI();
             startLiveClock();
             initDatePickers();
             await loadFirebaseData();
         });
+
+        function toggleUserRoleMode() {
+            currentUserRole = (currentUserRole === 'admin') ? 'teacher' : 'admin';
+            localStorage.setItem('app_user_role', currentUserRole);
+            currentUser.role = currentUserRole;
+            currentUser.username = (currentUserRole === 'admin') ? 'admin' : 'teacher';
+            currentUser.full_name_kh = (currentUserRole === 'admin') ? 'គណៈគ្រប់គ្រងសាលា' : 'លោកគ្រូ-អ្នកគ្រូ';
+
+            syncUserRoleUI();
+            showToast(`🔄 បានប្តូរទៅជា៖ ${currentUserRole === 'admin' ? '🛡️ Administrator' : '👨‍🏫 គ្រូបង្រៀន (អនុវត្តច្បាប់ ៣០ នាទី)'}`, "info");
+            updateTimeWindowBannerUI();
+        }
+
+        function syncUserRoleUI() {
+            const roleEl = document.getElementById('userProfileRole');
+            if (roleEl) roleEl.innerText = (currentUserRole === 'admin') ? 'Administrator' : 'គ្រូបង្រៀន (Teacher)';
+            const nameEl = document.getElementById('userProfileName');
+            if (nameEl) nameEl.innerText = currentUser.full_name_kh;
+
+            const toggleBtnText = document.getElementById('roleToggleBtnText');
+            if (toggleBtnText) toggleBtnText.innerText = (currentUserRole === 'admin') ? 'របៀប៖ Admin Proxy' : 'របៀប៖ គ្រូបង្រៀន';
+            const toggleBtn = document.getElementById('roleToggleBtn');
+            if (toggleBtn) {
+                if (currentUserRole === 'admin') {
+                    toggleBtn.style.background = '#eff6ff';
+                    toggleBtn.style.borderColor = '#93c5fd';
+                    toggleBtn.style.color = '#1d4ed8';
+                } else {
+                    toggleBtn.style.background = '#ffffff';
+                    toggleBtn.style.borderColor = '#cbd5e1';
+                    toggleBtn.style.color = '#334155';
+                }
+            }
+            const dropdownText = document.getElementById('dropdownRoleToggleText');
+            if (dropdownText) dropdownText.innerText = (currentUserRole === 'admin') ? 'ប្តូរទៅសិទ្ធិ៖ គ្រូបង្រៀន' : 'ប្តូរទៅសិទ្ធិ៖ Administrator';
+        }
 
         function startLiveClock() {
             function update() {
@@ -1197,6 +1272,11 @@
                 
                 const headerDate = document.getElementById('headerLiveDate');
                 if (headerDate) headerDate.innerText = dateStr;
+
+                // Live 30-minute window countdown & lockout sync
+                if (typeof updateTimeWindowBannerUI === 'function') {
+                    updateTimeWindowBannerUI();
+                }
             }
             update();
             setInterval(update, 1000);
@@ -1737,6 +1817,9 @@
             });
 
             updateStudentAttBadges();
+            if (typeof updateTimeWindowBannerUI === 'function') {
+                updateTimeWindowBannerUI();
+            }
         }
 
         function setStudentAttStatus(code, status) {
@@ -1777,10 +1860,297 @@
             document.getElementById('badgeLate').innerText = `យឺត: ${l}`;
         }
 
+        // ==========================================
+        // TIME WINDOW RULES ENGINE (30-MIN PHASE RULE)
+        // ==========================================
+        const PERIOD_SCHEDULE = [
+            { shift: 'Morning', shift_kh: 'ពេលព្រឹក', db_period_num: 1, start_hour: 7, start_min: 0, end_hour: 8, end_min: 0, label: 'ម៉ោងទី ១ (០៧:០០ - ០៨:០០)', short_label: 'ម៉ោងទី ១' },
+            { shift: 'Morning', shift_kh: 'ពេលព្រឹក', db_period_num: 2, start_hour: 8, start_min: 0, end_hour: 9, end_min: 0, label: 'ម៉ោងទី ២ (០៨:០០ - ០៩:០០)', short_label: 'ម៉ោងទី ២' },
+            { shift: 'Morning', shift_kh: 'ពេលព្រឹក', db_period_num: 3, start_hour: 9, start_min: 0, end_hour: 10, end_min: 0, label: 'ម៉ោងទី ៣ (០៩:០០ - ១០:០០)', short_label: 'ម៉ោងទី ៣' },
+            { shift: 'Morning', shift_kh: 'ពេលព្រឹក', db_period_num: 4, start_hour: 10, start_min: 0, end_hour: 11, end_min: 0, label: 'ម៉ោងទី ៤ (១០:០០ - ១១:០០)', short_label: 'ម៉ោងទី ៤' },
+            { shift: 'Afternoon', shift_kh: 'ពេលរសៀល', db_period_num: 5, start_hour: 13, start_min: 0, end_hour: 14, end_min: 0, label: 'ម៉ោងទី ៥ (១៣:០០ - ១៤:០០)', short_label: 'ម៉ោងទី ៥' },
+            { shift: 'Afternoon', shift_kh: 'ពេលរសៀល', db_period_num: 6, start_hour: 14, start_min: 0, end_hour: 15, end_min: 0, label: 'ម៉ោងទី ៦ (១៤:០០ - ១៥:០០)', short_label: 'ម៉ោងទី ៦' },
+            { shift: 'Afternoon', shift_kh: 'ពេលរសៀល', db_period_num: 7, start_hour: 15, start_min: 0, end_hour: 16, end_min: 0, label: 'ម៉ោងទី ៧ (១៥:០០ - ១៦:០០)', short_label: 'ម៉ោងទី ៧' },
+            { shift: 'Afternoon', shift_kh: 'ពេលរសៀល', db_period_num: 8, start_hour: 16, start_min: 0, end_hour: 17, end_min: 0, label: 'ម៉ោងទី ៨ (១៦:០០ - ១៧:០០)', short_label: 'ម៉ោងទី ៨' }
+        ];
+
+        function getClientCurrentPeriodInfo() {
+            const now = new Date();
+            const curMinutes = now.getHours() * 60 + now.getMinutes();
+            let matched = null;
+            for (let p of PERIOD_SCHEDULE) {
+                const sMin = p.start_hour * 60 + p.start_min;
+                const eMin = p.end_hour * 60 + p.end_min;
+                if (curMinutes >= sMin && curMinutes < eMin) {
+                    matched = Object.assign({}, p);
+                    break;
+                }
+            }
+
+            if (!matched) {
+                let upcoming = null;
+                for (let p of PERIOD_SCHEDULE) {
+                    const sMin = p.start_hour * 60 + p.start_min;
+                    if (curMinutes < sMin) {
+                        upcoming = p;
+                        break;
+                    }
+                }
+                return {
+                    has_active_period: false,
+                    period: null,
+                    upcoming: upcoming,
+                    phase: 'no_period',
+                    phase_kh: 'ក្រៅម៉ោងបង្រៀន',
+                    sec_remaining_window: 0,
+                    sec_remaining_period: 0
+                };
+            }
+
+            const startMin = matched.start_hour * 60 + matched.start_min;
+            const minIntoPeriod = curMinutes - startMin;
+            const secIntoPeriod = minIntoPeriod * 60 + now.getSeconds();
+            const windowLimit = 30 * 60; // 30-min window
+            const secRemainingWindow = Math.max(0, windowLimit - secIntoPeriod);
+            const secRemainingPeriod = Math.max(0, 3600 - secIntoPeriod);
+
+            const phase = minIntoPeriod < 30 ? 'first_30' : 'second_30';
+            const phaseKh = minIntoPeriod < 30 ? 'ចន្លោះពេល ៣០ នាទីដំបូង (កែប្រែបានសេរី)' : 'ចន្លោះពេលបន្ថែម (បញ្ចូលបានតែ ១ ដងគត់)';
+
+            matched.phase = phase;
+            matched.phase_kh = phaseKh;
+            matched.sec_remaining_window = secRemainingWindow;
+            matched.sec_remaining_period = secRemainingPeriod;
+
+            return {
+                has_active_period: true,
+                period: matched,
+                phase: phase,
+                phase_kh: phaseKh,
+                sec_remaining_window: secRemainingWindow,
+                sec_remaining_period: secRemainingPeriod
+            };
+        }
+
+        function getSubmissionAuditCount(cls, date, periodNum) {
+            const key = `audit_${date}_${cls}_p${periodNum}`;
+            const val = localStorage.getItem(key);
+            let count = val ? parseInt(val, 10) : 0;
+            if (count === 0) {
+                const existingRec = localStorage.getItem(`att_s_${date}_${cls}_p${periodNum}`);
+                if (existingRec) {
+                    count = 1;
+                }
+            }
+            return count;
+        }
+
+        function recordSubmissionAudit(cls, date, periodNum, phase) {
+            const key = `audit_${date}_${cls}_p${periodNum}`;
+            const count = getSubmissionAuditCount(cls, date, periodNum) + 1;
+            localStorage.setItem(key, count.toString());
+            try {
+                rtdb.ref(`/attendance_audits/${date}/${cls}_p${periodNum}`).set({
+                    class_name: cls,
+                    date: date,
+                    period: periodNum,
+                    submission_count: count,
+                    phase: phase,
+                    submitted_by: (currentUser && currentUser.full_name_kh) || 'Teacher',
+                    submitted_at: new Date().toISOString()
+                });
+            } catch (e) {}
+            return count;
+        }
+
+        function checkSubmissionWindowRuleClient(cls, date, periodNum) {
+            if (currentUser && currentUser.role === 'admin') {
+                return { allowed: true, phase: 'admin', message: 'អនុញ្ញាតកត់ត្រា (សិទ្ធិ Administrator)', count: 0 };
+            }
+
+            const todayStr = new Date().toISOString().split('T')[0];
+            if (date !== todayStr) {
+                return { allowed: false, phase: 'wrong_date', message: 'ប្រព័ន្ធអនុញ្ញាតឱ្យស្រង់វត្តមានសម្រាប់តែថ្ងៃនេះប៉ុណ្ណោះ! ថ្ងៃមុនៗអាចកត់ត្រាបានតែដោយ Admin។', count: 0 };
+            }
+
+            const info = getClientCurrentPeriodInfo();
+            if (!info.has_active_period) {
+                return { allowed: false, phase: 'outside_hours', message: 'បច្ចុប្បន្នស្ថិតនៅក្រៅម៉ោងបង្រៀនផ្លូវការ! ប្រព័ន្ធមិនអនុញ្ញាតឱ្យបញ្ចូលទិន្នន័យឡើយ។', count: 0 };
+            }
+
+            const activeP = info.period;
+            if (parseInt(periodNum, 10) !== activeP.db_period_num) {
+                return { allowed: false, phase: 'expired_period', message: `ផុតកំណត់ម៉ោងស្រង់វត្តមានហើយ! សូមស្រង់វត្តមានក្នុងម៉ោងបច្ចុប្បន្ន (${activeP.label}) ជំនួសវិញ។`, count: 0 };
+            }
+
+            const count = getSubmissionAuditCount(cls, date, periodNum);
+            if (info.phase === 'first_30') {
+                return { allowed: true, phase: 'first_30', message: 'អនុញ្ញាតក្នុងចន្លោះ ៣០ នាទីដំបូង (កែប្រែបានសេរី)', count: count };
+            } else {
+                if (count === 0) {
+                    return { allowed: true, phase: 'second_30', message: 'អនុញ្ញាតបញ្ចូលបានតែ ១ ដងគត់ក្នុងចន្លោះពេលបន្ថែម', count: count };
+                } else {
+                    return { allowed: false, phase: 'locked_second_30', message: `ផុតម៉ោងអនុញ្ញាតកែប្រែ (៣០ នាទីដំបូង) ហើយ! លោកគ្រូ-អ្នកគ្រូ បានដាក់ស្នើរួចហើយ (${count} ដង) មិនអាចកែប្រែបានទៀតទេ។`, count: count };
+                }
+            }
+        }
+
+        function formatMmSs(totalSec) {
+            const m = Math.floor(totalSec / 60);
+            const s = totalSec % 60;
+            return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
+        }
+
+        function updateTimeWindowBannerUI() {
+            const clsSelect = document.getElementById('attClassSelect');
+            const dateInput = document.getElementById('attDatePicker');
+            const pSelect = document.getElementById('attPeriodSelect');
+            if (!clsSelect || !dateInput || !pSelect) return;
+
+            const cls = clsSelect.value;
+            const date = dateInput.value;
+            const periodNum = parseInt(pSelect.value, 10);
+
+            const info = getClientCurrentPeriodInfo();
+            const rule = checkSubmissionWindowRuleClient(cls, date, periodNum);
+
+            const banner = document.getElementById('attTimeWindowBanner');
+            const phaseIcon = document.getElementById('attPhaseIcon');
+            const phaseTitle = document.getElementById('attPhaseTitle');
+            const phaseSub = document.getElementById('attPhaseSubtitle');
+            const curPName = document.getElementById('attCurrentPeriodName');
+            const cdTimer = document.getElementById('attCountdownTimer');
+            const lockBadge = document.getElementById('attLockBadge');
+            const lockIcon = document.getElementById('attLockIcon');
+            const lockText = document.getElementById('attLockBadgeText');
+            const saveBtn = document.getElementById('saveStudentAttBtn');
+            const saveBtnText = document.getElementById('saveStudentAttBtnText');
+
+            // Mobile portal elements
+            const mobActiveBadge = document.getElementById('mobActivePeriodBadge');
+            const mobPhaseIcon = document.getElementById('mobPhaseIcon');
+            const mobPhaseText = document.getElementById('mobPhaseText');
+
+            if (curPName) {
+                curPName.innerText = info.has_active_period ? info.period.label : (info.upcoming ? `បន្ទាប់៖ ${info.upcoming.short_label}` : 'ក្រៅម៉ោងបង្រៀន');
+            }
+            if (mobActiveBadge) {
+                mobActiveBadge.innerText = info.has_active_period ? info.period.label : 'ក្រៅម៉ោងបង្រៀន';
+            }
+
+            if (info.has_active_period) {
+                if (mobPhaseIcon && mobPhaseText) {
+                    if (info.phase === 'first_30') {
+                        mobPhaseIcon.innerText = '🟢';
+                        mobPhaseText.innerText = `៣០ នាទីដំបូង៖ នៅសល់ ${formatMmSs(info.sec_remaining_window)}`;
+                    } else {
+                        mobPhaseIcon.innerText = '⚠️';
+                        mobPhaseText.innerText = `៣០ នាទីចុងក្រោយ៖ នៅសល់ ${formatMmSs(info.sec_remaining_period)}`;
+                    }
+                }
+            } else {
+                if (mobPhaseIcon && mobPhaseText) {
+                    mobPhaseIcon.innerText = 'ℹ️';
+                    mobPhaseText.innerText = 'ក្រៅម៉ោងបង្រៀនផ្លូវការ';
+                }
+            }
+
+            if (!banner) return;
+
+            if (rule.allowed) {
+                if (rule.phase === 'admin') {
+                    banner.style.background = '#eff6ff';
+                    banner.style.borderColor = '#93c5fd';
+                    if (phaseIcon) phaseIcon.innerText = '🛡️';
+                    if (phaseTitle) {
+                        phaseTitle.innerText = 'របៀប Administrator (Admin Proxy)';
+                        phaseTitle.style.color = '#1e40af';
+                    }
+                    if (phaseSub) {
+                        phaseSub.innerText = 'មានសិទ្ធិកត់ត្រា និងកែប្រែគ្រប់ពេលវេលា';
+                        phaseSub.style.color = '#2563eb';
+                    }
+                    if (lockBadge) lockBadge.style.background = '#2563eb';
+                    if (lockIcon) lockIcon.className = 'fa-solid fa-shield-halved';
+                    if (lockText) lockText.innerText = 'សិទ្ធិ Admin';
+                } else if (rule.phase === 'first_30') {
+                    banner.style.background = '#f0fdf4';
+                    banner.style.borderColor = '#86efac';
+                    if (phaseIcon) phaseIcon.innerText = '🟢';
+                    if (phaseTitle) {
+                        phaseTitle.innerText = 'ចន្លោះពេល ៣០ នាទីដំបូង (កែប្រែបានសេរី)';
+                        phaseTitle.style.color = '#166534';
+                    }
+                    if (phaseSub) {
+                        phaseSub.innerHTML = `ម៉ោងបច្ចុប្បន្ន៖ ${info.period.label} • នៅសល់ <span id="attCountdownTimer" style="font-weight:800; font-family:monospace; font-size:0.95rem;">${formatMmSs(info.sec_remaining_window)}</span>`;
+                        phaseSub.style.color = '#15803d';
+                    }
+                    if (lockBadge) lockBadge.style.background = '#16a34a';
+                    if (lockIcon) lockIcon.className = 'fa-solid fa-lock-open';
+                    if (lockText) lockText.innerText = 'កែប្រែបានសេរី';
+                } else {
+                    banner.style.background = '#fffbeb';
+                    banner.style.borderColor = '#fde68a';
+                    if (phaseIcon) phaseIcon.innerText = '⚠️';
+                    if (phaseTitle) {
+                        phaseTitle.innerText = 'ចន្លោះពេលបន្ថែម (៣០ នាទីចុងក្រោយ)';
+                        phaseTitle.style.color = '#92400e';
+                    }
+                    if (phaseSub) {
+                        phaseSub.innerHTML = `អនុញ្ញាតបញ្ចូលបានតែ <b>១ ដងគត់</b>! • នៅសល់ម៉ោង៖ ${formatMmSs(info.sec_remaining_period)}`;
+                        phaseSub.style.color = '#b45309';
+                    }
+                    if (lockBadge) lockBadge.style.background = '#d97706';
+                    if (lockIcon) lockIcon.className = 'fa-solid fa-triangle-exclamation';
+                    if (lockText) lockText.innerText = 'បញ្ចូលបាន ១ ដងគត់';
+                }
+
+                if (saveBtn) {
+                    saveBtn.disabled = false;
+                    saveBtn.style.opacity = '1';
+                    saveBtn.style.cursor = 'pointer';
+                    saveBtn.title = 'ចុចដើម្បីរក្សាទុកវត្តមាន';
+                }
+                if (saveBtnText) saveBtnText.innerText = 'រក្សាទុកទិន្នន័យ (Cloud Save)';
+            } else {
+                // Locked / Disallowed
+                banner.style.background = '#fef2f2';
+                banner.style.borderColor = '#fecaca';
+                if (phaseIcon) phaseIcon.innerText = '🔒';
+                if (phaseTitle) {
+                    phaseTitle.innerText = 'បានចាក់សោរ (Locked) - មិនអនុញ្ញាតឱ្យកែប្រែ';
+                    phaseTitle.style.color = '#991b1b';
+                }
+                if (phaseSub) {
+                    phaseSub.innerText = rule.message;
+                    phaseSub.style.color = '#dc2626';
+                }
+                if (lockBadge) lockBadge.style.background = '#dc2626';
+                if (lockIcon) lockIcon.className = 'fa-solid fa-lock';
+                if (lockText) lockText.innerText = 'បានចាក់សោរ';
+
+                if (saveBtn) {
+                    saveBtn.disabled = true;
+                    saveBtn.style.opacity = '0.5';
+                    saveBtn.style.cursor = 'not-allowed';
+                    saveBtn.title = rule.message;
+                }
+                if (saveBtnText) saveBtnText.innerText = '🔒 បានចាក់សោរ (Locked)';
+            }
+        }
+
         async function saveStudentAttendanceCloud() {
             const cls = document.getElementById('attClassSelect').value;
             const date = document.getElementById('attDatePicker').value;
             const period = document.getElementById('attPeriodSelect').value;
+
+            // Enforce 30-minute time window rule
+            const rule = checkSubmissionWindowRuleClient(cls, date, period);
+            if (!rule.allowed) {
+                showToast(`🔒 ${rule.message}`, "error");
+                updateTimeWindowBannerUI();
+                return;
+            }
 
             // Fill default present
             const students = (dbData.students_by_class && dbData.students_by_class[cls]) ? dbData.students_by_class[cls] : [];
@@ -1795,6 +2165,7 @@
                 class_name: cls,
                 date: date,
                 period: period,
+                phase: rule.phase,
                 recorded_by: currentUser.full_name_kh,
                 recorded_at: new Date().toISOString(),
                 records: activeStudentAttendance
@@ -1809,8 +2180,16 @@
             try {
                 const timeoutP = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 2500));
                 await Promise.race([rtdb.ref(`/attendance/students/${date}/${recordKey}`).set(payload), timeoutP]);
-                showToast(`✅ បានរក្សាទុកវត្តមានថ្នាក់ ${cls} ម៉ោងទី ${period} ជោគជ័យ!`, "success");
+                
+                // Record submission count for 30-minute lockout rule
+                const newCount = recordSubmissionAudit(cls, date, period, rule.phase);
+                updateTimeWindowBannerUI();
+
+                const phaseMsg = rule.phase === 'first_30' ? 'កែប្រែបានសេរី' : (rule.phase === 'admin' ? 'សិទ្ធិ Admin' : `លើកទី ${newCount} - បានចាក់សោរ`);
+                showToast(`✅ បានរក្សាទុកវត្តមានថ្នាក់ ${cls} ម៉ោងទី ${period} ជោគជ័យ! (${phaseMsg})`, "success");
             } catch (err) {
+                recordSubmissionAudit(cls, date, period, rule.phase);
+                updateTimeWindowBannerUI();
                 showToast(`✅ បានកត់ត្រាវត្តមានថ្នាក់ ${cls} ម៉ោងទី ${period} រួចរាល់!`, "success");
             }
             renderDashboard();
